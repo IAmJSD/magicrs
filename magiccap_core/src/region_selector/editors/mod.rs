@@ -12,11 +12,17 @@ pub trait EditorFactory {
     fn create_editor(&mut self) -> Box<dyn Editor>;
 }
 
+// Defines the editor region.
+pub struct EditorRegion {
+    pub width: u32,
+    pub height: u32,
+}
+
 // Defines an editor made by a factory.
 pub trait Editor {
     // If this returns a value, turns this editor from a draggable one to a
     // click controlled one.
-    fn click(&self, x: i32, y: i32) -> Option<image::RgbaImage>;
+    fn click(&mut self, x: i32, y: i32) -> Option<EditorRegion>;
 
     // Renders the editor.
     fn render(

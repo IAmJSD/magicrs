@@ -68,12 +68,15 @@ fn mouse_left_release(ctx: &mut RegionSelectorContext, i: i32) -> Option<RegionC
 // Defines when a number key is hit. This function is a bit special since we repeat it
 // a lot so we render the UI in here.
 fn number_key_hit(ctx: &mut RegionSelectorContext, number: u8) {
+    // Return early if editors are off.
+    if !ctx.setup.show_editors { return; }
+
     if number == 1 {
         // If the key is 1, go ahead and remove the tool.
         ctx.editor_index = None;
     } else {
         // Check if the number is greater than the number of editors.
-        let number_u = number as usize;
+        let number_u = number as usize - 1;
         if number_u > ctx.editors.len() {
             return;
         }

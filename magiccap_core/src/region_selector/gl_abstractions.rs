@@ -35,11 +35,6 @@ impl GLShaderProgram {
         }
     }
 
-    // Use the shader program.
-    pub fn use_program(&self) {
-        unsafe { gl::UseProgram(self.program) };
-    }
-
     // Takes a fragment shader and compiles it.
     pub fn compile_fragment_shader(&mut self, source: String, filename: &str) {
         // Create the shader.
@@ -151,4 +146,68 @@ impl Drop for GLTexture {
     fn drop(&mut self) {
         unsafe { gl::DeleteTextures(1, &self.texture) };
     }
+}
+
+// Copies the image data from one texture to another.
+pub fn copy_texture(texture: &GLTexture, width: u32, height: u32, x: i32, y: i32) -> GLTexture {
+    // Generate the texture.
+    let mut new_texture = 0;
+    unsafe { gl::GenTextures(1, &mut new_texture) };
+
+    // Bind the texture.
+    unsafe { gl::BindTexture(gl::TEXTURE_2D, new_texture) };
+
+    // Check if glCopyImageSubData is supported (macOS is stuck at 4.1 :/).
+    let supported = unsafe {
+        let mut major = 0;
+        let mut minor = 0;
+        gl::GetIntegerv(gl::MAJOR_VERSION, &mut major);
+        gl::GetIntegerv(gl::MINOR_VERSION, &mut minor);
+        major > 4 || (major == 4 && minor >= 3)
+    };
+
+    if supported {
+        // Copy the texture.
+        unsafe {
+            gl::CopyImageSubData(
+                texture.texture, gl::TEXTURE_2D, 0, x, y, 0,
+                new_texture, gl::TEXTURE_2D, 0, 0, 0, 0,
+                width as i32, height as i32, 1
+            );
+        }
+    } else {
+        // Get the texture data.
+        let mut data = vec![0; (width * height * 4) as usize];
+        unsafe {
+            gl::BindTexture(gl::TEXTURE_2D, texture.texture);
+            gl::GetTexImage(
+                gl::TEXTURE_2D, 0, gl::RGBA, gl::UNSIGNED_BYTE,
+                data.as_mut_ptr() as *mut _
+            );
+        }
+
+        // Set the texture parameters.
+        unsafe {
+            gl::TexImage2D(
+                gl::TEXTURE_2D, 0, gl::RGBA as i32,
+                width as i32, height as i32,
+                0, gl::RGBA, gl::UNSIGNED_BYTE,
+                data.as_ptr() as *const _
+            );
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
+        }
+    }
+
+    // Set the texture parameters.
+    unsafe {
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
+    }
+
+    // Unbind the texture.
+    unsafe { gl::BindTexture(gl::TEXTURE_2D, 0) };
+
+    // Return the texture.
+    GLTexture { texture: new_texture }
 }
