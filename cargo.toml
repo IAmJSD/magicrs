@@ -1,0 +1,3 @@
+[workspace]
+members = ["bootloader", "magiccap_core", "core_embedded"]
+resolver = "2"

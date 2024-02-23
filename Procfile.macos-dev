@@ -1,0 +1,2 @@
+frontend: cd frontend && yarn run dev
+core: MAGICCAP_DEV_FRONTEND_URL=http://localhost:5173/ ./macos/MagicCap\ Dev.app/Contents/MacOS/MagicCap

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>MagicCap</title>
+        <meta charset="UTF-8" />
+    </head>
+
+    <body>
+        <style>
+            body {
+                margin: 0;
+                padding: 0;
+                overflow: hidden;
+                user-select: none;
+                cursor: default;
+                background-color: rgba(255, 255, 255, 0.9);
+            }
+
+            @media (prefers-color-scheme: dark) {
+                body {
+                    color: #fff;
+                    background-color: rgba(0, 0, 0, 0.9);
+                }
+            }
+        </style>
+        <div id="modal_portal"></div>
+        <div id="app"></div>
+        <script type="module" src="./src/index.ts"></script>
+    </body>
+</html>
