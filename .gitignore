@@ -1,4 +1,4 @@
-/target
+target
 /build_signing.pem
 /macos/MagicCap Dev.app
 .DS_Store

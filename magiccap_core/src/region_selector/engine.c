@@ -1,11 +1,14 @@
 #ifndef _ENGINE_C
 #define _ENGINE_C
 #include <inttypes.h>
-#include <dispatch/dispatch.h>
 #include <GLFW/glfw3.h>
-#include <OpenGL/gl3.h>
+#include <stdbool.h>
 #ifdef __APPLE__
+#include <OpenGL/gl3.h>
 #include "./engine.m"
+#endif
+#ifdef __linux__
+#include <GL/gl.h>
 #endif
 
 // Defines a co-ordinate.

@@ -359,6 +359,18 @@ fn select_folder() -> Result<serde_json::Value, APIError> {
     Ok(serde_json::Value::String(path.to_str().unwrap().to_string()))
 }
 
+// Selects a folder on Linux.
+#[cfg(target_os = "linux")]
+fn select_folder() -> Result<serde_json::Value, APIError> {
+    use native_dialog::FileDialog;
+
+    let res = FileDialog::new().show_open_single_dir().unwrap();
+    match res {
+        None => Ok(serde_json::Value::Null),
+        Some(fp) => Ok(serde_json::Value::String(fp.to_str().unwrap().to_string())),
+    }
+}
+
 // Selects a file on macOS.
 #[cfg(target_os = "macos")]
 fn select_file() -> Result<serde_json::Value, APIError> {
@@ -390,6 +402,33 @@ fn select_file() -> Result<serde_json::Value, APIError> {
     };
 
     Ok(serde_json::Value::String(data))
+}
+
+// Select a file in Linux.
+#[cfg(target_os = "linux")]
+fn select_file() -> Result<serde_json::Value, APIError> {
+    use native_dialog::FileDialog;
+
+    let res = FileDialog::new().show_open_single_file().unwrap();
+    match res {
+        None => Ok(serde_json::Value::Null),
+        Some(path) => {
+            // Read the file.
+            let data = match std::fs::read(&path) {
+                Ok(data) => data,
+                Err(_) => return Ok(serde_json::Value::Null),
+            };
+
+            // Turn the vec into a string.
+            let data = match String::from_utf8(data) {
+                Ok(data) => data,
+                Err(_) => return Ok(serde_json::Value::Null),
+            };
+
+            // Return as a string.
+            Ok(serde_json::Value::String(data))
+        },
+    }
 }
 
 // Get all the uploaders.

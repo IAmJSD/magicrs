@@ -243,3 +243,32 @@ pub fn update_webview_with_capture(capture_id: i64) {
         None => {},
     }
 }
+
+// Handles loading the config on Linux.
+// !! WARNING !!: This is assumed to be on the main thread. If it is not, it will cause a crash.
+#[cfg(target_os = "linux")]
+pub fn open_config() {
+    use webkit2gtk::WebViewBuilder;
+
+    use crate::linux_shared::app;
+
+    // Check if the webview is already open.
+    let webview_r = app().webview.read().unwrap();
+    if webview_r.is_some() {
+        // Focus the webview and return.
+        // TODO: Focus on Linux
+        return;
+    }
+    drop(webview_r);
+
+    // Get a write lock on the webview.
+    let mut webview_w = app().webview.write().unwrap();
+    if webview_w.is_some() {
+        // This is a duplicate of the above to deal with the VERY rare case that a webview was opened
+        // between the read unlock and the write lock.
+        // TODO: focus on linux
+        return;
+    }
+
+    // TODO
+}
