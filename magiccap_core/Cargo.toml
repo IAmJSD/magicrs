@@ -32,6 +32,8 @@ urlencoding = "2.1.3"
 copypasta = "0.10.1"
 xcap = "0.0.4"
 image = "0.24.8"
+glfw = "0.55.0"
+gl = "0.14.0"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cacao = { version = "0.3.2", features = ["webview"] }
