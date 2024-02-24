@@ -1,14 +1,18 @@
 use std::{collections::HashMap, ffi::{c_uint, CString}, ptr, thread};
-use super::RegionCapture;
+use super::{
+    ui_renderer::region_selector_render_ui,
+    event_loop_handler::region_selector_event_loop_handler,
+    RegionCapture,
+};
 use xcap::Monitor;
 use crate::mainthread::{main_thread_async, main_thread_sync};
-use glfw::{Action, Glfw, Key, PWindow};
+use glfw::{Glfw, PWindow};
 use include_dir::{include_dir, Dir};
 
 // A container that holds data and the thread ID of the thread that created the container. Note that
 // this container must be dropped in the same thread that created it, otherwise this will panic since
 // the thread ID will be different.
-struct ThreadBoundContainer<T> {
+pub struct ThreadBoundContainer<T> {
     data: T,
     thread_id: thread::ThreadId,
 }
@@ -23,7 +27,7 @@ impl<T> ThreadBoundContainer<T> {
     }
 
     // Gets a mutable reference to the data if the current thread is the same as the one that created the container.
-    fn as_mut(&mut self) -> Result<&mut T, &'static str> {
+    pub fn as_mut(&mut self) -> Result<&mut T, &'static str> {
         if self.thread_id == thread::current().id() {
             Ok(&mut self.data)
         } else {
@@ -101,7 +105,7 @@ impl Drop for GLShaderProgram {
 }
 
 // Defines the setup results.
-struct RegionSelectorContext {
+pub struct RegionSelectorContext {
     pub setup: Box<RegionSelectorSetup>,
     pub glfw: Glfw,
     pub glfw_windows: Vec<PWindow>,
@@ -111,11 +115,6 @@ struct RegionSelectorContext {
 
 // Include the directory with the shaders.
 static SHADERS_FOLDER: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/src/region_selector/fragments");
-
-// Renders the UI.
-fn region_selector_render_ui(context: &mut RegionSelectorContext, with_decorations: bool) {
-    // TODO: implement this.
-}
 
 // Sets up the region selector.
 fn setup_region_selector(setup: Box<RegionSelectorSetup>) -> Option<ThreadBoundContainer<RegionSelectorContext>> {
@@ -192,40 +191,6 @@ fn setup_region_selector(setup: Box<RegionSelectorSetup>) -> Option<ThreadBoundC
 
     // Return the context.
     Some(ThreadBoundContainer::new(context))
-}
-
-// Defines the event loop handler for the region selector.
-fn region_selector_event_loop_handler(
-    ctx: &mut ThreadBoundContainer<RegionSelectorContext>
-) -> Option<Option<RegionCapture>> {
-    // Convert the container into a mutable reference.
-    let ctx = ctx.as_mut().unwrap();
-
-    // Go through the windows.
-    for window in &mut ctx.glfw_windows {
-        if window.should_close() {
-            // All the other windows should die too.
-            return Some(None);
-        }
-    }
-
-    // Poll the events.
-    ctx.glfw.poll_events();
-    for events in &ctx.glfw_events {
-        for (_, event) in glfw::flush_messages(events) {
-            match event {
-                glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
-                    // End the event loop.
-                    return Some(None);
-                }
-                // TODO: other events.
-                _ => {},
-            }
-        }
-    }
-
-    // Return none if nothing interesting happened.
-    None
 }
 
 // Make sure a item gets dropped on the main thread.

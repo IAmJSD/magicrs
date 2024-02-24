@@ -1,4 +1,6 @@
 mod engine;
+mod event_loop_handler;
+mod ui_renderer;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use xcap::{Monitor, Window};
