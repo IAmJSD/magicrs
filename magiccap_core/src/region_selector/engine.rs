@@ -1,10 +1,10 @@
-use std::{collections::HashMap, ffi::{c_uint, CString}, ptr, thread};
+use std::{collections::HashMap, thread};
 use super::{
-    ui_renderer::region_selector_render_ui,
     event_loop_handler::region_selector_event_loop_handler,
+    gl_abstractions::{GLShaderProgram, GLTexture},
+    ui_renderer::region_selector_render_ui,
     RegionCapture,
 };
-use xcap::Monitor;
 use crate::mainthread::{main_thread_async, main_thread_sync};
 use glfw::{Glfw, PWindow};
 use include_dir::{include_dir, Dir};
@@ -51,7 +51,7 @@ impl<T> Drop for ThreadBoundContainer<T> {
 // Defines the items required to setup the region selector.
 pub struct RegionSelectorSetup {
     pub windows: Vec<xcap::Window>,
-    pub monitors: Vec<Monitor>,
+    pub monitors: Vec<xcap::Monitor>,
     pub images: Vec<image::RgbaImage>,
     pub show_editors: bool,
 }
@@ -59,58 +59,14 @@ pub struct RegionSelectorSetup {
 // Doesn't actually matter here.
 unsafe impl Send for RegionSelectorSetup {}
 
-// Defines a high-level API for shader programs.
-struct GLShaderProgram {
-    pub program: c_uint,
-}
-
-impl GLShaderProgram {
-    // Creates a new shader program.
-    pub fn new() -> GLShaderProgram {
-        GLShaderProgram {
-            program: unsafe { gl::CreateProgram() },
-        }
-    }
-
-    // Takes a fragment shader and compiles it.
-    pub fn compile_fragment_shader(&mut self, source: String) {
-        // Create the shader.
-        let shader = unsafe { gl::CreateShader(gl::FRAGMENT_SHADER) };
-
-        // Compile the shader.
-        let cstr = CString::new(source).unwrap();
-        unsafe {
-            gl::ShaderSource(
-                shader, 1,
-                &cstr.as_ptr(),
-                ptr::null()
-            );
-            gl::CompileShader(shader);
-        }
-        drop(cstr);
-
-        // Attach the shader to the program.
-        unsafe { gl::AttachShader(self.program, shader) };
-
-        // Delete the shader.
-        unsafe { gl::DeleteShader(shader) };
-    }
-}
-
-// Ensures the shader program is freed.
-impl Drop for GLShaderProgram {
-    fn drop(&mut self) {
-        unsafe { gl::DeleteProgram(self.program) };
-    }
-}
-
 // Defines the setup results.
 pub struct RegionSelectorContext {
     pub setup: Box<RegionSelectorSetup>,
     pub glfw: Glfw,
     pub glfw_windows: Vec<PWindow>,
     pub glfw_events: Vec<glfw::GlfwReceiver<(f64, glfw::WindowEvent)>>,
-    pub glfw_shaders: HashMap<String, GLShaderProgram>,
+    pub gl_shaders: HashMap<String, GLShaderProgram>,
+    pub gl_screenshots: Vec<GLTexture>,
 }
 
 // Include the directory with the shaders.
@@ -160,7 +116,7 @@ fn setup_region_selector(setup: Box<RegionSelectorSetup>) -> Option<ThreadBoundC
     gl::load_with(|s| first_window_ref.get_proc_address(s) as *const _);
 
     // Compile the shaders.
-    let mut glfw_shaders = HashMap::new();
+    let mut gl_shaders = HashMap::new();
     for shader in SHADERS_FOLDER.files() {
         // This long line gets the shader name.
         let shader_name = shader.path().file_name().unwrap().
@@ -174,8 +130,13 @@ fn setup_region_selector(setup: Box<RegionSelectorSetup>) -> Option<ThreadBoundC
         program.compile_fragment_shader(shader);
 
         // Insert the shader into the hashmap.
-        glfw_shaders.insert(shader_name, program);
+        gl_shaders.insert(shader_name, program);
     }
+
+    // Turn the images into textures.
+    let gl_screenshots = setup.images.iter().map(|img| {
+        GLTexture::from_rgba(&img)
+    }).collect::<Vec<_>>();
 
     // Create the context.
     let mut context = RegionSelectorContext {
@@ -183,11 +144,16 @@ fn setup_region_selector(setup: Box<RegionSelectorSetup>) -> Option<ThreadBoundC
         glfw,
         glfw_windows,
         glfw_events,
-        glfw_shaders,
+        gl_shaders,
+        gl_screenshots,
     };
 
     // Render the UI.
-    region_selector_render_ui(&mut context, true);
+    unsafe {
+        region_selector_render_ui(
+            &mut context, true, None
+        )
+    };
 
     // Return the context.
     Some(ThreadBoundContainer::new(context))

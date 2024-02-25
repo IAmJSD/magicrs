@@ -12,7 +12,7 @@ pub fn region_selector_event_loop_handler(
     let ctx = ctx.as_mut().unwrap();
 
     // Go through the windows.
-    for window in &mut ctx.glfw_windows {
+    for window in &ctx.glfw_windows {
         if window.should_close() {
             // All the other windows should die too.
             return Some(None);

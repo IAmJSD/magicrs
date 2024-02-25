@@ -1,5 +1,6 @@
 mod engine;
 mod event_loop_handler;
+mod gl_abstractions;
 mod ui_renderer;
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -86,7 +87,7 @@ pub fn open_region_selector(show_editors: bool) -> Option<RegionCapture> {
     monitors.push(last_monitor);
 
     // Wait for all the threads to finish.
-    let mut screenshots = Vec::with_capacity(threads.len());
+    let mut screenshots = Vec::with_capacity(threads.len() + 1);
     for thread in threads {
         screenshots.push(match thread.join().unwrap() {
             Some(image) => image,
