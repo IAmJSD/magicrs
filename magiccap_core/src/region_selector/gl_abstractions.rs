@@ -13,6 +13,11 @@ impl GLShaderProgram {
         }
     }
 
+    // Use the shader program.
+    pub fn use_program(&self) {
+        unsafe { gl::UseProgram(self.program) };
+    }
+
     // Takes a fragment shader and compiles it.
     pub fn compile_fragment_shader(&mut self, source: String) {
         // Create the shader.

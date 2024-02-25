@@ -1,15 +1,15 @@
 use glfw::{Action, Key};
 use super::{
-    engine::{RegionSelectorContext, ThreadBoundContainer},
+    engine::{RegionSelectorContext, SendSyncBypass},
     RegionCapture,
 }; 
 
 // Defines the event loop handler for the region selector.
 pub fn region_selector_event_loop_handler(
-    ctx: &mut ThreadBoundContainer<RegionSelectorContext>
+    ctx: &mut SendSyncBypass<RegionSelectorContext>
 ) -> Option<Option<RegionCapture>> {
     // Convert the container into a mutable reference.
-    let ctx = ctx.as_mut().unwrap();
+    let ctx = ctx.as_mut();
 
     // Go through the windows.
     for window in &ctx.glfw_windows {

@@ -1,42 +1,43 @@
 use glfw::{Context, Window};
 use super::{
     engine::RegionSelectorContext,
-    gl_abstractions::GLTexture
+    gl_abstractions::{GLShaderProgram, GLTexture}
 };
 
 // Draw the image background.
-unsafe fn draw_image_background(texture: &GLTexture, w: u32, h: u32) {
-    // Bind the texture.
-    gl::BindTexture(gl::TEXTURE_2D, texture.texture);
+unsafe fn draw_image_background(
+    texture: &GLTexture, texture_w: i32, texture_h: i32,
+    window_w: i32, window_h: i32
+) {
+    // Create a framebuffer.
+    let mut framebuffer = 0;
+    gl::GenFramebuffers(1, &mut framebuffer);
+    gl::BindFramebuffer(gl::READ_FRAMEBUFFER, framebuffer);
+    gl::FramebufferTexture2D(
+        gl::READ_FRAMEBUFFER, gl::COLOR_ATTACHMENT0,
+        gl::TEXTURE_2D, texture.texture, 0
+    );
 
-    // Set the texture parameters.
-    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
-    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
+    // Blit the framebuffer.
+    gl::BlitFramebuffer(
+        0, 0, texture_w, texture_h,
+        0, window_h, window_w, 0,
+        gl::COLOR_BUFFER_BIT, gl::NEAREST
+    );
 
-    // Set the texture wrapping.
-    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
-    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
+    // Delete the framebuffer.
+    gl::DeleteFramebuffers(1, &framebuffer);
+}
 
-    // Draw the quad.
-    gl::BeginTransformFeedback(gl::QUADS);
-    gl::TexCoordP2ui(0, 0);
-    gl::VertexP2ui(0, 0);
-    gl::TexCoordP2ui(1, 0);
-    gl::VertexP2ui(w, 0);
-    gl::TexCoordP2ui(1, 1);
-    gl::VertexP2ui(w, h);
-    gl::TexCoordP2ui(0, 1);
-    gl::VertexP2ui(0, h);
-    gl::EndTransformFeedback();
-
-    // Flush the buffer.
-    gl::Flush();
+// Darkens the background.
+unsafe fn darken_background(window_w: i32, window_h: i32, program: &GLShaderProgram) {
+    // TODO
 }
 
 // Handles iterating or jumping right to a index.
-fn iter_screenshots_or_jump(
-    ctx: &mut RegionSelectorContext, index: Option<u32>,
-    closure: &dyn Fn(&mut RegionSelectorContext, &mut Window, &GLTexture)
+fn iter_windows_or_jump(
+    ctx: &mut RegionSelectorContext, index: Option<usize>,
+    closure: &dyn Fn(&mut RegionSelectorContext, &mut Window, usize)
 ) {
     // Use unsafe to get the mutable reference. This is safe because we know that the context will outlive
     // the mutable reference.
@@ -44,44 +45,46 @@ fn iter_screenshots_or_jump(
 
     // Handle if the index is set.
     if let Some(index) = index {
-        // Get the window and screenshot.
-        let screenshot = &ctx2.gl_screenshots[index as usize];
-        let window = &mut ctx2.glfw_windows[index as usize];
+        // Get the window.
+        let window = &mut ctx2.glfw_windows[index];
 
         // Call the closure with separate mutable references.
-        closure(ctx, window, screenshot);
+        closure(ctx, window, index);
         return;
     }
 
     // Iterate through the screenshots.
-    for (_, (window, screenshot)) in ctx2.glfw_windows.iter_mut().zip(&ctx2.gl_screenshots).enumerate() {
+    for (i, window) in ctx2.glfw_windows.iter_mut().enumerate() {
         // Call the closure with separate mutable references.
-        closure(ctx, window, screenshot);
+        closure(ctx, window, i);
     }
 }
 
 // Renders the UI. This is marked as unsafe because it uses OpenGL.
 pub unsafe fn region_selector_render_ui(
-    ctx: &mut RegionSelectorContext, with_decorations: bool, window_index: Option<u32>
+    ctx: &mut RegionSelectorContext, with_decorations: bool, window_index: Option<usize>
 ) {
-    // Enable textures and blending.
-    gl::Enable(gl::TEXTURE_2D);
-    gl::Enable(gl::BLEND);
-
-    // Iterate through the screenshots.
-    iter_screenshots_or_jump(ctx, window_index, &|ctx, window, screenshot| {
+    iter_windows_or_jump(ctx, window_index, &|ctx, window, i| {
         // Set the viewport.
         let (width, height) = window.get_size();
         gl::Viewport(0, 0, width, height);
 
         // Render the image background.
-        draw_image_background(screenshot, width as u32, height as u32);
+        let screenshot = &ctx.gl_screenshots[i];
+        let (texture_w, texture_h) = ctx.setup.images[i].dimensions();
+        draw_image_background(
+            screenshot, texture_w as i32, texture_h as i32,
+            width, height
+        );
 
-        // Swap the buffer.
+        // If decorations are enabled, darken the background.
+        //let brightness_shader = &ctx.gl_shaders["brightness"];
+        //if with_decorations { darken_background(width, height, brightness_shader) }
+
+        // Flush the buffer.
+        gl::Flush();
+
+        // Swap the buffer with the current window.
         window.swap_buffers();
-    });
-
-    // Disable textures and blending.
-    gl::Disable(gl::TEXTURE_2D);
-    gl::Disable(gl::BLEND);
+    })
 }

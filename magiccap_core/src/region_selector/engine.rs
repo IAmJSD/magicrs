@@ -9,44 +9,22 @@ use crate::mainthread::{main_thread_async, main_thread_sync};
 use glfw::{Glfw, PWindow};
 use include_dir::{include_dir, Dir};
 
-// A container that holds data and the thread ID of the thread that created the container. Note that
-// this container must be dropped in the same thread that created it, otherwise this will panic since
-// the thread ID will be different.
-pub struct ThreadBoundContainer<T> {
+// A container that bypasses the Send and Sync traits.
+pub struct SendSyncBypass<T> {
     data: T,
-    thread_id: thread::ThreadId,
 }
 
-impl<T> ThreadBoundContainer<T> {
+impl<T> SendSyncBypass<T> {
     // Creates a new container with the given data.
-    fn new(data: T) -> ThreadBoundContainer<T> {
-        ThreadBoundContainer {
-            data,
-            thread_id: thread::current().id(),
-        }
+    fn new(data: T) -> SendSyncBypass<T> {
+        SendSyncBypass { data }
     }
 
-    // Gets a mutable reference to the data if the current thread is the same as the one that created the container.
-    pub fn as_mut(&mut self) -> Result<&mut T, &'static str> {
-        if self.thread_id == thread::current().id() {
-            Ok(&mut self.data)
-        } else {
-            Err("Data accessed from wrong thread")
-        }
-    }
+    // Gets a mutable reference to the data.
+    pub fn as_mut(&mut self) -> &mut T { &mut self.data }
 }
-
-// This is safe to pass between threads because the data is not accessible from other threads.
-unsafe impl<T> Send for ThreadBoundContainer<T> {}
-unsafe impl<T> Sync for ThreadBoundContainer<T> {}
-
-// Implements drop. Note that this will panic if the container is dropped in a different thread than the one that
-// created it.
-impl<T> Drop for ThreadBoundContainer<T> {
-    fn drop(&mut self) {
-        assert_eq!(self.thread_id, thread::current().id());
-    }
-}
+unsafe impl<T> Send for SendSyncBypass<T> {}
+unsafe impl<T> Sync for SendSyncBypass<T> {}
 
 // Defines the items required to setup the region selector.
 pub struct RegionSelectorSetup {
@@ -73,7 +51,7 @@ pub struct RegionSelectorContext {
 static SHADERS_FOLDER: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/src/region_selector/fragments");
 
 // Sets up the region selector.
-fn setup_region_selector(setup: Box<RegionSelectorSetup>) -> Option<ThreadBoundContainer<RegionSelectorContext>> {
+fn setup_region_selector(setup: Box<RegionSelectorSetup>) -> Option<SendSyncBypass<RegionSelectorContext>> {
     // Setup glfw.
     let mut glfw = glfw::init(glfw::fail_on_errors).unwrap();
 
@@ -156,7 +134,7 @@ fn setup_region_selector(setup: Box<RegionSelectorSetup>) -> Option<ThreadBoundC
     };
 
     // Return the context.
-    Some(ThreadBoundContainer::new(context))
+    Some(SendSyncBypass::new(context))
 }
 
 // Make sure a item gets dropped on the main thread.
