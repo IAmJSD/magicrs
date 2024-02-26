@@ -6,10 +6,10 @@ use super::{
 
 // Defines the event loop handler for the region selector.
 pub fn region_selector_event_loop_handler(
-    ctx: &mut SendSyncBypass<RegionSelectorContext>
+    ctx: &mut Box<SendSyncBypass<RegionSelectorContext>>
 ) -> Option<Option<RegionCapture>> {
     // Convert the container into a mutable reference.
-    let ctx = ctx.as_mut();
+    let ctx = ctx.as_mut().as_mut();
 
     // Go through the windows.
     for window in &ctx.glfw_windows {

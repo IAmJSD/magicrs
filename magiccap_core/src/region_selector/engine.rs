@@ -67,7 +67,7 @@ pub struct RegionSelectorContext<'a> {
 // Sets up the region selector.
 fn setup_region_selector<'a>(
     setup: Box<RegionSelectorSetup>, screenshots: &mut Vec<RgbaImage>,
-) -> Option<SendSyncBypass<RegionSelectorContext<'a>>> {
+) -> Option<Box<SendSyncBypass<RegionSelectorContext<'a>>>> {
     // Setup glfw.
     let mut glfw = glfw::init(glfw::fail_on_errors).unwrap();
 
@@ -161,7 +161,7 @@ fn setup_region_selector<'a>(
     };
 
     // Return the context.
-    Some(SendSyncBypass::new(context))
+    Some(Box::new(SendSyncBypass::new(context)))
 }
 
 // Make sure a item gets dropped on the main thread.
