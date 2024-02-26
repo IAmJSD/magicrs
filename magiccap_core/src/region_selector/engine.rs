@@ -1,14 +1,14 @@
-use std::thread;
+use std::{thread, time};
 use super::{
+    editors::{create_editor_vec, Editor, EditorContext},
     event_loop_handler::region_selector_event_loop_handler,
-    gl_abstractions::{GLShaderProgram, GLTexture},
-    ui_renderer::region_selector_render_ui,
-    RegionCapture,
+    gl_abstractions::GLTexture,
+    ui_renderer::region_selector_render_ui, RegionCapture
 };
 use crate::mainthread::{main_thread_async, main_thread_sync};
 use glfw::{Glfw, PWindow};
 use image::RgbaImage;
-use include_dir::{include_dir, Dir};
+use once_cell::unsync::Lazy;
 
 // A container that bypasses the Send and Sync traits.
 pub struct SendSyncBypass<T> {
@@ -37,8 +37,18 @@ pub struct RegionSelectorSetup {
 // Doesn't actually matter here.
 unsafe impl Send for RegionSelectorSetup {}
 
-// Defines the setup results.
-pub struct RegionSelectorContext {
+// Defines a editors usage.
+pub struct EditorUsage<'a> {
+    pub editor: &'a Lazy<Box<dyn Editor + 'a>>,
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+}
+
+// Defines the context passed around internally.
+pub struct RegionSelectorContext<'a> {
+    // Defines everything created during initialization.
     pub setup: Box<RegionSelectorSetup>,
     pub glfw: Glfw,
     pub glfw_windows: Vec<PWindow>,
@@ -46,14 +56,18 @@ pub struct RegionSelectorContext {
     pub image_dimensions: Vec<(u32, u32)>,
     pub gl_screenshots: Vec<GLTexture>,
     pub gl_screenshots_darkened: Vec<GLTexture>,
+    pub editors: Vec<Lazy<Box<dyn EditorContext + 'a>>>,
+
+    // Defines event driven items.
+    pub active_selection: Option<(usize, (i32, i32))>,
+    pub active_editors: Vec<EditorUsage<'a>>,
+    pub editor_index: Option<usize>,
 }
 
-// Include the directories with the shaders.
-static FRAGMENT_SHADERS_FOLDER: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/src/region_selector/fragments");
-static VERTEX_SHADERS_FOLDER: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/src/region_selector/vertexes");
-
 // Sets up the region selector.
-fn setup_region_selector(setup: Box<RegionSelectorSetup>, screenshots: &mut Vec<RgbaImage>) -> Option<SendSyncBypass<RegionSelectorContext>> {
+fn setup_region_selector<'a>(
+    setup: Box<RegionSelectorSetup>, screenshots: &mut Vec<RgbaImage>,
+) -> Option<SendSyncBypass<RegionSelectorContext<'a>>> {
     // Setup glfw.
     let mut glfw = glfw::init(glfw::fail_on_errors).unwrap();
 
@@ -100,14 +114,6 @@ fn setup_region_selector(setup: Box<RegionSelectorSetup>, screenshots: &mut Vec<
     let first_window_ref = &mut glfw_windows[0];
     gl::load_with(|s| first_window_ref.get_proc_address(s) as *const _);
 
-    // Compile the brightness shader.
-    let brightness_frag = FRAGMENT_SHADERS_FOLDER.get_file("brightness.frag").unwrap().contents_utf8().unwrap().to_string();
-    let brightness_vert = VERTEX_SHADERS_FOLDER.get_file("brightness.vert").unwrap().contents_utf8().unwrap().to_string();
-    let mut gl_brightness_program = GLShaderProgram::new();
-    gl_brightness_program.compile_fragment_shader(brightness_frag, "brightness.frag");
-    gl_brightness_program.compile_vertex_shader(brightness_vert, "brightness.vert");
-    gl_brightness_program.link();
-
     // Get the image dimensions.
     let image_dimensions = screenshots.iter().map(|img| {
         img.dimensions()
@@ -140,12 +146,17 @@ fn setup_region_selector(setup: Box<RegionSelectorSetup>, screenshots: &mut Vec<
         image_dimensions,
         gl_screenshots,
         gl_screenshots_darkened,
+        editors: create_editor_vec(),
+
+        active_selection: None,
+        active_editors: Vec::new(),
+        editor_index: None,
     };
 
     // Render the UI.
     unsafe {
         region_selector_render_ui(
-            &mut context, true, None
+            &mut context, true, None,
         )
     };
 
@@ -184,7 +195,7 @@ pub fn invoke(setup: Box<RegionSelectorSetup>, screenshots: &mut Vec<RgbaImage>)
         };
 
         // Sleep for 1 second / 120fps.
-        thread::sleep(std::time::Duration::from_millis(8));
+        thread::sleep(time::Duration::from_millis(8));
     }
 
     // Clean up by making sure the context is dropped on the main thread.

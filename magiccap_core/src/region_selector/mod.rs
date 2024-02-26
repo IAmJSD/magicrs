@@ -3,6 +3,7 @@ mod event_loop_handler;
 mod gl_abstractions;
 mod ui_renderer;
 mod image_manipulation_simd;
+mod editors;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use xcap::{Monitor, Window};

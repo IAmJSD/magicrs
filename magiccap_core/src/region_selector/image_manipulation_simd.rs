@@ -12,6 +12,7 @@ fn divide_by_two_simd(v: *mut u8) {
 }
 
 // Divide a 16-byte vector by 2 using SIMD on arm64.
+// I refuse to call it aarch64: https://lkml.org/lkml/2012/7/15/133
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 fn divide_by_two_simd(v: *mut u8) {
     use std::arch::aarch64::*;

@@ -1,8 +1,7 @@
-use std::ffi::CString;
 use glfw::{Context, Window};
 use super::{
     engine::RegionSelectorContext,
-    gl_abstractions::{GLShaderProgram, GLTexture}
+    gl_abstractions::GLTexture
 };
 
 // Draw the background.
@@ -28,6 +27,13 @@ unsafe fn draw_background(
 
     // Delete the framebuffer.
     gl::DeleteFramebuffers(1, &framebuffer);
+}
+
+// Renders the decorations.
+unsafe fn render_decorations(
+    ctx: &RegionSelectorContext, window: &mut Window, index: usize,
+) {
+    // TODO
 }
 
 // Handles iterating or jumping right to a index.
@@ -58,22 +64,39 @@ fn iter_windows_or_jump(
 
 // Renders the UI. This is marked as unsafe because it uses OpenGL.
 pub unsafe fn region_selector_render_ui(
-    ctx: &mut RegionSelectorContext, with_decorations: bool, window_index: Option<usize>
+    ctx: &mut RegionSelectorContext, with_decorations: bool, window_index: Option<usize>,
 ) {
     iter_windows_or_jump(ctx, window_index, &|ctx, window, i| {
         // Set the viewport.
         let (width, height) = window.get_size();
         gl::Viewport(0, 0, width, height);
 
-        // Render the framebuffer.
+        // Clear the buffer.
+        gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+        gl::Clear(gl::COLOR_BUFFER_BIT);
+
+        // Render the background.
+        let screenshot_non_darkened = &ctx.gl_screenshots[i];
         let screenshot = if with_decorations {
             &ctx.gl_screenshots_darkened[i]
-        } else { &ctx.gl_screenshots[i] };
+        } else { screenshot_non_darkened };
         let (texture_w, texture_h) = ctx.image_dimensions[i];
         draw_background(
             screenshot, texture_w as i32, texture_h as i32,
             width, height
         );
+
+        // Render the editors.
+        for editor in ctx.active_editors.iter_mut() {
+            editor.editor.render(
+                screenshot_non_darkened, width as u32, height as u32,
+                editor.width, editor.height,
+                editor.x, editor.y
+            );
+        }
+
+        // If decorations should be rendered, render them.
+        if with_decorations { render_decorations(ctx, window, i) }
 
         // Flush the buffer.
         gl::Flush();
