@@ -2,7 +2,8 @@ use glfw::{Action, Key};
 use super::{
     engine::{RegionSelectorContext, SendSyncBypass},
     RegionCapture,
-}; 
+    ui_renderer::region_selector_render_ui,
+};
 
 // Defines the event loop handler for the region selector.
 pub fn region_selector_event_loop_handler(
@@ -24,12 +25,26 @@ pub fn region_selector_event_loop_handler(
     for events in &ctx.glfw_events {
         for (_, event) in glfw::flush_messages(events) {
             match event {
+                // Handle either aborting the selection or closing the window when esc is hit.
                 glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
-                    // End the event loop.
+                    if ctx.active_selection.is_some() {
+                        // Remove the active selection and re-render the UI.
+                        ctx.active_selection = None;
+                        return unsafe {
+                            region_selector_render_ui(
+                                ctx, true, None,
+                            );
+                            None
+                        };
+                    }
+
+                    // All the other windows should die too.
                     return Some(None);
-                }
-                // TODO: Fix this event.
-                // TODO: other events.
+                },
+    
+                // TODO: implement other keys
+
+                // Sinkhole other events.
                 _ => {},
             }
         }

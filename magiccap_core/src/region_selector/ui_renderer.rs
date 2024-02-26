@@ -88,11 +88,13 @@ pub unsafe fn region_selector_render_ui(
 
         // Render the editors.
         for editor in ctx.active_editors.iter_mut() {
-            editor.editor.render(
-                screenshot_non_darkened, width as u32, height as u32,
-                editor.width, editor.height,
-                editor.x, editor.y
-            );
+            if editor.display_index == i {
+                editor.editor.render(
+                    screenshot_non_darkened, width as u32, height as u32,
+                    editor.width, editor.height,
+                    editor.x, editor.y
+                );
+            }
         }
 
         // If decorations should be rendered, render them.

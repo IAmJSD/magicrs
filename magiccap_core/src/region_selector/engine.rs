@@ -44,6 +44,7 @@ pub struct EditorUsage<'a> {
     pub y: i32,
     pub width: u32,
     pub height: u32,
+    pub display_index: usize,
 }
 
 // Defines the context passed around internally.
@@ -86,7 +87,7 @@ fn setup_region_selector<'a>(
             glfw.window_hint(glfw::WindowHint::OpenGlForwardCompat(true));
 
             // Create the window.
-            let (window, events) = match glfw.create_window(
+            let (mut window, events) = match glfw.create_window(
                 monitor.width(), monitor.height(), "Region Selector", glfw::WindowMode::FullScreen(&glfw_monitor),
             ) {
                 Some((window, events)) => (window, events),
@@ -97,6 +98,9 @@ fn setup_region_selector<'a>(
                     return false;
                 },
             };
+
+            // Set key polling to true.
+            window.set_key_polling(true);
 
             // Push the window and events.
             glfw_windows.push(window);
