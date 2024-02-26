@@ -1,11 +1,12 @@
+use std::ffi::CString;
 use glfw::{Context, Window};
 use super::{
     engine::RegionSelectorContext,
     gl_abstractions::{GLShaderProgram, GLTexture}
 };
 
-// Draw the image background.
-unsafe fn draw_image_background(
+// Draw the background.
+unsafe fn draw_background(
     texture: &GLTexture, texture_w: i32, texture_h: i32,
     window_w: i32, window_h: i32
 ) {
@@ -27,11 +28,6 @@ unsafe fn draw_image_background(
 
     // Delete the framebuffer.
     gl::DeleteFramebuffers(1, &framebuffer);
-}
-
-// Darkens the background.
-unsafe fn darken_background(window_w: i32, window_h: i32, program: &GLShaderProgram) {
-    // TODO
 }
 
 // Handles iterating or jumping right to a index.
@@ -69,17 +65,15 @@ pub unsafe fn region_selector_render_ui(
         let (width, height) = window.get_size();
         gl::Viewport(0, 0, width, height);
 
-        // Render the image background.
-        let screenshot = &ctx.gl_screenshots[i];
-        let (texture_w, texture_h) = ctx.setup.images[i].dimensions();
-        draw_image_background(
+        // Render the framebuffer.
+        let screenshot = if with_decorations {
+            &ctx.gl_screenshots_darkened[i]
+        } else { &ctx.gl_screenshots[i] };
+        let (texture_w, texture_h) = ctx.image_dimensions[i];
+        draw_background(
             screenshot, texture_w as i32, texture_h as i32,
             width, height
         );
-
-        // If decorations are enabled, darken the background.
-        //let brightness_shader = &ctx.gl_shaders["brightness"];
-        //if with_decorations { darken_background(width, height, brightness_shader) }
 
         // Flush the buffer.
         gl::Flush();

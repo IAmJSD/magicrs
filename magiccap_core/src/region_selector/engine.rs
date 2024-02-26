@@ -1,4 +1,4 @@
-use std::{collections::HashMap, thread};
+use std::thread;
 use super::{
     event_loop_handler::region_selector_event_loop_handler,
     gl_abstractions::{GLShaderProgram, GLTexture},
@@ -7,6 +7,7 @@ use super::{
 };
 use crate::mainthread::{main_thread_async, main_thread_sync};
 use glfw::{Glfw, PWindow};
+use image::RgbaImage;
 use include_dir::{include_dir, Dir};
 
 // A container that bypasses the Send and Sync traits.
@@ -30,7 +31,6 @@ unsafe impl<T> Sync for SendSyncBypass<T> {}
 pub struct RegionSelectorSetup {
     pub windows: Vec<xcap::Window>,
     pub monitors: Vec<xcap::Monitor>,
-    pub images: Vec<image::RgbaImage>,
     pub show_editors: bool,
 }
 
@@ -43,15 +43,17 @@ pub struct RegionSelectorContext {
     pub glfw: Glfw,
     pub glfw_windows: Vec<PWindow>,
     pub glfw_events: Vec<glfw::GlfwReceiver<(f64, glfw::WindowEvent)>>,
-    pub gl_shaders: HashMap<String, GLShaderProgram>,
+    pub image_dimensions: Vec<(u32, u32)>,
     pub gl_screenshots: Vec<GLTexture>,
+    pub gl_screenshots_darkened: Vec<GLTexture>,
 }
 
-// Include the directory with the shaders.
-static SHADERS_FOLDER: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/src/region_selector/fragments");
+// Include the directories with the shaders.
+static FRAGMENT_SHADERS_FOLDER: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/src/region_selector/fragments");
+static VERTEX_SHADERS_FOLDER: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/src/region_selector/vertexes");
 
 // Sets up the region selector.
-fn setup_region_selector(setup: Box<RegionSelectorSetup>) -> Option<SendSyncBypass<RegionSelectorContext>> {
+fn setup_region_selector(setup: Box<RegionSelectorSetup>, screenshots: &mut Vec<RgbaImage>) -> Option<SendSyncBypass<RegionSelectorContext>> {
     // Setup glfw.
     let mut glfw = glfw::init(glfw::fail_on_errors).unwrap();
 
@@ -63,6 +65,11 @@ fn setup_region_selector(setup: Box<RegionSelectorSetup>) -> Option<SendSyncBypa
             // Find the matching glfw monitor.
             let glfw_monitor = glfw_monitors.iter().
                 find(|m| m.get_pos() == (monitor.x(), monitor.y())).unwrap();
+
+            // Set the window hints to control the version of OpenGL.
+            glfw.window_hint(glfw::WindowHint::ContextVersion(3, 2));
+            glfw.window_hint(glfw::WindowHint::OpenGlProfile(glfw::OpenGlProfileHint::Core));
+            glfw.window_hint(glfw::WindowHint::OpenGlForwardCompat(true));
 
             // Create the window.
             let (window, events) = match glfw.create_window(
@@ -93,28 +100,36 @@ fn setup_region_selector(setup: Box<RegionSelectorSetup>) -> Option<SendSyncBypa
     let first_window_ref = &mut glfw_windows[0];
     gl::load_with(|s| first_window_ref.get_proc_address(s) as *const _);
 
-    // Compile the shaders.
-    let mut gl_shaders = HashMap::new();
-    for shader in SHADERS_FOLDER.files() {
-        // This long line gets the shader name.
-        let shader_name = shader.path().file_name().unwrap().
-            to_str().unwrap().split(".").next().unwrap().to_string();
+    // Compile the brightness shader.
+    let brightness_frag = FRAGMENT_SHADERS_FOLDER.get_file("brightness.frag").unwrap().contents_utf8().unwrap().to_string();
+    let brightness_vert = VERTEX_SHADERS_FOLDER.get_file("brightness.vert").unwrap().contents_utf8().unwrap().to_string();
+    let mut gl_brightness_program = GLShaderProgram::new();
+    gl_brightness_program.compile_fragment_shader(brightness_frag, "brightness.frag");
+    gl_brightness_program.compile_vertex_shader(brightness_vert, "brightness.vert");
+    gl_brightness_program.link();
 
-        // Read the shader.
-        let shader = shader.contents_utf8().unwrap().to_string();
-
-        // Compile the shader.
-        let mut program = GLShaderProgram::new();
-        program.compile_fragment_shader(shader);
-
-        // Insert the shader into the hashmap.
-        gl_shaders.insert(shader_name, program);
-    }
+    // Get the image dimensions.
+    let image_dimensions = screenshots.iter().map(|img| {
+        img.dimensions()
+    }).collect::<Vec<_>>();
 
     // Turn the images into textures.
-    let gl_screenshots = setup.images.iter().map(|img| {
+    let gl_screenshots = screenshots.iter().map(|img| {
         GLTexture::from_rgba(&img)
     }).collect::<Vec<_>>();
+
+    // Turn the images into darkened textures by manipulating the underlying data.
+    // This is quicker than compiling a shader on first load and since we are not
+    // mutating it in OpenGL, it will be very fast to blit from the texture.
+    let gl_screenshots_darkened = screenshots.iter_mut().map(
+        |img| {
+            // Darken the image.
+            super::image_manipulation_simd::set_brightness_half_simd(img);
+
+            // Create the texture.
+            GLTexture::from_rgba(&img)
+        }
+    ).collect::<Vec<_>>();
 
     // Create the context.
     let mut context = RegionSelectorContext {
@@ -122,8 +137,9 @@ fn setup_region_selector(setup: Box<RegionSelectorSetup>) -> Option<SendSyncBypa
         glfw,
         glfw_windows,
         glfw_events,
-        gl_shaders,
+        image_dimensions,
         gl_screenshots,
+        gl_screenshots_darkened,
     };
 
     // Render the UI.
@@ -146,9 +162,11 @@ where
 }
 
 // Invokes the engine.
-pub fn invoke(setup: Box<RegionSelectorSetup>) -> Option<RegionCapture> {
+pub fn invoke(setup: Box<RegionSelectorSetup>, screenshots: &mut Vec<RgbaImage>) -> Option<RegionCapture> {
     // Setup the region selector context.
-    let mut ctx = match main_thread_sync(|| setup_region_selector(setup)) {
+    let mut ctx = match main_thread_sync(|| setup_region_selector(
+        setup, screenshots,
+    )) {
         Some(ctx) => ctx,
         None => return None,
     };

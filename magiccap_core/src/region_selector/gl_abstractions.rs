@@ -5,6 +5,28 @@ pub struct GLShaderProgram {
     pub program: c_uint,
 }
 
+// Ensures the shader program successfully compiles.
+fn panic_if_shader_comp_fail(shader: u32, filename: &str) {
+    // Get the log length.
+    let mut len = 0;
+    unsafe { gl::GetShaderiv(shader, gl::INFO_LOG_LENGTH, &mut len) };
+
+    // Return if the shader compiled.
+    if len == 0 { return }
+
+    // Get the log.
+    let mut log = vec![0; len as usize];
+    unsafe {
+        gl::GetShaderInfoLog(
+            shader, len, ptr::null_mut(),
+            log.as_mut_ptr() as *mut _
+        );
+    }
+
+    // Panic the log.
+    panic!("Error: Shader '{}' compilation failed: {}", filename, String::from_utf8_lossy(&log));
+}
+
 impl GLShaderProgram {
     // Creates a new shader program.
     pub fn new() -> GLShaderProgram {
@@ -19,7 +41,7 @@ impl GLShaderProgram {
     }
 
     // Takes a fragment shader and compiles it.
-    pub fn compile_fragment_shader(&mut self, source: String) {
+    pub fn compile_fragment_shader(&mut self, source: String, filename: &str) {
         // Create the shader.
         let shader = unsafe { gl::CreateShader(gl::FRAGMENT_SHADER) };
 
@@ -35,11 +57,46 @@ impl GLShaderProgram {
         }
         drop(cstr);
 
+        // Ensure the shader compiled.
+        panic_if_shader_comp_fail(shader, filename);
+
         // Attach the shader to the program.
         unsafe { gl::AttachShader(self.program, shader) };
 
         // Delete the shader.
         unsafe { gl::DeleteShader(shader) };
+    }
+
+    // Takes a vertex shader and compiles it.
+    pub fn compile_vertex_shader(&mut self, source: String, filename: &str) {
+        // Create the shader.
+        let shader = unsafe { gl::CreateShader(gl::VERTEX_SHADER) };
+
+        // Compile the shader.
+        let cstr = CString::new(source).unwrap();
+        unsafe {
+            gl::ShaderSource(
+                shader, 1,
+                &cstr.as_ptr(),
+                ptr::null()
+            );
+            gl::CompileShader(shader);
+        }
+        drop(cstr);
+
+        // Ensure the shader compiled.
+        panic_if_shader_comp_fail(shader, filename);
+
+        // Attach the shader to the program.
+        unsafe { gl::AttachShader(self.program, shader) };
+
+        // Delete the shader.
+        unsafe { gl::DeleteShader(shader) };
+    }
+
+    // Links the shader program.
+    pub fn link(&mut self) {
+        unsafe { gl::LinkProgram(self.program) };
     }
 }
 

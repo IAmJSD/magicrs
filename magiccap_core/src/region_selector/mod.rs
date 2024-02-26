@@ -2,6 +2,7 @@ mod engine;
 mod event_loop_handler;
 mod gl_abstractions;
 mod ui_renderer;
+mod image_manipulation_simd;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use xcap::{Monitor, Window};
@@ -101,8 +102,8 @@ pub fn open_region_selector(show_editors: bool) -> Option<RegionCapture> {
 
     // Call the engine.
     let result = engine::invoke(Box::new(RegionSelectorSetup {
-        monitors, windows, show_editors, images: screenshots,
-    }));
+        monitors, windows, show_editors,
+    }), &mut screenshots);
 
     // Make sure to set the selector opened to false.
     SELECTOR_OPENED.store(false, Ordering::Relaxed);
