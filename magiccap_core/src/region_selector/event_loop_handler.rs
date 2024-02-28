@@ -6,7 +6,7 @@ use super::{
 };
 
 // Handles the fullscreen key being pressed.
-fn handle_fullscreen_key(ctx: &mut RegionSelectorContext) -> Option<RegionCapture> {
+fn fullscreen_key(ctx: &mut RegionSelectorContext) -> Option<RegionCapture> {
     // TODO
     None
 }
@@ -17,12 +17,12 @@ fn mouse_move(ctx: &mut RegionSelectorContext, i: i32, x: f64, y: f64) {
 }
 
 // Handles the mouse left button being pushed.
-fn handle_mouse_left_push(ctx: &mut RegionSelectorContext, i: i32) {
+fn mouse_left_push(ctx: &mut RegionSelectorContext, i: i32) {
     // TODO
 }
 
 // Handles the mouse left button being released.
-fn handle_mouse_left_release(ctx: &mut RegionSelectorContext, i: i32) -> Option<RegionCapture> {
+fn mouse_left_release(ctx: &mut RegionSelectorContext, i: i32) -> Option<RegionCapture> {
     // TODO
     None
 }
@@ -91,7 +91,7 @@ pub fn region_selector_event_loop_handler(
                 },
 
                 // Handle the fullscreen key.
-                glfw::WindowEvent::Key(Key::F, _, Action::Release, _) => match handle_fullscreen_key(ctx) {
+                glfw::WindowEvent::Key(Key::F, _, Action::Release, _) => match fullscreen_key(ctx) {
                     Some(x) => return Some(Some(x)),
                     None => {
                         // Re-render the UI.
@@ -147,7 +147,7 @@ pub fn region_selector_event_loop_handler(
     
                 // Handle mouse left clicks.
                 glfw::WindowEvent::MouseButton(glfw::MouseButtonLeft, Action::Press, _) => {
-                    handle_mouse_left_push(ctx, current_index);
+                    mouse_left_push(ctx, current_index);
 
                     // In so many cases that it makes sense to do it in all, we want to re-render the UI.
                     unsafe {
@@ -158,7 +158,7 @@ pub fn region_selector_event_loop_handler(
 
                     return None;
                 },
-                glfw::WindowEvent::MouseButton(glfw::MouseButtonLeft, Action::Release, _) => match handle_mouse_left_release(ctx, current_index) {
+                glfw::WindowEvent::MouseButton(glfw::MouseButtonLeft, Action::Release, _) => match mouse_left_release(ctx, current_index) {
                     Some(x) => return Some(Some(x)),
                     None => {
                         // Re-render the UI.
