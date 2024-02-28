@@ -38,8 +38,8 @@ pub struct RegionSelectorSetup {
 unsafe impl Send for RegionSelectorSetup {}
 
 // Defines a editors usage.
-pub struct EditorUsage<'a> {
-    pub editor: &'a Lazy<Box<dyn Editor>>,
+pub struct EditorUsage {
+    pub editor: Box<dyn Editor>,
     pub x: i32,
     pub y: i32,
     pub width: u32,
@@ -48,7 +48,7 @@ pub struct EditorUsage<'a> {
 }
 
 // Defines the context passed around internally.
-pub struct RegionSelectorContext<'a> {
+pub struct RegionSelectorContext {
     // Defines everything created during initialization.
     pub setup: Box<RegionSelectorSetup>,
     pub glfw: Glfw,
@@ -61,14 +61,14 @@ pub struct RegionSelectorContext<'a> {
 
     // Defines event driven items.
     pub active_selection: Option<(usize, (i32, i32))>,
-    pub active_editors: Vec<EditorUsage<'a>>,
+    pub active_editors: Vec<EditorUsage>,
     pub editor_index: Option<usize>,
 }
 
 // Sets up the region selector.
-fn setup_region_selector<'a>(
+fn setup_region_selector(
     setup: Box<RegionSelectorSetup>, screenshots: &mut Vec<RgbaImage>,
-) -> Option<Box<SendSyncBypass<RegionSelectorContext<'a>>>> {
+) -> Option<Box<SendSyncBypass<RegionSelectorContext>>> {
     // Setup glfw.
     let mut glfw = glfw::init(glfw::fail_on_errors).unwrap();
 

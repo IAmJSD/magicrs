@@ -1,12 +1,50 @@
 use glfw::{Action, Key};
 use super::{
-    engine::{RegionSelectorContext, SendSyncBypass},
-    RegionCapture,
+    engine::{EditorUsage, RegionSelectorContext, SendSyncBypass},
     ui_renderer::region_selector_render_ui,
+    RegionCapture
 };
 
 // Handles the fullscreen key being pressed.
-fn fullscreen_key(ctx: &mut RegionSelectorContext) -> Option<RegionCapture> {
+fn fullscreen_key(ctx: &mut RegionSelectorContext, shift_held: bool) -> Option<RegionCapture> {
+    // Find the window the mouse is on.
+    let mut active_window = &ctx.glfw_windows[0];
+    let mut active_index = 0;
+    for (index, window) in ctx.glfw_windows.iter().enumerate() {
+        let (x, y) = window.get_cursor_pos();
+        let (w, h) = window.get_size();
+        if x >= 0.0 && x < w as f64 && y >= 0.0 && y < h as f64 {
+            active_window = &window;
+            active_index = index;
+            break;
+        }
+    }
+
+    // Handle if shift is held with a tool selected.
+    if ctx.editor_index.is_some() && shift_held {
+        let index = ctx.editor_index.unwrap();
+        let (width, height) = active_window.get_size();
+        let editor = ctx.editors[index].create_editor();
+        let active_editor = EditorUsage {
+            x: 0,
+            y: 0,
+            editor,
+            width: width as u32,
+            height: height as u32, 
+            display_index: active_index,
+        };
+        ctx.active_editors.push(active_editor);
+        return None;
+    }
+
+    // Render the window without decorations.
+    unsafe {
+        region_selector_render_ui(
+            ctx, false, Some(active_index),
+        );
+    }
+
+    // Pull the region of the display.
     // TODO
     None
 }
@@ -91,7 +129,9 @@ pub fn region_selector_event_loop_handler(
                 },
 
                 // Handle the fullscreen key.
-                glfw::WindowEvent::Key(Key::F, _, Action::Release, _) => match fullscreen_key(ctx) {
+                glfw::WindowEvent::Key(Key::F, _, Action::Release, modifiers) => match fullscreen_key(
+                    ctx, modifiers.contains(glfw::Modifiers::Shift)
+                ) {
                     Some(x) => return Some(Some(x)),
                     None => {
                         // Re-render the UI.
