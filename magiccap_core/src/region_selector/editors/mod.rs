@@ -1,19 +1,19 @@
+mod pixelate;
+
 use once_cell::unsync::Lazy;
 use super::gl_abstractions::GLTexture;
 
-// Defines the editor context.
-pub trait EditorContext {
-    // Sets up the editor context.
-    fn new() -> Self
-    where
-        Self: Sized;
+// Defines the editor factory.
+pub trait EditorFactory {
+    // Creates a new instance of the editor factory.
+    fn new() -> Self where Self: Sized;
 
-    // Creates a editor from the context.
+    // Creates a new instance of the editor.
     fn create_editor(&mut self) -> Box<dyn Editor>;
 }
 
-// Defines the editor trait.
-pub trait Editor<T = Box<dyn EditorContext>> {
+// Defines an editor made by a factory.
+pub trait Editor {
     // If this returns a value, turns this editor from a draggable one to a
     // click controlled one.
     fn click(&self, x: i32, y: i32) -> Option<image::RgbaImage>;
@@ -25,8 +25,9 @@ pub trait Editor<T = Box<dyn EditorContext>> {
     );
 }
 
-// Creates the editor vector. The vector should be in the order that the editors
-// are set.
-pub fn create_editor_vec<'a>() -> Vec<Lazy<Box<dyn EditorContext + 'a>>> {
-    Vec::new()
+// Creates the editor vector. The vector should be in the order that the editors are set.
+pub fn create_editor_vec() -> Vec<Lazy<Box<dyn EditorFactory>>> {
+    vec![
+        Lazy::new(|| Box::new(pixelate::PixelateFactory::new())),
+    ]
 }

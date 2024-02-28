@@ -1,6 +1,6 @@
 use std::{thread, time};
 use super::{
-    editors::{create_editor_vec, Editor, EditorContext},
+    editors::{create_editor_vec, Editor, EditorFactory},
     event_loop_handler::region_selector_event_loop_handler,
     gl_abstractions::GLTexture,
     ui_renderer::region_selector_render_ui, RegionCapture
@@ -39,7 +39,7 @@ unsafe impl Send for RegionSelectorSetup {}
 
 // Defines a editors usage.
 pub struct EditorUsage<'a> {
-    pub editor: &'a Lazy<Box<dyn Editor + 'a>>,
+    pub editor: &'a Lazy<Box<dyn Editor>>,
     pub x: i32,
     pub y: i32,
     pub width: u32,
@@ -57,7 +57,7 @@ pub struct RegionSelectorContext<'a> {
     pub image_dimensions: Vec<(u32, u32)>,
     pub gl_screenshots: Vec<GLTexture>,
     pub gl_screenshots_darkened: Vec<GLTexture>,
-    pub editors: Vec<Lazy<Box<dyn EditorContext + 'a>>>,
+    pub editors: Vec<Lazy<Box<dyn EditorFactory>>>,
 
     // Defines event driven items.
     pub active_selection: Option<(usize, (i32, i32))>,
