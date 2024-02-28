@@ -169,10 +169,7 @@ fn setup_region_selector<'a>(
 }
 
 // Make sure a item gets dropped on the main thread.
-fn main_thread_drop<T>(item: T)
-where
-    T: Send + 'static,
-{
+fn main_thread_drop<T>(item: T) where T: Send + 'static {
     main_thread_async(move || { drop(item) });
 }
 
@@ -198,8 +195,8 @@ pub fn invoke(setup: Box<RegionSelectorSetup>, screenshots: &mut Vec<RgbaImage>)
             None => {},
         };
 
-        // Sleep for 1 second / 120fps.
-        thread::sleep(time::Duration::from_millis(8));
+        // Sleep for 1 second / 240fps.
+        thread::sleep(time::Duration::from_millis(4));
     }
 
     // Clean up by making sure the context is dropped on the main thread.
