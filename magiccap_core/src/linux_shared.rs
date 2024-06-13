@@ -20,10 +20,12 @@ struct SharedApplication {
 }
 
 // Defines the public variable.
-static SHARED_APPLICATION: OnceCell<&'static mut SharedApplication> = OnceCell::new();
+static mut SHARED_APPLICATION: OnceCell<&'static mut SharedApplication> = OnceCell::new();
 
 // Defines the shared application object.
-pub fn app() -> &'static mut SharedApplication { SHARED_APPLICATION.get_mut().unwrap() }
+pub fn app() -> &'static mut SharedApplication { 
+    unsafe { SHARED_APPLICATION.get_mut().unwrap() }
+}
 
 // The main entrypoint for setting up the application.
 pub fn application_init() {
@@ -36,7 +38,7 @@ pub fn application_init() {
         webview: RwLock::new(None),
     }));
     let ptr = leaky_box as *mut SharedApplication;
-    SHARED_APPLICATION.set(leaky_box);
+    unsafe { SHARED_APPLICATION.set(&mut *ptr); }
 
     // Set the MAGICCAP_INTERNAL_MEMORY_ADDRESS env var.
     std::env::set_var("MAGICCAP_INTERNAL_MEMORY_ADDRESS", (ptr as usize).to_string());
@@ -50,10 +52,12 @@ pub fn application_init() {
 }
 
 pub fn application_hydrate() {
-    // Check if SHARED_APPLICATION is set. If it is, application_init has already been called.
-    if SHARED_APPLICATION.get().is_some() {
-        // We are hydrated. Return now.
-        return;
+    unsafe {
+        // Check if SHARED_APPLICATION is set. If it is, application_init has already been called.
+        if SHARED_APPLICATION.get().is_some() {
+            // We are hydrated. Return now.
+            return;
+        }
     }
 
     // Get the MAGICCAP_INTERNAL_MEMORY_ADDRESS env var.
@@ -61,9 +65,11 @@ pub fn application_hydrate() {
         .parse::<usize>().unwrap();
 
     // Turn it into a pointer.
-    SHARED_APPLICATION.set(
-        unsafe { (mem_addr as *mut SharedApplication).as_mut() }.unwrap()
-    );
+    unsafe {
+        SHARED_APPLICATION.set(
+            (mem_addr as *mut SharedApplication).as_mut().unwrap()
+        );
+    }
 
     // In a thread, launch the application_reload function. This is because
     // it can cause problems if it blocks the main thread.

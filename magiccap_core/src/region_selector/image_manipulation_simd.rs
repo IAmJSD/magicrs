@@ -4,9 +4,8 @@ unsafe fn divide_by_two_simd(v: *mut u8) {
     use std::arch::x86_64::*;
 
     let a = _mm_loadu_si128(v as *const __m128i);
-    let b = _mm_set1_epi8(2);
-    let c = _mm_div_epi8(a, b);
-    _mm_storeu_si128(v as *mut __m128i, c);
+    let b = _mm_srli_epi16(a, 1);
+    _mm_storeu_si128(v as *mut __m128i, b);
 }
 
 // Divide a 64-byte vector by 2 using neon on arm64.

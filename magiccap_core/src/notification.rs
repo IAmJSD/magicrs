@@ -60,14 +60,14 @@ pub fn send_dialog_message(message: &str) {
 pub fn send_notification(message: &str, url: Option<&str>, file_path: Option<&str>) {
     use notify_rust::Notification;
 
-    let mut notif = Notification::new()
-        .summary(message);
+    let mut notif = Notification::new();
+    notif.summary(message);
 
-    if let Some(url) = url {
+    if let Some(_) = url {
         notif.action("open_url", "Open URL");
     }
 
-    if let Some(file_path) = file_path {
+    if let Some(_) = file_path {
         notif.action("open_fp", "Open File");
     }
 
