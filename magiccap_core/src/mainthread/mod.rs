@@ -46,12 +46,11 @@ where
 
     // Defines the function handler.
     let (tx, rx) = channel();
-    let sent_handler = Box::new(move || {
+    app().main_thread_writer.send(Box::new(move || {
         let handler: Box<F> = unsafe { Box::from_raw(handler_ptr as *mut F) };
         let res = handler();
         tx.send(Box::into_raw(Box::new(res)) as usize).unwrap();
-    });
-    app().main_thread_writer.send(sent_handler);
+    }));
 
     // Wait for the result and then return it.
     let res_ptr = rx.recv().unwrap();
