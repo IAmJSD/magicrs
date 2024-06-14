@@ -147,7 +147,7 @@ pub fn region_capture() {
 
     // Convert the result to a PNG.
     let mut data: Vec<u8> = Vec::new();
-    result.write_to(&mut Cursor::new(&mut data), image::ImageOutputFormat::Png).unwrap();
+    result.write_to(&mut Cursor::new(&mut data), image::ImageFormat::Png).unwrap();
 
     post_capture_flow(
         "png", "Region capture successful.", data
@@ -215,7 +215,7 @@ pub fn fullscreen_capture() {
 
     // Convert the canvas to a vector.
     let mut vec: Vec<u8> = Vec::new();
-    canvas.write_to(&mut Cursor::new(&mut vec), image::ImageOutputFormat::Png).unwrap();
+    canvas.write_to(&mut Cursor::new(&mut vec), image::ImageFormat::Png).unwrap();
 
     // Handle the post capture flow.
     post_capture_flow("png", "Fullscreen capture successful.", vec);

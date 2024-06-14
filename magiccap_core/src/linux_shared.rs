@@ -1,6 +1,7 @@
 use std::sync::{mpsc::{self, Sender}, RwLock};
 use once_cell::sync::OnceCell;
 use webkit2gtk::WebView;
+use tray_icon::TrayIcon;
 use crate::{reload, statics::run_thread};
 
 // Defines the callback type.
@@ -17,6 +18,7 @@ unsafe impl<T> Sync for FakeSend<T> {}
 struct SharedApplication {
     pub main_thread_writer: Sender<Callback>,
     pub webview: RwLock<Option<FakeSend<WebView>>>,
+    pub tray_icon: RwLock<Option<TrayIcon>>,
 }
 
 // Defines the public variable.
@@ -36,6 +38,7 @@ pub fn application_init() {
     let leaky_box = Box::leak(Box::new(SharedApplication {
         main_thread_writer: tx,
         webview: RwLock::new(None),
+        tray_icon: RwLock::new(None),
     }));
     let ptr = leaky_box as *mut SharedApplication;
     unsafe { SHARED_APPLICATION.set(&mut *ptr); }

@@ -204,6 +204,44 @@ fn tray_main_thread() {
     *tray_id = Some(id);
 }
 
+// Menu needs to be imported out of a scope in Linux since it is a return type.
+#[cfg(target_os = "linux")]
+use tray_icon::menu::Menu;
+
+// Creates the menu items on Linux.
+#[cfg(target_os = "linux")]
+fn create_menu() -> Menu {
+    Menu::new()
+}
+
+// Defines the function to create the tray on Linux.
+#[cfg(target_os = "linux")]
+fn tray_main_thread() {
+    use crate::linux_shared::app;
+    use tray_icon::{Icon, TrayIconBuilder};
+
+    // Defines the static taskbar icon.
+    static TRAY_ICON: &[u8] = include_bytes!("../../assets/taskbar.png");
+
+    // Turn the tray icon into RGBA.
+    let rgba = image::load_from_memory(TRAY_ICON).unwrap().to_rgba8();
+
+    // Handle fetching the tray icon.
+    let mut write_guard = app().tray_icon.write().unwrap();
+    if write_guard.is_none() {
+        // Create the tray since this is the first run.
+        let value = TrayIconBuilder::new()
+            .with_icon(Icon::from_rgba(rgba.to_vec(), rgba.width(), rgba.height()).unwrap())
+            .with_title("MagicCap")
+            .build()
+            .unwrap();
+        write_guard.replace(value);
+    }
+
+    // Add the menu items.
+    write_guard.as_mut().unwrap().set_menu(Some(Box::new(create_menu())));
+}
+
 // (Re)-loads the tray. Required when there are changes to initialization, uploaders, or shortcuts.
 pub fn load_tray() {
     // Call the main thread async function with a handler that is on the main thread. We do not
