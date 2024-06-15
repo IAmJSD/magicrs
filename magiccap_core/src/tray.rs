@@ -5,7 +5,36 @@ use crate::uploaders;
 use crate::database;
 use crate::mainthread::main_thread_async;
 
+// Defines the safe call which is wrapped.
+fn safely_upload(name: &str, path: &str) {
+    // Create a reader for the path.
+    let reader: Box<dyn std::io::Read + Send + Sync> = Box::new(
+        std::fs::File::open(path).unwrap()
+    );
+
+    let filename = path.split(path::MAIN_SEPARATOR).last().unwrap();
+    match uploaders::call_uploader(&name, reader, filename) {
+        Ok(url) => {
+            // Write a successful "capture".
+            notification::send_notification(
+                "The file was uploaded successfully.", Some(&url), None,
+            );
+            database::insert_successful_capture(filename, Some(path), Some(&url));
+
+            // Handle the clipboard flow.
+            clipboard_actions::handle_clipboard_action(Some(path), Some(&url), None);
+        }
+        Err(e) => {
+            // Write a failed "capture".
+            database::insert_failed_capture(filename, Some(path));
+            notification::send_dialog_message(&e);
+        },
+    };
+}
+
 // Wraps the safe call to the uploader with a C-compatible function.
+#[no_mangle]
+#[cfg(target_os = "macos")]
 unsafe extern "C" fn call_uploader(name_ptr: *const u8, name_len: usize, path_ptr: *const u8, path_len: usize) {
     // Get the name and path.
     let name = std::slice::from_raw_parts(name_ptr, name_len);
@@ -16,31 +45,7 @@ unsafe extern "C" fn call_uploader(name_ptr: *const u8, name_len: usize, path_pt
     let path_str = std::str::from_utf8(path).unwrap().to_string();
 
     // Call the uploader in a new thread.
-    run_thread(move || {
-        // Create a reader for the path.
-        let reader: Box<dyn std::io::Read + Send + Sync> = Box::new(
-            std::fs::File::open(&path_str).unwrap()
-        );
-
-        let filename = path_str.split(path::MAIN_SEPARATOR).last().unwrap();
-        match uploaders::call_uploader(&name, reader, filename) {
-            Ok(url) => {
-                // Write a successful "capture".
-                notification::send_notification(
-                    "The file was uploaded successfully.", Some(&url), None,
-                );
-                database::insert_successful_capture(filename, Some(&path_str), Some(&url));
-
-                // Handle the clipboard flow.
-                clipboard_actions::handle_clipboard_action(Some(&path_str), Some(&url), None);
-            }
-            Err(e) => {
-                // Write a failed "capture".
-                database::insert_failed_capture(filename, Some(&path_str));
-                notification::send_dialog_message(&e);
-            },
-        }
-    });
+    run_thread(move || safely_upload(&name, &path_str));
 }
 
 // Defines the quit handler.
@@ -254,9 +259,33 @@ macro_rules! menu_item {
     };
 }
 
+// Defines a macro to make a separator on Linux.
+#[cfg(target_os = "linux")]
+macro_rules! separator {
+    () => {
+        &muda::PredefinedMenuItem::separator()
+    };
+}
+
+// Handle doing a file path upload on Linux.
+#[cfg(target_os = "linux")]
+fn do_upload_fp(uploader_id: &str) {
+    // Open the file dialog.
+    let file_path = match native_dialog::FileDialog::new().show_open_single_file() {
+        Ok(Some(fp)) => fp,
+        _ => return,
+    }.as_path().to_str().unwrap().to_string();
+
+    // Run a thread to upload the file.
+    let id_cpy = uploader_id.to_string();
+    run_thread(move || safely_upload(&id_cpy, &file_path));
+}
+
 // Creates the menu items on Linux.
 #[cfg(target_os = "linux")]
 fn create_or_update_menu(menu: &mut Box<Menu>) {
+    use muda::Submenu;
+
     // Wipe all menu items or make the map they all live in.
     match unsafe { MENU_ITEM_HANDLERS.as_mut() } {
         Some(m) => {
@@ -272,8 +301,49 @@ fn create_or_update_menu(menu: &mut Box<Menu>) {
         }
     }
 
-    // Add the menu items.
+    // Add the uploaders to a submenu.
+    let uploaders_menu = Submenu::new("Upload to...", true);
+    for (id, uploader) in uploaders::UPLOADERS.iter() {
+        // Check if this is the default uploader.
+        let is_default = id == &database::get_config_option("uploader_type").unwrap_or_else(
+            || serde_json::Value::String("imgur".to_owned()));
+
+        // Get all of the configuration options for this uploader from the database.
+        let db_options = database::get_uploader_config_items(id.as_str());
+
+        // Check that all required options are set.
+        let mut all_required_options_set = true;
+        for (name, option) in &uploader.options {
+            if option.is_required() && !db_options.contains_key(name) {
+                all_required_options_set = false;
+                break;
+            }
+        }
+
+        // If all required options are set, add the uploader to the list.
+        if all_required_options_set {
+            // Get the label for the uploader.
+            let label = format!("Upload to {}{}", uploader.name, if is_default { " (Default)" } else { "" });
+
+            // Create the menu item.
+            let id_cpy = id.clone();
+            uploaders_menu.append(
+                menu_item!(label.as_str(), true, Box::new(move || do_upload_fp(id_cpy.as_str()))),
+            ).unwrap();
+        }
+    }
+
+    // Add all of the items to the menu.
     menu.append_items(&[
+        menu_item!("Region Capture", true, Box::new(|| run_thread(crate::capture::region_capture))),
+        menu_item!("Fullscreen Capture", true, Box::new(|| run_thread(crate::capture::fullscreen_capture))),
+        menu_item!("GIF Capture", true, Box::new(|| run_thread(crate::capture::gif_capture))),
+        menu_item!("Video Capture", true, Box::new(|| run_thread(crate::capture::video_capture))),
+        menu_item!("Clipboard Capture", true, Box::new(|| run_thread(crate::capture::clipboard_capture))),
+        separator!(),
+        &uploaders_menu,
+        separator!(),
+        menu_item!("Captures/Config", true, Box::new(|| config_open())),
         menu_item!("Quit", true, Box::new(|| quit_handler())),
     ]).unwrap();
 }

@@ -51,7 +51,7 @@ pub fn send_dialog_message(message: &str) {
         .set_type(MessageType::Info)
         .set_title("MagicCap")
         .set_text(message)
-        .show_confirm()
+        .show_alert()
         .unwrap();
 }
 
@@ -73,9 +73,9 @@ pub fn send_notification(message: &str, url: Option<&str>, file_path: Option<&st
 
     notif.show().unwrap().wait_for_action(|e| {
         match e {
-            "open_url" => open::that(url.unwrap()),
-            "open_fp" => open::that(file_path.unwrap()),
-            _ => Ok(()),
+            "open_url" => open::that(url.unwrap()).unwrap(),
+            "open_fp" => open::that(file_path.unwrap()).unwrap(),
+            _ => {},
         };
     })
 }
