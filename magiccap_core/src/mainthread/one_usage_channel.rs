@@ -85,7 +85,7 @@ where
     T: Send,
 {
     // Waits for a value within the channel. This can only be called once.
-    pub fn wait(&self) -> T {
+    fn wait(&self) -> T {
         // Get the lock guard.
         let mut lock_guard = self.mu.lock().unwrap();
 
@@ -97,7 +97,7 @@ where
     }
 
     // Sends a value to the channel. This can only be called once.
-    pub fn send(&mut self, value: T) {
+    fn send(&mut self, value: T) {
         // Get the lock guard pointer.
         let ptr = match self.lock_guard.take() {
             Some(ptr) => ptr,
