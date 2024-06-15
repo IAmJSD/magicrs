@@ -26,12 +26,12 @@ pub fn main_thread_async<F>(handler: F)
 where
     F: FnOnce() + Send + 'static,
 {
-    use crate::linux_shared::app;
+    use glib::idle_add_once;
 
-    app().main_thread_writer.send(Box::new(handler));
+    idle_add_once(handler);
 }
 
-// Include the one usage channel on Linux.
+// Include the one usage channel module on Linux.
 #[cfg(target_os = "linux")]
 mod one_usage_channel;
 
@@ -41,7 +41,6 @@ pub fn main_thread_sync<F, T>(handler: F) -> T
 where
     F: Send + FnOnce() -> T, T: Send
 {
-    use crate::linux_shared::app;
     use crate::mainthread::one_usage_channel::channel;
 
     // Box the handler into a raw pointer. This is to get around some Rust rules
@@ -50,11 +49,11 @@ where
 
     // Defines the function handler.
     let (mut sender, reciever) = channel();
-    app().main_thread_writer.send(Box::new(move || {
+    main_thread_async(move || {
         let handler: Box<F> = unsafe { Box::from_raw(handler_ptr as *mut F) };
         let res = handler();
         sender.send(Box::into_raw(Box::new(res)) as usize);
-    }));
+    });
 
     // Wait for the result and then return it.
     let res_ptr = reciever.wait();

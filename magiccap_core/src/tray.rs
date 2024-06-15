@@ -204,21 +204,94 @@ fn tray_main_thread() {
     *tray_id = Some(id);
 }
 
-// Menu needs to be imported out of a scope in Linux since it is a return type.
+// Handles tray_icon imports which are used as types on Linux.
 #[cfg(target_os = "linux")]
-use tray_icon::menu::Menu;
+use tray_icon::menu::{Menu, MenuItem};
+
+// Handles a muda event on Linux.
+#[cfg(target_os = "linux")]
+use muda::MenuEvent;
+
+// We need HashMap's on Linux for the menu items.
+#[cfg(target_os = "linux")]
+use std::collections::HashMap;
+
+// Defines a map of menu items to handlers on Linux.
+#[cfg(target_os = "linux")]
+static mut MENU_ITEM_HANDLERS: Option<HashMap<String, Box<dyn Fn() + 'static>>> = None;
+
+// Handles the menu events on Linux.
+#[cfg(target_os = "linux")]
+fn menu_event(event: MenuEvent) {
+    let m = unsafe { MENU_ITEM_HANDLERS.as_ref().unwrap() };
+    if let Some(hn) = m.get(event.id.0.as_str()) {
+        hn();
+    }
+}
+
+// Create a individual menu item on Linux.
+#[cfg(target_os = "linux")]
+fn new_menu_item(name: &str, enabled: bool, hn: Box<dyn Fn() + 'static>) -> MenuItem {
+    // Get the menu item handlers. We don't need to be thread safe since this is only called on the main thread.
+    let menu_item_handlers = unsafe { MENU_ITEM_HANDLERS.as_mut().unwrap() };
+
+    // Create the menu item.
+    let item = tray_icon::menu::MenuItem::new(name, enabled, None);
+
+    // Add the handler to the map.
+    let id = item.id().0.clone();
+    menu_item_handlers.insert(id, hn);
+
+    // Return a reference to the item.
+    item
+}
+
+// Defines a macro to make a reference to a menu item on Linux.
+#[cfg(target_os = "linux")]
+macro_rules! menu_item {
+    ($name:expr, $enabled:expr, $hn:expr) => {
+        &new_menu_item($name, $enabled, $hn)
+    };
+}
 
 // Creates the menu items on Linux.
 #[cfg(target_os = "linux")]
-fn create_menu() -> Menu {
-    Menu::new()
+fn create_or_update_menu(menu: &mut Box<Menu>) {
+    // Wipe all menu items or make the map they all live in.
+    match unsafe { MENU_ITEM_HANDLERS.as_mut() } {
+        Some(m) => {
+            let len = menu.items().len();
+            for _ in 0..len {
+                menu.remove_at(0);
+            }
+            m.clear();
+        }
+        None => {
+            let map = HashMap::new();
+            unsafe { MENU_ITEM_HANDLERS = Some(map); }
+        }
+    }
+
+    // Add the menu items.
+    menu.append_items(&[
+        menu_item!("Quit", true, Box::new(|| quit_handler())),
+    ]).unwrap();
+}
+
+// Defines the tray menu dynamic handler on Linux. This allows it to be upgraded over time without restarting the application.
+#[cfg(target_os = "linux")]
+fn local_dynamic_menu_handler(event: MenuEvent) {
+    use crate::linux_shared::app;
+
+    let current_hn = app().menu_event.read().unwrap().clone().unwrap();
+    current_hn(event);
 }
 
 // Defines the function to create the tray on Linux.
 #[cfg(target_os = "linux")]
 fn tray_main_thread() {
     use crate::linux_shared::app;
-    use tray_icon::{Icon, TrayIconBuilder};
+    use tray_icon::{menu::MenuEvent, Icon, TrayIconBuilder, TrayIconEvent};
 
     // Defines the static taskbar icon.
     static TRAY_ICON: &[u8] = include_bytes!("../../assets/taskbar.png");
@@ -226,20 +299,53 @@ fn tray_main_thread() {
     // Turn the tray icon into RGBA.
     let rgba = image::load_from_memory(TRAY_ICON).unwrap().to_rgba8();
 
-    // Handle fetching the tray icon.
-    let mut write_guard = app().tray_icon.write().unwrap();
-    if write_guard.is_none() {
-        // Create the tray since this is the first run.
-        let value = TrayIconBuilder::new()
-            .with_icon(Icon::from_rgba(rgba.to_vec(), rgba.width(), rgba.height()).unwrap())
-            .with_title("MagicCap")
-            .build()
-            .unwrap();
-        write_guard.replace(value);
-    }
+    // Set the event handler for this instance of the library.
+    let mut event_handler_w = app().menu_event.write().unwrap();
+    event_handler_w.replace(&menu_event);
 
-    // Add the menu items.
-    write_guard.as_mut().unwrap().set_menu(Some(Box::new(create_menu())));
+    // Handle fetching the tray icon.
+    let mut write_guard = app().tray_menu.write().unwrap();
+    match write_guard.as_mut() {
+        // Handle the tray already being loaded.
+        Some(menu) => {
+            // We just want to update the menu.
+            create_or_update_menu(menu);
+        },
+
+        // Handle the first load of the application.
+        None => {
+            // Set the event handlers.
+            MenuEvent::set_event_handler(Some(|event| {
+                main_thread_async(move || local_dynamic_menu_handler(event));
+            }));
+            TrayIconEvent::set_event_handler(Some(move |_| {}));
+
+            // Create the menu since this is first run.
+            let mut menu = Box::new(Menu::new());
+            create_or_update_menu(&mut menu);
+
+            // Chuu chuu! Here comes the language abuse! We need to do this since this is a special deployment
+            // method since this is a library that can be updated, and when it is updated we need to update the
+            // menu.
+            let menu_ref = &mut menu;
+            let menu_ref_cpy = unsafe {
+                std::mem::transmute::<&mut Box<Menu>, &'static mut Box<Menu>>(menu_ref)
+            };
+
+            // Create the tray icon since this is the first run. Tell Rust to leak it since even after
+            // updates, we do not want to remove it, and we certainly do not want to drop it with the
+            // abuse we just did.
+            Box::leak(Box::new(TrayIconBuilder::new()
+                .with_menu(menu)
+                .with_icon(Icon::from_rgba(rgba.to_vec(), rgba.width(), rgba.height()).unwrap())
+                .with_tooltip("MagicCap")
+                .build()
+                .unwrap()));
+
+            // Update the write guard with our abused menu reference.
+            write_guard.replace(menu_ref_cpy);
+        },
+    }
 }
 
 // (Re)-loads the tray. Required when there are changes to initialization, uploaders, or shortcuts.

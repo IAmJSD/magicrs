@@ -7,6 +7,8 @@ use cacao::{
     appkit::window::{Window, WindowConfig},
     webview::{WebView, WebViewConfig, WebViewDelegate},
 };
+#[cfg(target_os = "linux")]
+use webkit2gtk::WebView;
 use crate::database;
 #[cfg(target_os = "macos")]
 use crate::macos_delegate::app;
@@ -244,19 +246,37 @@ pub fn update_webview_with_capture(capture_id: i64) {
     }
 }
 
+// Handles creating the webview on Linux.
+#[cfg(target_os = "linux")]
+fn create_webview() -> WebView {
+    use webkit2gtk::WebViewBuilder;
+
+    WebView::new()
+}
+
+// Focuses the webview on Linux.
+#[cfg(target_os = "linux")]
+fn focus_webview(webview: &WebView) {
+    use gtk::{current_event_time, prelude::WidgetExt};
+
+    // Get the window this is relating to.
+    let window = webview.toplevel().unwrap().window().unwrap();
+
+    // Focus the window.
+    window.focus(current_event_time());
+}
+
 // Handles loading the config on Linux.
 // !! WARNING !!: This is assumed to be on the main thread. If it is not, it will cause a crash.
 #[cfg(target_os = "linux")]
 pub fn open_config() {
-    use webkit2gtk::WebViewBuilder;
-
-    use crate::linux_shared::app;
+    use crate::linux_shared::{app, FakeSend};
 
     // Check if the webview is already open.
     let webview_r = app().webview.read().unwrap();
     if webview_r.is_some() {
         // Focus the webview and return.
-        // TODO: Focus on Linux
+        focus_webview(&webview_r.as_ref().unwrap().value);
         return;
     }
     drop(webview_r);
@@ -266,9 +286,36 @@ pub fn open_config() {
     if webview_w.is_some() {
         // This is a duplicate of the above to deal with the VERY rare case that a webview was opened
         // between the read unlock and the write lock.
-        // TODO: focus on linux
+        focus_webview(&webview_w.as_ref().unwrap().value);
         return;
     }
 
-    // TODO
+    // Create the webview.
+    webview_w.replace(FakeSend { value: create_webview() });
+}
+
+// Handles updating the webview if present.
+#[cfg(target_os = "linux")]
+pub fn update_webview_with_capture(capture_id: i64) {
+    use crate::{linux_shared::app, mainthread::main_thread_async};
+    use webkit2gtk::WebViewExt;
+
+    let capture = match database::get_capture(capture_id) {
+        Some(capture) => capture,
+        None => return,
+    };
+    let html = crate::config::captures_html::generate_dom_node(capture).to_string();
+    let html_base64 = base64::engine::general_purpose::STANDARD.encode(&html);
+
+    // Since we need the main thread on Linux, we push a async main thread task here.
+    main_thread_async(move || {
+        let read_ref = app().webview.read().unwrap();
+        if let Some(webview) = read_ref.as_ref() {
+            // Yes, this is SUPER brutal. We can actually do better on Linux, but we have to support macOS.
+            webview.value.run_javascript(&format!(
+                "window.bridgeResponse(-1, '{}');", // see persistentHandlers in frontend/src/bridge/implementation.ts
+                html_base64
+            ), None::<&gio::Cancellable>, |_| {});
+        }
+    });
 }

@@ -1,11 +1,9 @@
-use std::sync::{mpsc::{self, Sender}, RwLock};
+use std::sync::RwLock;
+use muda::MenuEvent;
 use once_cell::sync::OnceCell;
 use webkit2gtk::WebView;
-use tray_icon::TrayIcon;
+use tray_icon::{menu::Menu, TrayIconEvent};
 use crate::{reload, statics::run_thread};
-
-// Defines the callback type.
-type Callback = Box<dyn FnOnce() + Send + 'static>;
 
 // Defines a wrapper to fake something being safe to send.
 pub struct FakeSend<T> {
@@ -15,10 +13,10 @@ unsafe impl<T> Send for FakeSend<T> {}
 unsafe impl<T> Sync for FakeSend<T> {}
 
 // Defines the structure for a shared application.
-struct SharedApplication {
-    pub main_thread_writer: Sender<Callback>,
+pub struct SharedApplication {
     pub webview: RwLock<Option<FakeSend<WebView>>>,
-    pub tray_icon: RwLock<Option<TrayIcon>>,
+    pub tray_menu: RwLock<Option<&'static mut Box<Menu>>>,
+    pub menu_event: RwLock<Option<&'static dyn Fn(MenuEvent)>>,
 }
 
 // Defines the public variable.
@@ -31,27 +29,27 @@ pub fn app() -> &'static mut SharedApplication {
 
 // The main entrypoint for setting up the application.
 pub fn application_init() {
-    // Create a channel.
-    let (tx, rx) = mpsc::channel::<Callback>();
+    // Call gtk::init.
+    gtk::init().unwrap();
 
     // Create the shared application box.
     let leaky_box = Box::leak(Box::new(SharedApplication {
-        main_thread_writer: tx,
         webview: RwLock::new(None),
-        tray_icon: RwLock::new(None),
+        tray_menu: RwLock::new(None),
+        menu_event: RwLock::new(None),
     }));
     let ptr = leaky_box as *mut SharedApplication;
-    unsafe { SHARED_APPLICATION.set(&mut *ptr); }
+    unsafe { let _ = SHARED_APPLICATION.set(&mut *ptr); }
 
     // Set the MAGICCAP_INTERNAL_MEMORY_ADDRESS env var.
     std::env::set_var("MAGICCAP_INTERNAL_MEMORY_ADDRESS", (ptr as usize).to_string());
 
-    // In a thread, launch the application_reload function. This is because
-    // it can cause problems if it blocks the main thread.
+    // In a thread, launch the application_reload function. This is because it can cause problems
+    // if it blocks the main thread.
     run_thread(reload::application_reload);
 
-    // Keep consuming the main thread.
-    for cb in rx { cb(); }
+    // Call gtk::main.
+    gtk::main();
 }
 
 pub fn application_hydrate() {
@@ -69,12 +67,12 @@ pub fn application_hydrate() {
 
     // Turn it into a pointer.
     unsafe {
-        SHARED_APPLICATION.set(
+        let _ = SHARED_APPLICATION.set(
             (mem_addr as *mut SharedApplication).as_mut().unwrap()
         );
     }
 
-    // In a thread, launch the application_reload function. This is because
-    // it can cause problems if it blocks the main thread.
+    // In a thread, launch the application_reload function. This is because it can cause problems
+    // if it blocks the main thread.
     run_thread(reload::application_reload);
 }
