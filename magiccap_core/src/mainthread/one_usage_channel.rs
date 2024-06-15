@@ -15,7 +15,7 @@ pub struct Sender<'a, T>
 where
     T: Send,
 {
-    channel: &'a mut OneUsageChannel<T>,
+    channel: &'a mut Box<OneUsageChannel<T>>,
 }
 
 // Defines the send function.
@@ -33,7 +33,7 @@ pub struct Receiver<'a, T>
 where
     T: Send,
 {
-    channel: OneUsageChannel<T>,
+    channel: Box<OneUsageChannel<T>>,
     lifetime: PhantomData<&'a ()>,
 }
 
@@ -55,10 +55,10 @@ where
     T: Send,
 {
     // Create the channel as the owner of the mutex.
-    let mut channel: OneUsageChannel<T> = OneUsageChannel {
+    let mut channel: Box<OneUsageChannel<T>> = Box::new(OneUsageChannel {
         mu: Mutex::new(None),
         lock_guard: None,
-    };
+    });
 
     // Create the lock guard and box it and get the pointer. This is VERY unsafe, but is okay
     // in such a controlled environment.
@@ -69,7 +69,7 @@ where
     // Do some unsafe stuff to break Rust rules and get a mutable reference to the channel.
     let mut_ref = &mut channel;
     let mut_ref_cpy = unsafe {
-        std::mem::transmute::<&mut OneUsageChannel<T>, &'a mut OneUsageChannel<T>>(mut_ref)
+        std::mem::transmute::<&mut Box<OneUsageChannel<T>>, &'a mut Box<OneUsageChannel<T>>>(mut_ref)
     };
 
     // Return the sender and receiver.
