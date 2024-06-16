@@ -99,6 +99,18 @@ fn setup_region_selector(
                 },
             };
 
+            // Handle window servers on Linux.
+            #[cfg(target_os = "linux")]
+            {
+                let x_ptr = window.get_x11_window();
+                if !x_ptr.is_null() {
+                    extern "C" {
+                        fn magiccap_handle_linux_x11(x_window_ptr: *mut std::ffi::c_void);
+                    }
+                    unsafe { magiccap_handle_linux_x11(x_ptr); }
+                }
+            }
+
             // Set key polling to true.
             window.set_key_polling(true);
 

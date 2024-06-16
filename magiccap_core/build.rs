@@ -13,8 +13,19 @@ fn os_specific_compilation() {
         .compile("macos");
 }
 
-#[cfg(not(target_os = "macos"))]
-fn os_specific_compilation() {}
+#[cfg(target_os = "linux")]
+fn os_specific_compilation() {
+    // Watch for changes to linux_x11.c.
+    println!("cargo:rerun-if-changed=src/region_selector/linux_x11.c");
+
+    // Link in X11.
+    println!("cargo:rustc-link-lib=X11");
+
+    // Compile the Linux X11 file.
+    cc::Build::new()
+        .file("src/region_selector/linux_x11.c")
+        .compile("linux_x11");
+}
 
 fn main() {
     // Handle OS-specific compilation.

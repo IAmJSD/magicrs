@@ -78,23 +78,26 @@ pub fn set_brightness_half_simd(image: &mut image::RgbaImage) {
     #[cfg(target_arch = "x86_64")]
     let has_avx2 = is_x86_feature_detected!("avx2");
 
-    // Iterate through the vectors.
-    for _ in 0..num_vecs {
-        // Divide the vector by 2.
-        // SAFETY: The pointer is valid and aligned.
-        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
-        unsafe { divide_by_two_simd(pixels) };
-        #[cfg(target_arch = "x86_64")]
-        unsafe {
-            if has_avx2 {
-                divide_by_two_simd_avx2(pixels);
-            } else {
-                divide_by_two_simd_fallback(pixels);
+    // Iterate through the vectors and divide them by 2.
+    macro_rules! iterate_vectors {
+        ($method_name:ident) => {
+            for _ in 0..num_vecs {
+                unsafe {
+                    // SAFETY: The pointer is valid and aligned as per the instruction types
+                    // and the specific lengths set in the constant above.
+                    $method_name(pixels);
+                    pixels = pixels.add(VECTOR_WIDTH);
+                }
             }
-        }
-
-        // Increment the pointer.
-        unsafe { pixels = pixels.add(VECTOR_WIDTH) };
+        };
+    }
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    iterate_vectors!(divide_by_two_simd);
+    #[cfg(target_arch = "x86_64")]
+    if has_avx2 {
+        iterate_vectors!(divide_by_two_simd_avx2);
+    } else {
+        iterate_vectors!(divide_by_two_simd_fallback);
     }
 
     // Iterate through the remainder.
