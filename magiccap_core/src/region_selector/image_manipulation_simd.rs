@@ -1,13 +1,3 @@
-// Divide a 16-byte vector by 2 using SIMD on x86_64.
-#[cfg(all(target_arch = "x86_64", target_feature = "sse2"))]
-unsafe fn divide_by_two_simd(v: *mut u8) {
-    use std::arch::x86_64::*;
-
-    let a = _mm_loadu_si128(v as *const __m128i);
-    let b = _mm_srli_epi16(a, 1);
-    _mm_storeu_si128(v as *mut __m128i, b);
-}
-
 // Divide a 64-byte vector by 2 using neon on arm64.
 // I refuse to call it aarch64: https://lkml.org/lkml/2012/7/15/133
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -22,11 +12,53 @@ unsafe fn divide_by_two_simd(v: *mut u8) {
     vst1q_u8_x4(v, regs);
 }
 
+// Divide a 32-byte vector by 2 using AVX2 on x86_64.
+#[cfg(target_arch = "x86_64")]
+unsafe fn divide_by_two_simd_avx2(v: *mut u8) {
+    use std::arch::x86_64::*;
+
+    // Load the 32-byte vector into a 256-bit registers.
+    let mut reg = _mm256_loadu_si256(v as *const __m256i);
+
+    // Perform the bitwise shift right operation by 1 on each 128-bit register.
+    reg = _mm256_srli_epi16(reg, 1);
+
+    // Mask out the upper 7 bits to ensure no overflow into adjacent bytes.
+    let mask = _mm256_set1_epi8(0x7F);
+    reg = _mm256_and_si256(reg, mask);
+
+    // Store the result back into the original vector.
+    _mm256_storeu_si256(v as *mut __m256i, reg);
+}
+
+// Divide a 32-byte vector by 2 using SSE2 on x86_64.
+#[cfg(all(target_arch = "x86_64", target_feature = "sse2"))]
+unsafe fn divide_by_two_simd_fallback(v: *mut u8) {
+    use std::arch::x86_64::*;
+
+    // Load the 32-byte vector into 2 128-bit registers.
+    let mut reg1 = _mm_loadu_si128(v as *const __m128i);
+    let mut reg2 = _mm_loadu_si128(v.add(16) as *const __m128i);
+
+    // Perform the bitwise shift right operation by 1 on each 128-bit register.
+    reg1 = _mm_srli_epi16(reg1, 1);
+    reg2 = _mm_srli_epi16(reg2, 1);
+
+    // Mask out the upper 7 bits to ensure no overflow into adjacent bytes.
+    let mask = _mm_set1_epi8(0x7F);
+    reg1 = _mm_and_si128(reg1, mask);
+    reg2 = _mm_and_si128(reg2, mask);
+
+    // Store the result back into the original vector.
+    _mm_storeu_si128(v as *mut __m128i, reg1);
+    _mm_storeu_si128(v.add(16) as *mut __m128i, reg2);
+}
+
 // Defines the width of the vector.
 const VECTOR_WIDTH: usize = if cfg!(all(target_arch = "aarch64", target_feature = "neon")) {
     64
 } else {
-    16
+    32
 };
 
 // Set the brightness of the specified image in half using SIMD. Note that this
@@ -42,11 +74,24 @@ pub fn set_brightness_half_simd(image: &mut image::RgbaImage) {
     // Get a mutable pointer to the pixels.
     let mut pixels = image.as_mut_ptr();
 
+    // On x86_64, check if we can use AVX2. This is basically every x86 CPU since 2013.
+    #[cfg(target_arch = "x86_64")]
+    let has_avx2 = is_x86_feature_detected!("avx2");
+
     // Iterate through the vectors.
     for _ in 0..num_vecs {
         // Divide the vector by 2.
         // SAFETY: The pointer is valid and aligned.
-        unsafe { divide_by_two_simd(pixels) }
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+        unsafe { divide_by_two_simd(pixels) };
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            if has_avx2 {
+                divide_by_two_simd_avx2(pixels);
+            } else {
+                divide_by_two_simd_fallback(pixels);
+            }
+        }
 
         // Increment the pointer.
         unsafe { pixels = pixels.add(VECTOR_WIDTH) };
