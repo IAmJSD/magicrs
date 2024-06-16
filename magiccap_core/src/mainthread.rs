@@ -37,14 +37,14 @@ pub fn main_thread_sync<F, T>(handler: F) -> T
 where
     F: Send + FnOnce() -> T, T: Send
 {
-    use std::sync::mpsc::channel;
+    use std::sync::mpsc::sync_channel;
 
     // Box the handler into a raw pointer. This is to get around some Rust rules
     // that are not overly useful here.
     let handler_ptr = Box::into_raw(Box::new(handler)) as usize;
 
     // Defines the function handler.
-    let (sender, reciever) = channel();
+    let (sender, reciever) = sync_channel(1);
     main_thread_async(move || {
         let handler: Box<F> = unsafe { Box::from_raw(handler_ptr as *mut F) };
         let res = handler();
