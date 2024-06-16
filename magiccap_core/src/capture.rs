@@ -47,25 +47,22 @@ fn post_capture_flow(ext: &str, notification_content: &str, data: Vec<u8>) {
             },
             None => {
                 // Get the ~/Pictures/MagicCap folder.
-                let folder = home::home_dir().unwrap().join("Pictures").join("MagicCap");
-
-                // Ensure the folder exists.
-                match std::fs::create_dir_all(&folder) {
-                    Ok(_) => {},
-                    Err(e) => {
-                        // Log this as a capture failure.
-                        database::insert_failed_capture(&filename, None);
-
-                        // Notify the user and stop the flow.
-                        notification::send_dialog_message(&format!("Failed to create the folder: {}", e));
-                        return;
-                    },
-                };
-
-                // Return the folder.
-                folder
+                home::home_dir().unwrap().join("Pictures").join("MagicCap")
             },
         };
+
+        // Create the folder if it does not exist.
+        match std::fs::create_dir_all(&folder_path) {
+            Ok(_) => {},
+            Err(e) => {
+                // Log this as a capture failure.
+                database::insert_failed_capture(&filename, None);
+
+                // Notify the user and stop the flow.
+                notification::send_dialog_message(&format!("Failed to create the folder: {}", e));
+                return;
+            },
+        }
 
         // Get the file path.
         let fp = folder_path.join(&filename);
