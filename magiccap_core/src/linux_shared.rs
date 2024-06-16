@@ -34,6 +34,14 @@ pub fn application_init() {
     // Call gtk::init.
     gtk::init().unwrap();
 
+    // Handle if MAGICCAP_INTERNAL_TEMP_ICON is set.
+    if let Ok(val) = std::env::var("MAGICCAP_INTERNAL_TEMP_ICON") {
+        if val == "1" {
+            crate::temp_icon::icond();
+            return;
+        }
+    }
+
     // Create the shared application box.
     let leaky_box = Box::leak(Box::new(SharedApplication {
         context: FakeSend { value: WebContext::default().unwrap() },

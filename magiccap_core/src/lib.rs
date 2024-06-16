@@ -11,6 +11,7 @@ mod statics;
 mod unload;
 mod utils;
 mod region_selector;
+mod temp_icon;
 
 #[cfg(target_os = "macos")]
 mod macos_delegate;
