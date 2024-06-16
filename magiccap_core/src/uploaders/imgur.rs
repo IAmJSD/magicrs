@@ -7,7 +7,6 @@ fn imgur_support_upload(
 ) -> Result<String, String> {
     let resp = ureq::post("https://api.imgur.com/3/image")
         .set("Authorization", "Client-ID 7be846b9a91ad50")
-        .set("Content-Type", "application/x-www-form-urlencoded")
         .send(reader);
 
     match resp {

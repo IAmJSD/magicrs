@@ -138,12 +138,14 @@ fn post_capture_flow(ext: &str, notification_content: &str, data: Vec<u8>) {
         true => Some(&fp_result),
         false => None,
     }, url_str, Some(CaptureFile {
-        file_name: filename,
+        file_name: filename.clone(),
         content: data,
     }));
 
-    // If this capture was successful, push a notification.
+    // If this capture was successful, push a notification and write to the database.
     if capture_success {
+        // The order here matters. The notification can block forever on some systems.
+        database::insert_successful_capture(filename.as_str(), Some(&fp_result), url_str);
         notification::send_notification(notification_content, url_str, match save_capture {
             true => Some(&fp_result),
             false => None,
