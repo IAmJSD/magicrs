@@ -44,7 +44,7 @@ dispatch = "0.2.0"
 [target.'cfg(target_os = "linux")'.dependencies]
 native-dialog = "0.7.0"
 notify-rust = "4.10.0"
-webkit2gtk = "2.0.1"
+webkit2gtk = { version = "2.0.1", features = ["v2_22"] }
 tray-icon = "0.14.3"
 gtk = "0.18.1"
 gio = "^0.18.0"

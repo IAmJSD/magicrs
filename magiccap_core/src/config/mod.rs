@@ -12,6 +12,7 @@ use webkit2gtk::WebView;
 use crate::database;
 #[cfg(target_os = "macos")]
 use crate::macos_delegate::app;
+#[cfg(target_os = "macos")]
 use crate::statics::run_thread;
 
 // The folder which contains the frontend distribution.
@@ -27,6 +28,101 @@ fn frontend_get(path: String) -> Option<Vec<u8>> {
     FRONTEND_DIST.
         get_file(path.trim_start_matches("/")).
         map(|f| f.contents().to_vec())
+}
+
+// Defines the function to handle message payloads.
+fn message_sent(cpy: String) {
+    // Take '{id}\n{type}\n' from the start, and then the rest is the body.
+    let mut parts = cpy.splitn(3, "\n");
+    let id = match parts.next() {
+        Some(v) => v,
+        None => return,
+    }.to_string();
+    let action_type = match parts.next() {
+        Some(v) => v,
+        None => return,
+    };
+
+    // Route based on the action type.
+    let data = match action_type {
+        "api" => {
+            // Parse the body as JSON.
+            let raw_body = match parts.next() {
+                Some(v) => v,
+                None => return,
+            };
+
+            // Parse the JSON.
+            let obj: serde_json::Value = match serde_json::from_str(raw_body) {
+                Ok(v) => v,
+                Err(_) => return,
+            };
+
+            // Route the API call.
+            api::handle_api_call(obj)
+        }
+        "fs_proxy" => {
+            // Call the proxy handler.
+            let fp = match parts.next() {
+                Some(v) => v,
+                None => return,
+            };
+            let mut ob: Vec<u8> = vec![0; 1];
+            match fs_proxy::proxy_fp(fp) {
+                Ok(mut v) => {
+                    ob.append(&mut v);
+                    ob[0] = 1;
+                    ob
+                },
+                Err(err) => {
+                    println!("[config.fs_proxy] Error proxying file path: {}", err);
+                    ob
+                },
+            }
+        },
+        "captures_html" => captures_html::captures_html(),
+        _ => return,
+    };
+
+    // Encode the data as base64.
+    let b64 = base64::engine::general_purpose::STANDARD.encode(data);
+
+    // Send the response on macOS.
+    #[cfg(target_os = "macos")]
+    {
+        match app().delegate.webview.write().unwrap().as_ref() {
+            Some(webview) => {
+                // Yes, this is SUPER brutal.
+                let webview = &webview.delegate.as_ref().unwrap().content;
+                webview.objc.with_mut(|obj| unsafe {
+                    let nsstr = NSString::new(
+                        &format!("window.bridgeResponse({}, '{}');", id, b64)
+                    );
+                    let _: () = msg_send![obj, evaluateJavaScript: nsstr completionHandler: nil];
+                });
+            },
+            None => {},
+        };
+        return;
+    }
+
+    // Send the response on Linux.
+    #[cfg(target_os = "linux")]
+    {
+        use webkit2gtk::WebViewExt;
+
+        crate::mainthread::main_thread_async(move || {
+            match crate::linux_shared::app().webview.read().unwrap().as_ref() {
+                Some(webview) => {
+                    // Yes, this is SUPER brutal.
+                    webview.value.run_javascript(&format!(
+                        "window.bridgeResponse({}, '{}');", id, b64
+                    ), None::<&gio::Cancellable>, |_| {});
+                },
+                None => {},
+            }
+        })
+    }
 }
 
 // The delegate for the webview on macOS.
@@ -47,77 +143,8 @@ impl WebViewDelegate for MagicCapConfigDelegate {
         // Copy the payload since we are doing this in a new thread.
         let cpy = body.to_string();
 
-        run_thread(move || {
-            // Take '{id}\n{type}\n' from the start, and then the rest is the body.
-            let mut parts = cpy.splitn(3, "\n");
-            let id = match parts.next() {
-                Some(v) => v,
-                None => return,
-            };
-            let action_type = match parts.next() {
-                Some(v) => v,
-                None => return,
-            };
-
-            // Route based on the action type.
-            let data = match action_type {
-                "api" => {
-                    // Parse the body as JSON.
-                    let raw_body = match parts.next() {
-                        Some(v) => v,
-                        None => return,
-                    };
-
-                    // Parse the JSON.
-                    let obj: serde_json::Value = match serde_json::from_str(raw_body) {
-                        Ok(v) => v,
-                        Err(_) => return,
-                    };
-
-                    // Route the API call.
-                    api::handle_api_call(obj)
-                }
-                "fs_proxy" => {
-                    // Call the proxy handler.
-                    let fp = match parts.next() {
-                        Some(v) => v,
-                        None => return,
-                    };
-                    let mut ob: Vec<u8> = vec![0; 1];
-                    match fs_proxy::proxy_fp(fp) {
-                        Ok(mut v) => {
-                            ob.append(&mut v);
-                            ob[0] = 1;
-                            ob
-                        },
-                        Err(err) => {
-                            println!("[config.fs_proxy] Error proxying file path: {}", err);
-                            ob
-                        },
-                    }
-                },
-                "captures_html" => captures_html::captures_html(),
-                _ => return,
-            };
-
-            // Encode the data as base64.
-            let b64 = base64::engine::general_purpose::STANDARD.encode(data);
-
-            // Send the response.
-            match app().delegate.webview.write().unwrap().as_ref() {
-                Some(webview) => {
-                    // Yes, this is SUPER brutal.
-                    let webview = &webview.delegate.as_ref().unwrap().content;
-                    webview.objc.with_mut(|obj| unsafe {
-                        let nsstr = NSString::new(
-                            &format!("window.bridgeResponse({}, '{}');", id, b64)
-                        );
-                        let _: () = msg_send![obj, evaluateJavaScript: nsstr completionHandler: nil];
-                    });
-                },
-                None => {},
-            }
-        });
+        // Spawn a new thread to handle the message.
+        run_thread(move || message_sent(cpy));
     }
 
     // Handles the custom protocol requests on macOS.
@@ -249,9 +276,92 @@ pub fn update_webview_with_capture(capture_id: i64) {
 // Handles creating the webview on Linux.
 #[cfg(target_os = "linux")]
 fn create_webview() -> WebView {
-    use webkit2gtk::WebViewBuilder;
+    use crate::linux_shared::app;
+    use gtk::{prelude::*, Window};
+    use webkit2gtk::{
+        SettingsExt, URISchemeRequestExt, UserContentManager,
+        UserContentManagerExt, WebViewExt, WebViewExtManual,
+    };
 
-    WebView::new()
+    // Setup the JS bridge so that the webview can call out.
+    let user_content_manager = &UserContentManager::new();
+    user_content_manager.register_script_message_handler("bridge");
+    user_content_manager.connect_script_message_received(Some("bridge"), |&_, resp| {
+        let s = resp.js_value().unwrap().to_string();
+        message_sent(s);
+    });
+
+    // Initialize everything needed to handle the webview.
+    let window = Window::new(gtk::WindowType::Toplevel);
+    let wv = WebView::new_with_context_and_user_content_manager(
+        &app().context.value, &user_content_manager,
+    );
+    let settings = WebViewExt::settings(&wv).unwrap();
+
+    // Setup the custom protocol and load it.
+    app().protocol_handler.write().unwrap().replace(&|req| {
+        // Parse the URI.
+        let uri = req.uri().unwrap();
+        let uri = match URI::try_from(uri.as_str()) {
+            Ok(x) => x,
+            Err(_) => panic!("uri sent to magiccap-internal is not a valid URI"),
+        };
+
+        // Route based on the host.
+        let value = match uri.host() {
+            Some(v) => {
+                match v.to_string().as_str() {
+                    "frontend-dist" => {
+                        frontend_get(uri.path().to_string())
+                    },
+                    _ => None,
+                }
+            }
+            None => None,
+        };
+
+        // Handle returning the result.
+        match value {
+            Some(v) => {
+                // Finish the request with the data.
+                let input_stream = gio::MemoryInputStream::from_bytes(&glib::Bytes::from(&v));
+                req.finish(&input_stream, v.len() as i64, None::<&str>);
+            },
+            None => {
+                // Finish the request with an error.
+                req.finish_error(&mut glib::Error::new(glib::FileError::Acces, "Resource not found"));
+            }
+        }
+    });
+    wv.load_uri("magiccap-internal://frontend-dist/index.html");
+
+    // If this is a debug build, enable the developer extras.
+    if cfg!(debug_assertions) {
+        settings.set_enable_developer_extras(true);
+    }
+
+    // Mount it inside the window.
+    window.add(&wv);
+
+    // Handle window decorations.
+    window.set_title("MagicCap");
+    window.set_default_size(1000, 600);
+
+    // When the window is closed, drop ourselves from the global app.
+    window.connect_delete_event(|_, _| {
+        // Drop the webview.
+        let mut webview = app().webview.write().unwrap();
+        webview.take();
+
+        // Continue with the default behavior.
+        glib::Propagation::Proceed
+    });
+
+    // Show the window.
+    window.show_all();
+
+    // Return the webview.
+    wv
 }
 
 // Focuses the webview on Linux.

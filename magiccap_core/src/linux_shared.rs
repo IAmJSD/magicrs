@@ -1,8 +1,8 @@
 use std::sync::RwLock;
 use muda::MenuEvent;
 use once_cell::sync::OnceCell;
-use webkit2gtk::WebView;
-use tray_icon::{menu::Menu, TrayIconEvent};
+use webkit2gtk::{URISchemeRequest, WebContext, WebContextExt, WebView};
+use tray_icon::menu::Menu;
 use crate::{reload, statics::run_thread};
 
 // Defines a wrapper to fake something being safe to send.
@@ -14,6 +14,8 @@ unsafe impl<T> Sync for FakeSend<T> {}
 
 // Defines the structure for a shared application.
 pub struct SharedApplication {
+    pub context: FakeSend<WebContext>,
+    pub protocol_handler: Box<RwLock<Option<&'static dyn Fn(&URISchemeRequest)>>>,
     pub webview: RwLock<Option<FakeSend<WebView>>>,
     pub tray_menu: RwLock<Option<&'static mut Box<Menu>>>,
     pub menu_event: RwLock<Option<&'static dyn Fn(MenuEvent)>>,
@@ -34,6 +36,8 @@ pub fn application_init() {
 
     // Create the shared application box.
     let leaky_box = Box::leak(Box::new(SharedApplication {
+        context: FakeSend { value: WebContext::default().unwrap() },
+        protocol_handler: Box::new(RwLock::new(None)),
         webview: RwLock::new(None),
         tray_menu: RwLock::new(None),
         menu_event: RwLock::new(None),
@@ -43,6 +47,14 @@ pub fn application_init() {
 
     // Set the MAGICCAP_INTERNAL_MEMORY_ADDRESS env var.
     std::env::set_var("MAGICCAP_INTERNAL_MEMORY_ADDRESS", (ptr as usize).to_string());
+
+    // Set the context handler for the webview context.
+    app().context.value.register_uri_scheme("magiccap-internal", |req| {
+        let protocol_handler = app().protocol_handler.read().unwrap().clone();
+        if let Some(hn) = protocol_handler {
+            hn(req);
+        }
+    });
 
     // In a thread, launch the application_reload function. This is because it can cause problems
     // if it blocks the main thread.
