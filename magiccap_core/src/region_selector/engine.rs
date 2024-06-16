@@ -76,7 +76,7 @@ fn setup_region_selector(
     let mut glfw_windows: Vec<PWindow> = Vec::with_capacity(setup.monitors.len());
     let mut glfw_events = Vec::with_capacity(setup.monitors.len());
     if !glfw.with_connected_monitors(|glfw, glfw_monitors| {
-        for monitor in &setup.monitors {
+        for (index, monitor) in setup.monitors.iter().enumerate() {
             // Find the matching glfw monitor.
             let glfw_monitor = glfw_monitors.iter().
                 find(|m| m.get_pos() == (monitor.x(), monitor.y())).unwrap();
@@ -105,9 +105,9 @@ fn setup_region_selector(
                 let x_ptr = window.get_x11_window();
                 if !x_ptr.is_null() {
                     extern "C" {
-                        fn magiccap_handle_linux_x11(x_window_ptr: *mut std::ffi::c_void);
+                        fn magiccap_handle_linux_x11(x_window_ptr: *mut std::ffi::c_void, last: bool);
                     }
-                    unsafe { magiccap_handle_linux_x11(x_ptr); }
+                    unsafe { magiccap_handle_linux_x11(x_ptr, index == setup.monitors.len() - 1); }
                 }
             }
 

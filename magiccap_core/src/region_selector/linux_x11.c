@@ -3,21 +3,28 @@
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <stdint.h>
+#include <stdbool.h>
 
-void magiccap_handle_linux_x11(void* x_window_ptr) {
+// Defines the internal display handle.
+Display* magiccap_internal_display = NULL;
+
+// Defines the handler function.
+void magiccap_handle_linux_x11(void* x_window_ptr, bool last) {
     // Start a connection to the X server.
-    Display* display = XOpenDisplay(NULL);
+    if (magiccap_internal_display == NULL) {
+        magiccap_internal_display = XOpenDisplay(NULL);
+    }
 
     // Cast the window pointer to the appropriate type.
     Window window = (Window)(uintptr_t)x_window_ptr;
 
     // Define the property to set the window type to dialog.
-    Atom wmWindowType = XInternAtom(display, "_NET_WM_WINDOW_TYPE", False);
-    Atom wmWindowTypeDialog = XInternAtom(display, "_NET_WM_WINDOW_TYPE_DIALOG", False);
+    Atom wmWindowType = XInternAtom(magiccap_internal_display, "_NET_WM_WINDOW_TYPE", False);
+    Atom wmWindowTypeDialog = XInternAtom(magiccap_internal_display, "_NET_WM_WINDOW_TYPE_DIALOG", False);
 
     // Define the property to set the window always on top.
-    Atom wmStateAbove = XInternAtom(display, "_NET_WM_STATE_ABOVE", False);
-    Atom wmNetWmState = XInternAtom(display, "_NET_WM_STATE", False);
+    Atom wmStateAbove = XInternAtom(magiccap_internal_display, "_NET_WM_STATE_ABOVE", False);
+    Atom wmNetWmState = XInternAtom(magiccap_internal_display, "_NET_WM_STATE", False);
 
     // Prepare the event for changing the window state.
     XEvent xev;
@@ -33,27 +40,30 @@ void magiccap_handle_linux_x11(void* x_window_ptr) {
     xev.xclient.data.l[4] = 0; // Unused
 
     // Send the event to the root window.
-    XSendEvent(display, DefaultRootWindow(display), False, SubstructureRedirectMask | SubstructureNotifyMask, &xev);
+    XSendEvent(magiccap_internal_display, DefaultRootWindow(magiccap_internal_display), False, SubstructureRedirectMask | SubstructureNotifyMask, &xev);
 
     // Set the window type to dialog.
-    XChangeProperty(display, window, wmWindowType, XA_ATOM, 32, PropModeReplace, (unsigned char *)&wmWindowTypeDialog, 1);
+    XChangeProperty(magiccap_internal_display, window, wmWindowType, XA_ATOM, 32, PropModeReplace, (unsigned char *)&wmWindowTypeDialog, 1);
 
     // Flush the request to the X server.
-    XFlush(display);
+    XFlush(magiccap_internal_display);
 
     // Set the OverrideRedirect attribute to true
     XSetWindowAttributes attrs;
     attrs.override_redirect = True;
-    XChangeWindowAttributes(display, window, CWOverrideRedirect, &attrs);
+    XChangeWindowAttributes(magiccap_internal_display, window, CWOverrideRedirect, &attrs);
 
     // Raise the window to the top
-    XRaiseWindow(display, window);
+    XRaiseWindow(magiccap_internal_display, window);
 
     // Flush the request to the X server.
-    XFlush(display);
+    XFlush(magiccap_internal_display);
 
     // Close the connection to the X server.
-    XCloseDisplay(display);
+    if (last) {
+        XCloseDisplay(magiccap_internal_display);
+        magiccap_internal_display = NULL;
+    }
 }
 
 #endif // _MAGICCAP_LINUX_X11_C
