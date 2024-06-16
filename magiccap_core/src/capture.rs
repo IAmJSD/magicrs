@@ -47,7 +47,23 @@ fn post_capture_flow(ext: &str, notification_content: &str, data: Vec<u8>) {
             },
             None => {
                 // Get the ~/Pictures/MagicCap folder.
-                home::home_dir().unwrap().join("Pictures").join("MagicCap")
+                let folder = home::home_dir().unwrap().join("Pictures").join("MagicCap");
+
+                // Ensure the folder exists.
+                match std::fs::create_dir_all(&folder) {
+                    Ok(_) => {},
+                    Err(e) => {
+                        // Log this as a capture failure.
+                        database::insert_failed_capture(&filename, None);
+
+                        // Notify the user and stop the flow.
+                        notification::send_dialog_message(&format!("Failed to create the folder: {}", e));
+                        return;
+                    },
+                };
+
+                // Return the folder.
+                folder
             },
         };
 
