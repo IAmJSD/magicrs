@@ -12,7 +12,6 @@ use webkit2gtk::WebView;
 use crate::database;
 #[cfg(target_os = "macos")]
 use crate::macos_delegate::app;
-#[cfg(target_os = "macos")]
 use crate::statics::run_thread;
 
 // The folder which contains the frontend distribution.
@@ -287,7 +286,7 @@ fn create_webview() -> WebView {
     user_content_manager.register_script_message_handler("bridge");
     user_content_manager.connect_script_message_received(Some("bridge"), |&_, resp| {
         let s = resp.js_value().unwrap().to_string();
-        message_sent(s);
+        run_thread(move || message_sent(s));
     });
 
     // Initialize everything needed to handle the webview.
