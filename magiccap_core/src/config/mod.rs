@@ -103,7 +103,6 @@ fn message_sent(cpy: String) {
             },
             None => {},
         };
-        return;
     }
 
     // Send the response on Linux.
