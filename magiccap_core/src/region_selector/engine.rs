@@ -220,6 +220,14 @@ pub fn invoke(setup: Box<RegionSelectorSetup>, screenshots: &mut Vec<RgbaImage>)
     // Clean up by making sure the context is dropped on the main thread.
     main_thread_drop(ctx);
 
-    // Return the result.
-    res
+    // If there is a result, reverse the image and return it.
+    if let Some(mut res) = res {
+        // Do this with the Rust image crate.
+        image::imageops::flip_vertical_in_place(&mut res.image);
+
+        // Return the result.
+        Some(res)
+    } else {
+        None
+    }
 }

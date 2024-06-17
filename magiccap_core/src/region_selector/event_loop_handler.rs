@@ -1,8 +1,7 @@
 use glfw::{Action, Key};
 use super::{
     engine::{EditorUsage, RegionSelectorContext, SendSyncBypass},
-    ui_renderer::region_selector_render_ui,
-    RegionCapture
+    ui_renderer::region_selector_render_ui, Region, RegionCapture
 };
 
 // Handles the fullscreen key being pressed.
@@ -19,6 +18,7 @@ fn fullscreen_key(ctx: &mut RegionSelectorContext, shift_held: bool) -> Option<R
             break;
         }
     }
+    let (width, height) = active_window.get_size();
 
     // Handle if shift is held with a tool selected.
     if ctx.editor_index.is_some() && shift_held {
@@ -44,9 +44,28 @@ fn fullscreen_key(ctx: &mut RegionSelectorContext, shift_held: bool) -> Option<R
         );
     }
 
-    // Pull the region of the display.
-    // TODO
-    None
+    // Pull the OpenGL buffer of the window.
+    let mut buffer = vec![0; (width * height * 4) as usize];
+    unsafe {
+        gl::ReadPixels(
+            0, 0, width, height, gl::RGBA, gl::UNSIGNED_BYTE, buffer.as_mut_ptr() as *mut std::ffi::c_void
+        );
+    }
+
+    // Create the image with the buffer inside.
+    let image = image::RgbaImage::from_raw(width as u32, height as u32, buffer).unwrap();
+
+    // Return the region capture.
+    Some(RegionCapture {
+        monitor: ctx.setup.monitors[active_index].clone(),
+        relative_region: Region {
+            x: 0,
+            y: 0,
+            width: width as u32,
+            height: height as u32,
+        },
+        image,
+    })
 }
 
 // Handles the mouse being moved.

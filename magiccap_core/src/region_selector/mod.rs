@@ -23,7 +23,7 @@ pub struct Region {
 // Defines the result of a region capture.
 pub struct RegionCapture {
     pub monitor: Monitor,
-    pub region: Region,
+    pub relative_region: Region,
     pub image: image::RgbaImage,
 }
 
