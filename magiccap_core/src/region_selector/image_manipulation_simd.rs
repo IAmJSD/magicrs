@@ -67,7 +67,7 @@ pub fn set_brightness_half_simd(image: &mut image::RgbaImage) {
     // Get the total length.
     let len = image.len();
 
-    // Get the number of 16 byte vectors.
+    // Get the number of maximum CPU width vectors.
     let num_vecs = len / VECTOR_WIDTH;
     let remainder = len % VECTOR_WIDTH;
 
