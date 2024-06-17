@@ -1,3 +1,6 @@
+dev-preinit:
+	cd frontend && yarn && yarn run build
+
 linux-dev:
 	# Ensure the frontend/dist directory exists.
 	mkdir -p frontend/dist
@@ -31,4 +34,4 @@ macos-dev:
 	# Load foreman.
 	foreman start -f Procfile.macos-dev
 
-.PHONY: linux-dev macos-dev
+.PHONY: dev-preinit linux-dev macos-dev
