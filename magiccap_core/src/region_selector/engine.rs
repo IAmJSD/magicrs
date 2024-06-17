@@ -87,9 +87,15 @@ fn setup_region_selector(
             glfw.window_hint(glfw::WindowHint::OpenGlForwardCompat(true));
 
             // Create the window.
-            let (mut window, events) = match glfw.create_window(
-                monitor.width(), monitor.height(), "Region Selector", glfw::WindowMode::FullScreen(&glfw_monitor),
-            ) {
+            let (mut window, events) = match if glfw_windows.is_empty() {
+                glfw.create_window(
+                    monitor.width(), monitor.height(), "Region Selector", glfw::WindowMode::FullScreen(&glfw_monitor),
+                )
+            } else {
+                glfw_windows[0].create_shared(
+                    monitor.width(), monitor.height(), "Region Selector", glfw::WindowMode::FullScreen(&glfw_monitor),
+                )
+            } {
                 Some((window, events)) => (window, events),
                 None => {
                     for window in &mut glfw_windows {

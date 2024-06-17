@@ -67,6 +67,9 @@ pub unsafe fn region_selector_render_ui(
     ctx: &mut RegionSelectorContext, with_decorations: bool, window_index: Option<usize>,
 ) {
     iter_windows_or_jump(ctx, window_index, &|ctx, window, i| {
+        // Set the window as the current context.
+        window.make_current();
+
         // Set the viewport.
         let (width, height) = window.get_size();
         gl::Viewport(0, 0, width, height);
