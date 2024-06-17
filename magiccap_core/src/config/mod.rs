@@ -296,7 +296,7 @@ fn create_webview() -> WebView {
     );
     let settings = WebViewExt::settings(&wv).unwrap();
 
-    // Setup the custom protocol and load it.
+    // Setup the custom protocol.
     app().protocol_handler.write().unwrap().replace(&|req| {
         // Parse the URI.
         let uri = req.uri().unwrap();
@@ -331,7 +331,13 @@ fn create_webview() -> WebView {
             }
         }
     });
-    wv.load_uri("magiccap-internal://frontend-dist/index.html");
+
+    // Load the webview.
+    let html_url = match std::env::var("MAGICCAP_DEV_FRONTEND_URL") {
+        Ok(v) => v,
+        Err(_) => "magiccap-internal://frontend-dist/index.html".to_owned(),
+    };
+    wv.load_uri(&html_url);
 
     // If this is a debug build, enable the developer extras.
     if cfg!(debug_assertions) {

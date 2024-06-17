@@ -1,3 +1,13 @@
+linux-dev:
+	# Ensure the frontend/dist directory exists.
+	mkdir -p frontend/dist
+
+	# Build core_embedded as a debug build.
+	cd core_embedded && cargo build
+
+	# Load foreman.
+	foreman start -f Procfile.linux-dev
+
 macos-dev:
 	# Ensure the frontend/dist directory exists.
 	mkdir -p frontend/dist
@@ -21,4 +31,4 @@ macos-dev:
 	# Load foreman.
 	foreman start -f Procfile.macos-dev
 
-.PHONY: macos-dev
+.PHONY: linux-dev macos-dev
