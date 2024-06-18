@@ -18,7 +18,16 @@ body {
 }
 
 .hide-first-when-hovered:hover .hide-first-when-hovered__first {
-    display: none;
+    /* Always show the other element on screen readers */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
 }
 
 .hide-first-when-hovered:hover .hide-first-when-hovered__second {
@@ -30,5 +39,14 @@ body {
 }
 
 .hide-first-when-hovered__second {
-    display: none;
+    /* Always show the other element on screen readers */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
 }
