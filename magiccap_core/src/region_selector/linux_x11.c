@@ -4,6 +4,7 @@
 #include <X11/Xatom.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 
 // Defines the internal display handle.
 Display* magiccap_internal_display = NULL;
