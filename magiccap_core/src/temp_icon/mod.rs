@@ -11,5 +11,5 @@ pub use linux::icond;
 // Re-export the icon handler.
 #[cfg(target_os = "linux")]
 pub use linux::IconHandler;
-#[cfg(not(target_os = "linux"))]
-pub use other::IconHandler;
+//#[cfg(not(target_os = "linux"))]
+//pub use other::IconHandler;

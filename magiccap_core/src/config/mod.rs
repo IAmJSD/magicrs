@@ -91,6 +91,8 @@ fn message_sent(cpy: String) {
     {
         match app().delegate.webview.write().unwrap().as_ref() {
             Some(webview) => {
+                use objc::{sel, sel_impl, msg_send};
+
                 // Yes, this is SUPER brutal.
                 let webview = &webview.delegate.as_ref().unwrap().content;
                 webview.objc.with_mut(|obj| unsafe {
