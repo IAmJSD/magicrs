@@ -8,12 +8,17 @@ fn generate_info(capture: &Capture) -> Box<div<String>> {
     if capture.success {
         classes = "p-2 text-white bg-green-600 opacity-90";
     }
+    let mut a11y_capture_info = "capture failed ";
+    if capture.success {
+        a11y_capture_info = "capture succeeded ";
+    }
 
     // tbh this macro is a big hack and I don't like how it interacts with VS Code. The fact
     // I can't collapse DOM nodes is not dyslexia friendly. Ah well.
     html!(
         <div role="group" class=classes>
             <p class="text-sm block" tabindex="0">
+                <span class="sr-only">{text!(a11y_capture_info)}</span>
                 {text!(&capture.filename)}
             </p>
 

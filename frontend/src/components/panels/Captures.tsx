@@ -86,7 +86,7 @@ function hookCaptureChildren(element: HTMLElement) {
         form.querySelectorAll("button[aria-label]").forEach(button => {
             tippy(button, {
                 aria: {
-                     content: null,
+                    content: null,
                 },
                 content: button.getAttribute("aria-label")!,
                 animation: false,
