@@ -12,14 +12,18 @@ fn generate_info(capture: &Capture) -> Box<div<String>> {
     // tbh this macro is a big hack and I don't like how it interacts with VS Code. The fact
     // I can't collapse DOM nodes is not dyslexia friendly. Ah well.
     html!(
-        <div class=classes>
-            <p class="text-sm block">
+        <div role="group" class=classes>
+            <p class="text-sm block" tabindex="0">
                 {text!(&capture.filename)}
             </p>
 
             <div class="hide-first-when-hovered text-sm">
                 <div class="hide-first-when-hovered__first">
-                    <p><i class="fa-regular fa-clock"></i>{text!(' ')}{text!(&capture.created_at)}</p>
+                    <p tabindex="0">
+                        <span class="sr-only">"created at"</span>
+                        <i tabindex="-1" class="fa-regular fa-clock"></i>
+                        {text!(' ')}{text!(&capture.created_at)}
+                    </p>
                 </div>
 
                 <div class="hide-first-when-hovered__second">    

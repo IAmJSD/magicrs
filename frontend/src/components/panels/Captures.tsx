@@ -85,6 +85,9 @@ function hookCaptureChildren(element: HTMLElement) {
         // Find all buttons that contain aria-label and add a tooltip.
         form.querySelectorAll("button[aria-label]").forEach(button => {
             tippy(button, {
+                aria: {
+                     content: null,
+                },
                 content: button.getAttribute("aria-label")!,
                 animation: false,
             });
