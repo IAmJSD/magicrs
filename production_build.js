@@ -101,7 +101,7 @@ if (process.env.MAGICCAP_AUTOUPDATE_PRIVATE_KEY) {
 }
 
 // Copy the compiled binary to the dist folder.
-runCommand(`rm -rf dist && mkdir dist && cp "${binary}" dist/magiccap`);
+runCommand(`rm -rf dist && mkdir dist && cp "${binary}" dist/magiccap${process.platform === "win32" ? ".exe" : ""}`);
 if (process.env.MAGICCAP_AUTOUPDATE_PRIVATE_KEY) {
     let cmdStart;
     switch (process.platform) {
