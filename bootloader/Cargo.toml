@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 sha2 = "0.10.8"
-base64 = "0.21.7"
+base64 = "0.22.1"
 home = "0.5.9"
 libloading = "0.8.1"
 openssl = "0.10.63"
