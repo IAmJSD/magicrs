@@ -4,3 +4,4 @@ target
 .DS_Store
 rust_licenses.json
 dist
+node_modules/

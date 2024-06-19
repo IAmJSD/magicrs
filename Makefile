@@ -46,11 +46,14 @@ macos-dev:
 	foreman start -f Procfile.macos-dev
 
 build:
-	node ./production_build.js
+	node ./build/compile.js
+
+package:
+	cd build/packaging && yarn && yarn start
 
 all:
-	node ./production_build.js
-	node ./package.js
+	node ./build/compile.js
+	make package
 
 .DEFAULT_GOAL := build
-.PHONY: generate-license-file dev-preinit linux-dev macos-dev build all
+.PHONY: generate-license-file dev-preinit linux-dev macos-dev build package all
