@@ -61,6 +61,8 @@ switch (process.platform) {
         process.exit(1);
 }
 
+// Defines the MagicCap Core signature file path.
+const sigPath = join(__dirname, "target", "release", "magiccap_core.sig");
 
 // Build with autoupdate.
 function buildWithAutoupdate(privateKeyPath) {
@@ -77,7 +79,6 @@ function buildWithAutoupdate(privateKeyPath) {
     runCommand("cargo build --release --package magiccap_core --features signature");
 
     // Sign MagicCap Core.
-    const sigPath = join(__dirname, "target", "release", "magiccap_core.sig");
     runCommand(`openssl dgst -sha256 -sign "${privateKeyPath}" -out "${sigPath}" "${corePath}"`);
 
     // Compile the bootloader to bootstrap the booting and signature verification process.
@@ -99,39 +100,29 @@ if (process.env.MAGICCAP_AUTOUPDATE_PRIVATE_KEY) {
     binary = buildNoAutoupdate();
 }
 
-// Package for MacOS.
-function packageMacOS() {
-    // TODO
-}
-
-// Package for Windows.
-function packageWindows() {
-    // TODO
-}
-
-// Package for Linux.
-function packageLinux() {
-    // TODO
-}
-
-// Package for the current platform.
-switch (process.platform) {
-    case "darwin":
-        packageMacOS();
-        break;
-    case "win32":
-        packageWindows();
-        break;
-    case "linux":
-        packageLinux();
-        break;
-    default:
-        throw new Error("Unsupported platform.");
+// Copy the compiled binary to the dist folder.
+runCommand(`rm -rf dist && mkdir dist && cp "${binary}" dist/magiccap`);
+if (process.env.MAGICCAP_AUTOUPDATE_PRIVATE_KEY) {
+    let cmdStart;
+    switch (process.platform) {
+        case "darwin":
+            cmdStart = `cp "${corePath}" dist/core.dylib && `;
+            break;
+        case "win32":
+            cmdStart = `cp "${corePath}" dist/core.dll && `;
+            break;
+        case "linux":
+            cmdStart = `cp "${corePath}" dist/core.so && `;
+            break;
+        default:
+            console.error("Unsupported platform.");
+            process.exit(1);
+    }
+    runCommand(cmdStart + `cp "${sigPath}" dist/core.sig`);
 }
 
 // Send a success message.
-let message = "\n\x1b[1mMagicCap has been successfully compiled!\x1b[0m The outputs for your platform are in the 'dist' folder.";
-if (process.env.MAGICCAP_AUTOUPDATE_PRIVATE_KEY) {
-    message += "\n\nNOTE: MagicCap Core has been compiled/signed in the target/release folder. You should push this to your autoupdate server seperately.";
-}
+const message = `\n\x1b[1mMagicCap has been successfully compiled!\x1b[0m The binary outputs for your platform are in the 'dist' folder.
+
+Note that you may want to run \x1b[1m\x1b[37mmake package\x1b[0m to turn the binary into a installable package for your platform.`;
 console.log(message);

@@ -48,5 +48,9 @@ macos-dev:
 build:
 	node ./production_build.js
 
+all:
+	node ./production_build.js
+	node ./package.js
+
 .DEFAULT_GOAL := build
-.PHONY: generate-license-file dev-preinit linux-dev macos-dev build
+.PHONY: generate-license-file dev-preinit linux-dev macos-dev build all
