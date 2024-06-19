@@ -427,7 +427,7 @@ pub fn update_webview_with_capture(capture_id: i64) {
     main_thread_async(move || {
         let read_ref = app().webview.read().unwrap();
         if let Some(webview) = read_ref.as_ref() {
-            // Yes, this is SUPER brutal. We can actually do better on Linux, but we have to support macOS.
+            // Yes, this is SUPER brutal.
             webview.value.run_javascript(&format!(
                 "window.bridgeResponse(-1, '{}');", // see persistentHandlers in frontend/src/bridge/implementation.ts
                 html_base64
