@@ -2,3 +2,4 @@ target
 /build_signing.pem
 /macos/MagicCap Dev.app
 .DS_Store
+rust_licenses.json

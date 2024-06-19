@@ -1,7 +1,15 @@
+generate-license-file:
+	cargo install cargo-bundle-licenses
+	cargo bundle-licenses --format json --output rust_licenses.json
+
 dev-preinit:
 	cd frontend && yarn && yarn run build
+	make generate-license-file
 
 linux-dev:
+	# Generate the Rust license file.
+	make generate-license-file
+
 	# Ensure the frontend/dist directory exists.
 	mkdir -p frontend/dist
 
@@ -12,6 +20,9 @@ linux-dev:
 	foreman start -f Procfile.linux-dev
 
 macos-dev:
+	# Generate the Rust license file.
+	make generate-license-file
+
 	# Ensure the frontend/dist directory exists.
 	mkdir -p frontend/dist
 
@@ -34,4 +45,8 @@ macos-dev:
 	# Load foreman.
 	foreman start -f Procfile.macos-dev
 
-.PHONY: dev-preinit linux-dev macos-dev
+build:
+	make generate-license-file && node ./production_build.js
+
+.DEFAULT_GOAL := build
+.PHONY: generate-license-file dev-preinit linux-dev macos-dev build
