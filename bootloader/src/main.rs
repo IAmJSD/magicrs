@@ -93,6 +93,9 @@ fn load_core(binaries_dir: &PathBuf) {
 }
 
 fn main() {
+    // Set MAGICCAP_INTERNAL_STARTED_WITH_BOOTLOADER to 1.
+    std::env::set_var("MAGICCAP_INTERNAL_STARTED_WITH_BOOTLOADER", "1");
+
     // Include the core library.
     let core = core_dylib();
 

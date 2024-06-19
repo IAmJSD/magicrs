@@ -1,6 +1,9 @@
-use std::fs;
+use std::{env, fs};
 
 fn main() {
+    // Set MAGICCAP_INTERNAL_STARTED_WITH_BOOTLOADER to 0.
+    env::set_var("MAGICCAP_INTERNAL_STARTED_WITH_BOOTLOADER", "0");
+
     // Make sure that ~/.config/magiccap/binaries exists. The bootloader does this too, but we do not have
     // access to the bootloader here.
     let homedir = home::home_dir().unwrap();
