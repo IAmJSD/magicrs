@@ -14,9 +14,13 @@ export default function CodeEditor({ language, value, onChange, height, width }:
     const darkMode = useDarkMode();
 
     // Monaco is HUGE. Only load it when we need it.
-    const [Editor, promiseState] = usePromise(() => import("./utils/async/monacoSetup").then(
-        () => loader.init().then(() => editorComponent),
-    ), []);
+    // @ts-expect-error: It is so huge we build it seperately.
+    const [Editor, promiseState] = usePromise(() => import("/monaco/monacoSetup.mjs?url").then(
+        ({ monaco }) => {
+            loader.config({ monaco });
+            loader.init().then(() => editorComponent);
+        },
+    ) as Promise<typeof editorComponent>, []);
 
     if (promiseState !== "resolved") return <></>;
     return <Editor

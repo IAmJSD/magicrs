@@ -1,2 +1,0 @@
-// This exports nothing.
-export {};
