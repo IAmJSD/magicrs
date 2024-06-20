@@ -16,11 +16,11 @@ export default function CodeEditor({ language, value, onChange, height, width }:
     // Monaco is HUGE. Only load it when we need it.
     // @ts-expect-error: It is so huge we build it seperately.
     const [Editor, promiseState] = usePromise(() => import("/monaco/monacoSetup.mjs?url").then(
-        ({ monaco }) => {
+        async ({ monaco }) => {
             loader.config({ monaco });
-            loader.init().then(() => editorComponent);
+            return loader.init().then(() => editorComponent);
         },
-    ) as Promise<typeof editorComponent>, []);
+    ), []);
 
     if (promiseState !== "resolved") return <></>;
     return <Editor
