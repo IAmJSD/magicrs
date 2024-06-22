@@ -1,11 +1,13 @@
 {
     "private": true,
     "dependencies": {
+        "electron-installer-dmg": "^4.0.0",
         "ts-node": "^10.9.2"
     },
     "devDependencies": {
-        "typescript": "^5.4.5",
-        "@types/node": "^20.14.6"
+        "@types/electron-installer-dmg": "^4.0.3",
+        "@types/node": "^20.14.6",
+        "typescript": "^5.4.5"
     },
     "scripts": {
         "start": "ts-node index.ts"

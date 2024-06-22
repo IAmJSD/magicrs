@@ -3,6 +3,7 @@
         "module": "commonjs",
         "target": "ESNext",
         "noImplicitAny": false,
-        "noEmit": true
+        "noEmit": true,
+        "esModuleInterop": true
     }
 }
