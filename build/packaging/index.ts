@@ -1,7 +1,11 @@
 import { join } from "path";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { execSync } from "child_process";
 import createDMG from "electron-installer-dmg";
+// @ts-ignore: No types available.
+import createDEB from "electron-installer-debian";
+// @ts-ignore: No types available.
+import createRPM from "electron-installer-redhat";
 
 // Defines the root of the project.
 const root = join(__dirname, "..", "..");
@@ -113,9 +117,69 @@ function packageMacOS() {
     });
 }
 
+// Handle mapping the architecture to the Linux architecture.
+function arch() {
+    switch (process.arch) {
+        case "x64":
+            return "amd64";
+        case "arm64":
+            return "arm64";
+        default:
+            throw new Error("Unsupported architecture.");
+    }
+}
+
 // Handle packaging GNU/Linux into its specific formats.
-function packageGnuLinux() {
-    // TODO
+async function packageGnuLinux() {
+    // Copy the binary to a src folder.
+    const srcFolder = join(root, "dist", "src");
+    mkdirSync(join(srcFolder, "resources", "app"), { recursive: true });
+    copyFileSync(binary, join(root, "dist", "src", "magiccap"));
+
+    // Write the metadata that is expected from a Electron app.
+    writeFileSync(join(root, "dist", "src", "version"), version);
+    writeFileSync(join(root, "dist", "src", "resources", "app", "package.json"), JSON.stringify({
+        name: "magiccap",
+        description: "A modern capture suite for macOS and Linux!",
+        version,
+        author: "Web Scale Software Ltd <astrid@webscalesoftware.ltd>",
+        license: "MPL-2.0",
+    }));
+    copyFileSync(
+        join(root, "LICENSE"),
+        join(root, "dist", "src", "LICENSE"),
+    );
+
+    try {
+        // Log that we are packaging for GNU/Linux.
+        console.log("Packaging for GNU/Linux...");
+
+        // Wait for the packaging to finish.
+        const linuxOptions = {
+            src: srcFolder,
+            dest: join(root, "dist"),
+            arch: arch(),
+            icon: join(root, "assets", "icon.png"),
+            productName: "MagicCap",
+            genericName: "Screen Recorder",
+            version,
+            homepage: "https://magiccap.org",
+            compression: "gzip",
+        };
+        await Promise.all([
+            // Create the deb package.
+            createDEB({ ...linuxOptions }),
+
+            // Create the rpm package.
+            createRPM(linuxOptions),
+        ]);
+
+        // Log that we are done.
+        console.log("Successfully packaged for GNU/Linux.");
+    } finally {
+        // Delete the src folder.
+        rmSync(srcFolder, { recursive: true });
+    }
 }
 
 // Switch on the platform.
@@ -124,7 +188,10 @@ switch (process.platform) {
         packageMacOS();
         break;
     case "linux":
-        packageGnuLinux();
+        packageGnuLinux().catch((e) => {
+            console.error(e);
+            process.exit(1);
+        });
         break;
     default:
         console.error("Unsupported platform.");
