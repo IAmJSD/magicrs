@@ -1,4 +1,6 @@
-use javascriptcore::{Context, ContextExt, Value, VirtualMachine};
+mod upload;
+
+use javascriptcore::{Context, ContextExt, Exception, Value, ValueExt, VirtualMachine};
 use glib::{gobject_ffi::G_TYPE_NONE, translate::{FromGlibPtrFull, ToGlibPtr}};
 use javascriptcore_rs_sys::JSCValue;
 use std::{
@@ -6,17 +8,17 @@ use std::{
     thread::{self, sleep}, time
 };
 
+// Defines the uploader structure. This can be used to get information about the uploader and to call it.
 pub struct Uploader {
     pub name: String,
     pub description: String,
     method: Value,
 
-    timeouts: Mutex<HashMap<f32, Arc<VirtualMachine>>>,
-    intervals: Mutex<HashMap<f32, Arc<VirtualMachine>>>,
-    holding_ctx: Context,
+    cached_ctx: crate::upload::CacheContext,
     holding_vm: VirtualMachine,
 }
 
+// Defines the setup data structure.
 struct SetupData {
     name: String,
     description: String,
@@ -33,6 +35,7 @@ unsafe fn tworef<T>(val: T) -> (Box<T>, *mut c_void) {
 }
 
 // Defines the callback from the setup function in the global scope.
+#[no_mangle]
 extern "C" fn setup_cb(obj: *mut JSCValue, setup_box: *mut c_void) {
     // Setup the variables properly so they can be dropped as expected.
     let obj = unsafe { Value::from_glib_full(obj) };
@@ -40,17 +43,66 @@ extern "C" fn setup_cb(obj: *mut JSCValue, setup_box: *mut c_void) {
         (setup_box as *mut Mutex<Option<SetupData>>).as_ref()
     }.unwrap();
 
-    // TODO: Handle setting up the object
+    // Check if this is a object.
+    let ctx = Context::current().unwrap();
+    if !obj.is_object() {
+        ctx.throw_exception(&Exception::new(&ctx, "setup function must have a object input"));
+        return;
+    }
+
+    // Get the name from the object.
+    let name = match obj.object_get_property("name") {
+        Some(v) => v,
+        None => {
+            ctx.throw_exception(&Exception::new(&ctx, "setup function must have a name property"));
+            return;
+        },
+    };
+    if !name.is_string() {
+        ctx.throw_exception(&Exception::new(&ctx, "name property must be a string"));
+        return;
+    }
+    let name = name.to_string();
+
+    // Get the description from the object.
+    let description = match obj.object_get_property("description") {
+        Some(v) => v,
+        None => {
+            ctx.throw_exception(&Exception::new(&ctx, "setup function must have a description property"));
+            return;
+        },
+    };
+    if !description.is_string() {
+        ctx.throw_exception(&Exception::new(&ctx, "description property must be a string"));
+        return;
+    }
+    let description = description.to_string();
+
+    // Get the method from the object.
+    let method = match obj.object_get_property("method") {
+        Some(v) => v,
+        None => {
+            ctx.throw_exception(&Exception::new(&ctx, "setup function must have a method property"));
+            return;
+        },
+    };
+    if !method.is_function() {
+        ctx.throw_exception(&Exception::new(&ctx, "method property must be a function"));
+        return;
+    }
+
+    // Set the setup data.
+    let mut setup_box = setup_box.lock().unwrap();
+    *setup_box = Some(SetupData {
+        name,
+        description,
+        method,
+    });
 }
 
 impl Uploader {
-    // Implement the timeout function.
-    fn implement_timeouts(&mut self) {
-        // TODO: Implement timeouts
-    }
-
     // Create a new instance of the uploader.
-    pub fn new(code: &str) -> Result<Self, String> {
+    pub fn new(code: String) -> Result<Self, String> {
         // Make a new virtual machine which will hold the code we are going to run.
         let vm = VirtualMachine::new();
 
@@ -85,12 +137,11 @@ impl Uploader {
 
         // Evaluate the code.
         let bypass = SendSyncBypass { val: ctx };
-        let copy = code.to_string();
         let res = thread::spawn(move || {
             // Evaluate the code.
             let bypass_move = bypass;
             let ctx = bypass_move.val;
-            ctx.evaluate(&copy);
+            ctx.evaluate(&code);
 
             // Check for errors.
             match ctx.exception() {
@@ -150,12 +201,22 @@ impl Uploader {
             name: setup_data.name,
             description: setup_data.description,
             method: setup_data.method,
+            cached_ctx: Default::default(),
             timeouts: Default::default(),
             intervals: Default::default(),
-            holding_ctx: ctx,
             holding_vm: vm,
         };
-        res.implement_timeouts();
+        res.implement_web_standards();
         Ok(res)
+    }
+
+    // Handle uploading a file.
+    pub fn upload(&self, filename: String, data: Vec<u8>) -> Result<String, String> {
+        // Make a clone of the VM and the context.
+        let vm = self.holding_vm.clone();
+        let ctx = Context::with_virtual_machine(&vm);
+
+        // Handle doing the upload.
+        crate::upload::upload(ctx, &self.method, &self.cached_ctx, filename, data)
     }
 }
