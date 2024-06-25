@@ -5,6 +5,8 @@ mod light_detector;
 mod ui_renderer;
 mod image_manipulation_simd;
 mod editors;
+mod menu_bar;
+mod region_selected;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use xcap::{Monitor, Window};

@@ -1,7 +1,7 @@
 use glfw::{Action, Key};
 use super::{
-    engine::{EditorUsage, RegionSelectorContext, SendSyncBypass},
-    ui_renderer::region_selector_render_ui, Region, RegionCapture
+    engine::{EditorUsage, RegionSelectorContext, SendSyncBypass}, menu_bar::{menu_bar_click, within_menu_bar},
+    region_selected::region_capture, ui_renderer::region_selector_render_ui, Region, RegionCapture
 };
 
 // Handles the fullscreen key being pressed.
@@ -69,14 +69,85 @@ fn fullscreen_key(ctx: &mut RegionSelectorContext, shift_held: bool) -> Option<R
 }
 
 // Handles the mouse left button being pushed.
-fn mouse_left_push(ctx: &mut RegionSelectorContext, i: i32) {
-    // TODO
+fn mouse_left_push(ctx: &mut RegionSelectorContext, i: usize, rel_x: i32, rel_y: i32) {
+    if !within_menu_bar(ctx, rel_x, rel_y) {
+        // Update where the active selection is.
+        ctx.active_selection = Some((i, (rel_x, rel_y)));
+    }
 }
 
 // Handles the mouse left button being released.
-fn mouse_left_release(ctx: &mut RegionSelectorContext, i: i32) -> Option<RegionCapture> {
-    // TODO
-    None
+fn mouse_left_release(ctx: &mut RegionSelectorContext, i: usize, rel_x: i32, rel_y: i32) -> Option<RegionCapture> {
+    if ctx.active_selection.is_none() {
+        // Handle if this is in the menu bar.
+        menu_bar_click(ctx, rel_x, rel_y);
+
+        // Return None since we don't want to close the window.
+        return None;
+    }
+
+    // Handle if the position is the same.
+    let (start_i, (start_x, start_y)) = ctx.active_selection.unwrap();
+    if start_i == i && start_x == rel_x && start_y == rel_y {
+        // Get windows within the monitor this is on.
+        let monitor = &ctx.setup.monitors[i];
+        let windows = ctx.setup.windows.iter()
+            .filter(|w| w.current_monitor().id() == monitor.id())
+            .collect::<Vec<_>>();
+
+        // Get the un-relative cursor position.
+        let (mut cursor_x, mut cursor_y) = (rel_x, rel_y);
+        cursor_y = monitor.height() as i32 - cursor_y;
+        cursor_x += monitor.x();
+
+        // Get the window nearest to the cursor.
+        let mut nearest_window = None;
+        let mut nearest_distance = std::f64::MAX;
+        for window in windows {
+            // Get the window X/Y/W/H.
+            let x = window.x();
+            let y = window.y();
+            let w = window.width() as i32;
+            let h = window.height() as i32;
+
+            // Get the distance to the window.
+            let distance = if cursor_x < x {
+                (x - cursor_x).pow(2) as f64
+            } else if cursor_x > x + w {
+                (cursor_x - (x + w)).pow(2) as f64
+            } else if cursor_y < y {
+                (y - cursor_y).pow(2) as f64
+            } else if cursor_y > y + h {
+                (cursor_y - (y + h)).pow(2) as f64
+            } else {
+                0.0
+            };
+
+            // If the distance is less than the nearest distance, set the nearest window.
+            if distance < nearest_distance {
+                nearest_window = Some(window);
+                nearest_distance = distance;
+            }
+        }
+
+        // Handle if the nearest window is set.
+        if let Some(window) = nearest_window {
+            // Get the window X/Y/W/H.
+            let w = window.width() as i32;
+            let h = window.height() as i32;
+            let x = window.x() - monitor.x();
+            let y = window.y() - monitor.y();
+
+            // Call the function to handle the region capture.
+            return region_capture(ctx, i, x, y, w, h);
+        }
+
+        // Return here since we just got a single click.
+        return None;
+    }
+
+    // Call the function to handle the region capture.
+    region_capture(ctx, i, start_x, start_y, rel_x - start_x, rel_y - start_y)
 }
 
 // Defines when a number key is hit. This function is a bit special since we repeat it a lot so we render the UI in here.
@@ -147,17 +218,24 @@ pub fn region_selector_io_event_sent(
 
         // Handle mouse left clicks.
         glfw::WindowEvent::MouseButton(glfw::MouseButtonLeft, Action::Press, _) => {
-            mouse_left_push(ctx, current_index);
+            let (x, y) = ctx.glfw_windows[current_index as usize].get_cursor_pos();
+            let (w, h) = ctx.glfw_windows[current_index as usize].get_size();
+            let rel_x = (x * w as f64) as i32;
+            let rel_y = (y * h as f64) as i32;
+            mouse_left_push(ctx, current_index as usize, rel_x, rel_y);
         },
-        glfw::WindowEvent::MouseButton(glfw::MouseButtonLeft, Action::Release, _) => match mouse_left_release(ctx, current_index) {
-            Some(x) => {
+        glfw::WindowEvent::MouseButton(glfw::MouseButtonLeft, Action::Release, _) => {
+            let (x, y) = ctx.glfw_windows[current_index as usize].get_cursor_pos();
+            let (w, h) = ctx.glfw_windows[current_index as usize].get_size();
+            let rel_x = (x * w as f64) as i32;
+            let rel_y = (y * h as f64) as i32;
+            if let Some(x) = mouse_left_release(ctx, current_index as usize, rel_x, rel_y) {
                 // Write the result and kill the windows.
                 ctx.result = Some(x);
                 for window in &mut ctx.glfw_windows {
                     window.set_should_close(true);
                 }
-            },
-            None => {},
+            }
         },
 
         // Handle 1-9 being hit.

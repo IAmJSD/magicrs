@@ -1,7 +1,7 @@
 use glfw::{Context, Window};
 use super::{
     engine::RegionSelectorContext,
-    gl_abstractions::GLTexture
+    gl_abstractions::GLTexture, menu_bar::draw_menu_bar
 };
 
 // Draw the background.
@@ -173,6 +173,9 @@ unsafe fn render_decorations(
         if ctx.editor_index.is_none() {
             render_window_line(ctx, index, cursor_x, cursor_y);
         }
+
+        // Render the menu bar.
+        draw_menu_bar(ctx, window, index);
 
         // Render the crosshair.
         render_crosshair(ctx, index, cursor_x, cursor_y, width, height);
