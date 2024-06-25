@@ -1,4 +1,4 @@
-use glfw::{Action, Key};
+use glfw::{Action, Context, Key};
 use super::{
     engine::{EditorUsage, RegionSelectorContext, SendSyncBypass},
     ui_renderer::region_selector_render_ui, Region, RegionCapture
@@ -68,11 +68,6 @@ fn fullscreen_key(ctx: &mut RegionSelectorContext, shift_held: bool) -> Option<R
     })
 }
 
-// Handles the mouse being moved.
-fn mouse_move(ctx: &mut RegionSelectorContext, i: i32, x: f64, y: f64) {
-    // TODO
-}
-
 // Handles the mouse left button being pushed.
 fn mouse_left_push(ctx: &mut RegionSelectorContext, i: i32) {
     // TODO
@@ -84,8 +79,7 @@ fn mouse_left_release(ctx: &mut RegionSelectorContext, i: i32) -> Option<RegionC
     None
 }
 
-// Defines when a number key is hit. This function is a bit special since we repeat it
-// a lot so we render the UI in here.
+// Defines when a number key is hit. This function is a bit special since we repeat it a lot so we render the UI in here.
 fn number_key_hit(ctx: &mut RegionSelectorContext, number: u8) {
     // Return early if editors are off.
     if !ctx.setup.show_editors { return; }
@@ -126,11 +120,12 @@ pub fn region_selector_event_loop_handler(
     }
 
     // Poll the events.
-    ctx.glfw.poll_events();
     let mut window_index = 0;
     for events in &ctx.glfw_events {
-        let current_index = window_index;
+        let current_index: i32 = window_index;
         window_index += 1;
+        ctx.glfw.make_context_current(Some(&ctx.glfw_windows[current_index as usize]));
+        ctx.glfw.poll_events();
         for (_, event) in glfw::flush_messages(events) {
             match event {
                 // Handle either aborting the selection or closing the window when esc is hit.
@@ -192,10 +187,7 @@ pub fn region_selector_event_loop_handler(
                 },
     
                 // Handle mouse movement.
-                glfw::WindowEvent::CursorPos(x, y) => {
-                    // Handle the mouse move.
-                    mouse_move(ctx, current_index, x, y);
-
+                glfw::WindowEvent::CursorPos(_, _) => {
                     // Re-render the UI.
                     unsafe {
                         region_selector_render_ui(
@@ -270,6 +262,6 @@ pub fn region_selector_event_loop_handler(
         }
     }
 
-    // No event was handled.
+    // Return none since we don't want to close the window.
     None
 }

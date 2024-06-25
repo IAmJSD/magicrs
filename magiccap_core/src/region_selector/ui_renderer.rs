@@ -31,9 +31,64 @@ unsafe fn draw_background(
 
 // Renders the decorations.
 unsafe fn render_decorations(
-    ctx: &RegionSelectorContext, window: &mut Window, index: usize,
+    ctx: &mut RegionSelectorContext, window: &mut Window, index: usize,
 ) {
-    // TODO
+    // Get the width and height of the window.
+    let (width, height) = window.get_size();
+
+    // Get the cursor X and Y.
+    let (cursor_x, cursor_y) = window.get_cursor_pos();
+
+    // If the cursor is within the window, render the crosshair.
+    let within = cursor_x >= 0.0 && cursor_x < width as f64 && cursor_y >= 0.0 && cursor_y < height as f64;
+    if within {
+        // Get the cursor position relative to the window.
+        let (cursor_x, cursor_y) = (cursor_x as i32, height as i32 - cursor_y as i32);
+
+        // Get if the crosshair should be dark.
+        let crosshair_dark = ctx.light_detectors[index].get_lightness(cursor_x as u32, cursor_y as u32);
+
+        // Load the crosshair texture.
+        let mut framebuffer = 0;
+        gl::GenFramebuffers(1, &mut framebuffer);
+        gl::BindFramebuffer(gl::READ_FRAMEBUFFER, framebuffer);
+        if crosshair_dark {
+            gl::FramebufferTexture2D(
+                gl::READ_FRAMEBUFFER, gl::COLOR_ATTACHMENT0,
+                gl::TEXTURE_2D, ctx.black_texture.texture, 0
+            );
+        } else {
+            gl::FramebufferTexture2D(
+                gl::READ_FRAMEBUFFER, gl::COLOR_ATTACHMENT0,
+                gl::TEXTURE_2D, ctx.white_texture.texture, 0
+            );
+        }
+
+        // Blit the framebuffer through the cursor position.
+        gl::BlitFramebuffer(
+            // Pull in a line the width of the display.
+            0, 0, width, 1,
+
+            // Place it at the cursor position so it goes through the cursor.
+            0, cursor_y, width, cursor_y + 1,
+
+            // Copy the color buffer.
+            gl::COLOR_BUFFER_BIT, gl::NEAREST,
+        );
+        gl::BlitFramebuffer(
+            // Pull in a line the height of the display.
+            0, 0, height, 1,
+
+            // Place it at the cursor position so it goes through the cursor.
+            cursor_x, 0, cursor_x + 1, height,
+
+            // Copy the color buffer.
+            gl::COLOR_BUFFER_BIT, gl::NEAREST,
+        );
+
+        // Delete the framebuffer.
+        gl::DeleteFramebuffers(1, &framebuffer);
+    }
 }
 
 // Handles iterating or jumping right to a index.

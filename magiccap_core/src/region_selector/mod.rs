@@ -1,6 +1,7 @@
 mod engine;
 mod event_loop_handler;
 mod gl_abstractions;
+mod light_detector;
 mod ui_renderer;
 mod image_manipulation_simd;
 mod editors;

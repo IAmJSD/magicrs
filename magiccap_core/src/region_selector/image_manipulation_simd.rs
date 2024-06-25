@@ -63,6 +63,7 @@ const VECTOR_WIDTH: usize = if cfg!(all(target_arch = "aarch64", target_feature 
 
 // Set the brightness of the specified image in half using SIMD. Note that this
 // also affects the alpha channel, but for the background rendering this is fine.
+// Also gets the average of the RGB channels.
 pub fn set_brightness_half_simd(image: &mut image::RgbaImage) {
     // Get the total length.
     let len = image.len();

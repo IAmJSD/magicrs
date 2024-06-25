@@ -1,9 +1,6 @@
 use std::{thread, time};
 use super::{
-    editors::{create_editor_vec, Editor, EditorFactory},
-    event_loop_handler::region_selector_event_loop_handler,
-    gl_abstractions::GLTexture,
-    ui_renderer::region_selector_render_ui, RegionCapture
+    editors::{create_editor_vec, Editor, EditorFactory}, event_loop_handler::region_selector_event_loop_handler, gl_abstractions::GLTexture, light_detector::LightDetector, ui_renderer::region_selector_render_ui, RegionCapture
 };
 use crate::mainthread::{main_thread_async, main_thread_sync};
 use glfw::{Glfw, PWindow};
@@ -56,13 +53,31 @@ pub struct RegionSelectorContext {
     pub glfw_events: Vec<glfw::GlfwReceiver<(f64, glfw::WindowEvent)>>,
     pub image_dimensions: Vec<(u32, u32)>,
     pub gl_screenshots: Vec<GLTexture>,
+    pub light_detectors: Vec<LightDetector>,
     pub gl_screenshots_darkened: Vec<GLTexture>,
     pub editors: Vec<Lazy<Box<dyn EditorFactory>>>,
+    pub black_texture: GLTexture,
+    pub white_texture: GLTexture,
 
     // Defines event driven items.
     pub active_selection: Option<(usize, (i32, i32))>,
     pub active_editors: Vec<EditorUsage>,
     pub editor_index: Option<usize>,
+}
+
+// Get a solid black texture.
+fn get_black_and_white_texture(size: u32) -> (GLTexture, GLTexture) {
+    let data = vec![0; size as usize * 4];
+    let black = RgbaImage::from_vec(size, 1, data).unwrap();
+    let black_tex = GLTexture::from_rgba(&black);
+
+    // Create the white texture.
+    let mut data = black.into_vec();
+    data.iter_mut().for_each(|v| *v = 255);
+    let white = RgbaImage::from_vec(size, 1, data).unwrap();
+
+    // Return the textures.
+    (black_tex, GLTexture::from_rgba(&white))
 }
 
 // Sets up the region selector.
@@ -75,6 +90,7 @@ fn setup_region_selector(
     // Go through each monitor and create a window for it.
     let mut glfw_windows: Vec<PWindow> = Vec::with_capacity(setup.monitors.len());
     let mut glfw_events = Vec::with_capacity(setup.monitors.len());
+    let mut largest_w_or_h = 0;
     if !glfw.with_connected_monitors(|glfw, glfw_monitors| {
         for (index, monitor) in setup.monitors.iter().enumerate() {
             // Find the matching glfw monitor.
@@ -117,12 +133,15 @@ fn setup_region_selector(
                 }
             }
 
-            // Set key polling to true.
-            window.set_key_polling(true);
+            // Set polling to true.
+            window.set_all_polling(true);
 
             // Push the window and events.
             glfw_windows.push(window);
             glfw_events.push(events);
+
+            // Set the largest width or height.
+            largest_w_or_h = largest_w_or_h.max(monitor.width()).max(monitor.height());
         }
 
         // Return true since success.
@@ -146,6 +165,11 @@ fn setup_region_selector(
         GLTexture::from_rgba(&img)
     }).collect::<Vec<_>>();
 
+    // Get the light detectors.
+    let light_detectors = screenshots.iter().map(|img| {
+        LightDetector::new(img.clone())
+    }).collect::<Vec<_>>();
+
     // Turn the images into darkened textures by manipulating the underlying data.
     // This is quicker than compiling a shader on first load and since we are not
     // mutating it in OpenGL, it will be very fast to blit from the texture.
@@ -160,6 +184,7 @@ fn setup_region_selector(
     ).collect::<Vec<_>>();
 
     // Create the context.
+    let (black_texture, white_texture) = get_black_and_white_texture(largest_w_or_h);
     let mut context = RegionSelectorContext {
         setup,
         glfw,
@@ -167,8 +192,10 @@ fn setup_region_selector(
         glfw_events,
         image_dimensions,
         gl_screenshots,
+        light_detectors,
         gl_screenshots_darkened,
         editors: create_editor_vec(),
+        black_texture, white_texture,
 
         active_selection: None,
         active_editors: Vec::new(),
