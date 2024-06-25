@@ -1,9 +1,11 @@
 use std::{thread, time};
 use super::{
-    editors::{create_editor_vec, Editor, EditorFactory}, event_loop_handler::region_selector_event_loop_handler, gl_abstractions::GLTexture, light_detector::LightDetector, ui_renderer::region_selector_render_ui, RegionCapture
+    editors::{create_editor_vec, Editor, EditorFactory}, event_loop_handler::{region_selector_event_loop_handler, region_selector_io_event_sent},
+    gl_abstractions::GLTexture, light_detector::LightDetector,
+    ui_renderer::{iter_windows_or_jump, region_selector_render_ui}, RegionCapture,
 };
 use crate::mainthread::{main_thread_async, main_thread_sync};
-use glfw::{Glfw, PWindow};
+use glfw::{Context, Glfw, PWindow};
 use image::RgbaImage;
 use once_cell::unsync::Lazy;
 
@@ -63,6 +65,7 @@ pub struct RegionSelectorContext {
     pub active_selection: Option<(usize, (i32, i32))>,
     pub active_editors: Vec<EditorUsage>,
     pub editor_index: Option<usize>,
+    pub result: Option<RegionCapture>,
 }
 
 // Get a solid black texture.
@@ -102,6 +105,10 @@ fn setup_region_selector(
             glfw.window_hint(glfw::WindowHint::OpenGlProfile(glfw::OpenGlProfileHint::Core));
             glfw.window_hint(glfw::WindowHint::OpenGlForwardCompat(true));
 
+            // Handle IO events.
+            glfw.window_hint(glfw::WindowHint::CenterCursor(false));
+            glfw.window_hint(glfw::WindowHint::FocusOnShow(true));
+
             // Create the window.
             let (mut window, events) = match if glfw_windows.is_empty() {
                 glfw.create_window(
@@ -132,9 +139,6 @@ fn setup_region_selector(
                     unsafe { magiccap_handle_linux_x11(x_ptr, index == setup.monitors.len() - 1); }
                 }
             }
-
-            // Set polling to true.
-            window.set_all_polling(true);
 
             // Push the window and events.
             glfw_windows.push(window);
@@ -200,6 +204,7 @@ fn setup_region_selector(
         active_selection: None,
         active_editors: Vec::new(),
         editor_index: None,
+        result: None,
     };
 
     // Render the UI.
@@ -209,8 +214,34 @@ fn setup_region_selector(
         )
     };
 
+    // Box the context.
+    let mut ctx_boxed = Box::new(SendSyncBypass::new(context));
+
+    // Handle GLFW events. We do some quite dangerous stuff here, but its okay because we know where this is polled.
+    iter_windows_or_jump(&mut ctx_boxed.data, None, &|ctx, window, current_index| {
+        // Handle the mouse button being pressed.
+        let ctx2 = unsafe { &mut *(&mut *ctx as *mut RegionSelectorContext) };
+        window.set_mouse_button_callback(move |_, button, action, mods| {
+            // Wrap it in a glfw::WindowEvent::MouseButton.
+            let event = glfw::WindowEvent::MouseButton(button, action, mods);
+
+            // Handle the event.
+            region_selector_io_event_sent(ctx2, event, current_index as i32);
+        });
+
+        // Handle a key being pressed.
+        let ctx2 = unsafe { &mut *(&mut *ctx as *mut RegionSelectorContext) };
+        window.set_key_callback(move |_, key, sc, action, modifiers| {
+            // Wrap it in a glfw::WindowEvent::Key.
+            let event = glfw::WindowEvent::Key(key, sc, action, modifiers);
+
+            // Handle the event.
+            region_selector_io_event_sent(ctx2, event, current_index as i32);
+        });
+    });
+
     // Return the context.
-    Some(Box::new(SendSyncBypass::new(context)))
+    Some(ctx_boxed)
 }
 
 // Make sure a item gets dropped on the main thread.

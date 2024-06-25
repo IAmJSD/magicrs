@@ -1,4 +1,4 @@
-use glfw::{Action, Context, Key};
+use glfw::{Action, Key};
 use super::{
     engine::{EditorUsage, RegionSelectorContext, SendSyncBypass},
     ui_renderer::region_selector_render_ui, Region, RegionCapture
@@ -95,13 +95,104 @@ fn number_key_hit(ctx: &mut RegionSelectorContext, number: u8) {
         }
         ctx.editor_index = Some(number_u - 1);
     }
+}
 
-    // Re-render the UI.
-    unsafe {
-        region_selector_render_ui(
-            ctx, true, None,
-        );
+// Defines an IO event loop send.
+pub fn region_selector_io_event_sent(
+    ctx: &mut RegionSelectorContext,
+    event: glfw::WindowEvent,
+    current_index: i32,
+){
+    match event {
+        // Handle either aborting the selection or closing the window when esc is hit.
+        glfw::WindowEvent::Key(Key::Escape, _, Action::Release, _) => {
+            if ctx.active_selection.is_some() {
+                // Remove the active selection.
+                ctx.active_selection = None;
+                return;
+            }
+
+            // All the other windows and this should die.
+            for window in &mut ctx.glfw_windows {
+                window.set_should_close(true);
+            }
+        },
+
+        // Handle the fullscreen key.
+        glfw::WindowEvent::Key(Key::F, _, Action::Release, modifiers) => match fullscreen_key(
+            ctx, modifiers.contains(glfw::Modifiers::Shift)
+        ) {
+            Some(x) => {
+                // Write the result and kill the windows.
+                ctx.result = Some(x);
+                for window in &mut ctx.glfw_windows {
+                    window.set_should_close(true);
+                }
+            },
+            None => {},
+        },
+
+        // Handle Cmd or Ctrl + Z.
+        glfw::WindowEvent::Key(Key::Z, _, Action::Release, mods) => {
+            let modifier = if cfg!(target_os = "macos") {
+                glfw::Modifiers::Super
+            } else {
+                glfw::Modifiers::Control
+            };
+            if mods.contains(modifier) {
+                // Pop off the last editor.
+                ctx.active_editors.pop();
+            }
+        },
+
+        // Handle mouse left clicks.
+        glfw::WindowEvent::MouseButton(glfw::MouseButtonLeft, Action::Press, _) => {
+            mouse_left_push(ctx, current_index);
+        },
+        glfw::WindowEvent::MouseButton(glfw::MouseButtonLeft, Action::Release, _) => match mouse_left_release(ctx, current_index) {
+            Some(x) => {
+                // Write the result and kill the windows.
+                ctx.result = Some(x);
+                for window in &mut ctx.glfw_windows {
+                    window.set_should_close(true);
+                }
+            },
+            None => {},
+        },
+
+        // Handle 1-9 being hit.
+        glfw::WindowEvent::Key(Key::Num1, _, Action::Release, _) => {
+            number_key_hit(ctx, 1)
+        },
+        glfw::WindowEvent::Key(Key::Num2, _, Action::Release, _) => {
+            number_key_hit(ctx, 2)
+        },
+        glfw::WindowEvent::Key(Key::Num3, _, Action::Release, _) => {
+            number_key_hit(ctx, 3)
+        },
+        glfw::WindowEvent::Key(Key::Num4, _, Action::Release, _) => {
+            number_key_hit(ctx, 4)
+        },
+        glfw::WindowEvent::Key(Key::Num5, _, Action::Release, _) => {
+            number_key_hit(ctx, 5)
+        },
+        glfw::WindowEvent::Key(Key::Num6, _, Action::Release, _) => {
+            number_key_hit(ctx, 6)
+        },
+        glfw::WindowEvent::Key(Key::Num7, _, Action::Release, _) => {
+            number_key_hit(ctx, 7)
+        },
+        glfw::WindowEvent::Key(Key::Num8, _, Action::Release, _) => {
+            number_key_hit(ctx, 8)
+        },
+        glfw::WindowEvent::Key(Key::Num9, _, Action::Release, _) => {
+            number_key_hit(ctx, 9)
+        },
+
+        // Sinkhole other events.
+        _ => {},
     }
+
 }
 
 // Defines the event loop handler for the region selector.
@@ -111,155 +202,20 @@ pub fn region_selector_event_loop_handler(
     // Convert the container into a mutable reference.
     let ctx = ctx.as_mut().as_mut();
 
+    // Poll for the events.
+    ctx.glfw.poll_events();
+
     // Go through the windows.
-    for window in &ctx.glfw_windows {
+    for window in &mut ctx.glfw_windows {
         if window.should_close() {
-            // All the other windows should die too.
-            return Some(None);
+            // Terminate through the result saved to the context.
+            return Some(ctx.result.take());
         }
     }
 
-    // Poll the events.
-    let mut window_index = 0;
-    for events in &ctx.glfw_events {
-        let current_index: i32 = window_index;
-        window_index += 1;
-        ctx.glfw.make_context_current(Some(&ctx.glfw_windows[current_index as usize]));
-        ctx.glfw.poll_events();
-        for (_, event) in glfw::flush_messages(events) {
-            match event {
-                // Handle either aborting the selection or closing the window when esc is hit.
-                glfw::WindowEvent::Key(Key::Escape, _, Action::Release, _) => {
-                    if ctx.active_selection.is_some() {
-                        // Remove the active selection and re-render the UI.
-                        ctx.active_selection = None;
-                        return unsafe {
-                            region_selector_render_ui(
-                                ctx, true, None,
-                            );
-                            None
-                        };
-                    }
-
-                    // All the other windows should die too.
-                    return Some(None);
-                },
-
-                // Handle the fullscreen key.
-                glfw::WindowEvent::Key(Key::F, _, Action::Release, modifiers) => match fullscreen_key(
-                    ctx, modifiers.contains(glfw::Modifiers::Shift)
-                ) {
-                    Some(x) => return Some(Some(x)),
-                    None => {
-                        // Re-render the UI.
-                        unsafe {
-                            region_selector_render_ui(
-                                ctx, true, None,
-                            );
-                        }
-
-                        // Return none since we just want to re-render the UI.
-                        return None;
-                    },
-                },
-
-                // Handle Cmd or Ctrl + Z.
-                glfw::WindowEvent::Key(Key::Z, _, Action::Release, mods) => {
-                    let modifier = if cfg!(target_os = "macos") {
-                        glfw::Modifiers::Super
-                    } else {
-                        glfw::Modifiers::Control
-                    };
-                    if mods.contains(modifier) {
-                        // Pop off the last editor.
-                        ctx.active_editors.pop();
-
-                        // Re-render the UI.
-                        unsafe {
-                            region_selector_render_ui(
-                                ctx, true, None,
-                            );
-                        }
-
-                        // Return none since the UI was re-rendered.
-                        return None;
-                    }
-                },
-    
-                // Handle mouse movement.
-                glfw::WindowEvent::CursorPos(_, _) => {
-                    // Re-render the UI.
-                    unsafe {
-                        region_selector_render_ui(
-                            ctx, true, None,
-                        );
-                    };
-
-                    // Return none since we just want to re-render the UI.
-                    return None;
-                },
-    
-                // Handle mouse left clicks.
-                glfw::WindowEvent::MouseButton(glfw::MouseButtonLeft, Action::Press, _) => {
-                    mouse_left_push(ctx, current_index);
-
-                    // In so many cases that it makes sense to do it in all, we want to re-render the UI.
-                    unsafe {
-                        region_selector_render_ui(
-                            ctx, true, None,
-                        );
-                    }
-
-                    return None;
-                },
-                glfw::WindowEvent::MouseButton(glfw::MouseButtonLeft, Action::Release, _) => match mouse_left_release(ctx, current_index) {
-                    Some(x) => return Some(Some(x)),
-                    None => {
-                        // Re-render the UI.
-                        unsafe {
-                            region_selector_render_ui(
-                                ctx, true, None,
-                            );
-                        }
-
-                        // Return none since we just want to re-render the UI.
-                        return None;
-                    },
-                },
-
-                // Handle 1-9 being hit.
-                glfw::WindowEvent::Key(Key::Num1, _, Action::Release, _) => {
-                    number_key_hit(ctx, 1); return None;
-                },
-                glfw::WindowEvent::Key(Key::Num2, _, Action::Release, _) => {
-                    number_key_hit(ctx, 2); return None;
-                },
-                glfw::WindowEvent::Key(Key::Num3, _, Action::Release, _) => {
-                    number_key_hit(ctx, 3); return None;
-                },
-                glfw::WindowEvent::Key(Key::Num4, _, Action::Release, _) => {
-                    number_key_hit(ctx, 4); return None;
-                },
-                glfw::WindowEvent::Key(Key::Num5, _, Action::Release, _) => {
-                    number_key_hit(ctx, 5); return None;
-                },
-                glfw::WindowEvent::Key(Key::Num6, _, Action::Release, _) => {
-                    number_key_hit(ctx, 6); return None;
-                },
-                glfw::WindowEvent::Key(Key::Num7, _, Action::Release, _) => {
-                    number_key_hit(ctx, 7); return None;
-                },
-                glfw::WindowEvent::Key(Key::Num8, _, Action::Release, _) => {
-                    number_key_hit(ctx, 8); return None;
-                },
-                glfw::WindowEvent::Key(Key::Num9, _, Action::Release, _) => {
-                    number_key_hit(ctx, 9); return None;
-                },
-
-                // Sinkhole other events.
-                _ => {},
-            }
-        }
+    // Render the UI.
+    unsafe {
+        region_selector_render_ui(ctx, true, None);
     }
 
     // Return none since we don't want to close the window.

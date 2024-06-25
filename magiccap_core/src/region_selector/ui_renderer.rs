@@ -92,7 +92,7 @@ unsafe fn render_decorations(
 }
 
 // Handles iterating or jumping right to a index.
-fn iter_windows_or_jump(
+pub fn iter_windows_or_jump(
     ctx: &mut RegionSelectorContext, index: Option<usize>,
     closure: &dyn Fn(&mut RegionSelectorContext, &mut Window, usize)
 ) {
