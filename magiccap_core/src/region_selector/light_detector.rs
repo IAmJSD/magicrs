@@ -47,8 +47,8 @@ impl LightDetector {
 
         let start_x = chunk_x * chunk_w;
         let start_y = chunk_y * chunk_h;
-        let end_x = (start_x + chunk_w).min(img_width);
-        let end_y = (start_y + chunk_h).min(img_height);
+        let end_x = (chunk_x + 1) * chunk_w;
+        let end_y = (chunk_y + 1) * chunk_h;
 
         for y in start_y..end_y {
             for x in start_x..end_x {

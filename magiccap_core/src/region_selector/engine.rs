@@ -52,7 +52,6 @@ pub struct RegionSelectorContext {
     pub setup: Box<RegionSelectorSetup>,
     pub glfw: Glfw,
     pub glfw_windows: Vec<PWindow>,
-    pub glfw_events: Vec<glfw::GlfwReceiver<(f64, glfw::WindowEvent)>>,
     pub image_dimensions: Vec<(u32, u32)>,
     pub gl_screenshots: Vec<GLTexture>,
     pub light_detectors: Vec<LightDetector>,
@@ -60,6 +59,7 @@ pub struct RegionSelectorContext {
     pub editors: Vec<Lazy<Box<dyn EditorFactory>>>,
     pub black_texture: GLTexture,
     pub white_texture: GLTexture,
+    pub striped_texture: GLTexture,
 
     // Defines event driven items.
     pub active_selection: Option<(usize, (i32, i32))>,
@@ -68,8 +68,8 @@ pub struct RegionSelectorContext {
     pub result: Option<RegionCapture>,
 }
 
-// Get a solid black texture.
-fn get_black_and_white_texture(size: u32) -> (GLTexture, GLTexture) {
+// Get the line textures used within the UI.
+fn get_black_white_and_striped_texture(size: u32) -> (GLTexture, GLTexture, GLTexture) {
     let data = vec![0; size as usize * 4];
     let black = RgbaImage::from_vec(size, 1, data).unwrap();
     let black_tex = GLTexture::from_rgba(&black);
@@ -78,9 +78,24 @@ fn get_black_and_white_texture(size: u32) -> (GLTexture, GLTexture) {
     let mut data = black.into_vec();
     data.iter_mut().for_each(|v| *v = 255);
     let white = RgbaImage::from_vec(size, 1, data).unwrap();
+    let white_tex = GLTexture::from_rgba(&white);
+
+    // Create the striped texture.
+    let mut data = white.into_vec();
+    let mut black = true;
+    for (i, v) in data.iter_mut().enumerate() {
+        if black {
+            *v = 0;
+        }
+        if i % 4 == 0 {
+            black = !black;
+        }
+    }
+    let striped = RgbaImage::from_vec(size, 1, data).unwrap();
+    let striped_tex = GLTexture::from_rgba(&striped);
 
     // Return the textures.
-    (black_tex, GLTexture::from_rgba(&white))
+    (black_tex, white_tex, striped_tex)
 }
 
 // Sets up the region selector.
@@ -92,7 +107,6 @@ fn setup_region_selector(
 
     // Go through each monitor and create a window for it.
     let mut glfw_windows: Vec<PWindow> = Vec::with_capacity(setup.monitors.len());
-    let mut glfw_events = Vec::with_capacity(setup.monitors.len());
     let mut largest_w_or_h = 0;
     if !glfw.with_connected_monitors(|glfw, glfw_monitors| {
         for (index, monitor) in setup.monitors.iter().enumerate() {
@@ -110,7 +124,7 @@ fn setup_region_selector(
             glfw.window_hint(glfw::WindowHint::FocusOnShow(true));
 
             // Create the window.
-            let (mut window, events) = match if glfw_windows.is_empty() {
+            let window = match if glfw_windows.is_empty() {
                 glfw.create_window(
                     monitor.width(), monitor.height(), "Region Selector", glfw::WindowMode::FullScreen(&glfw_monitor),
                 )
@@ -119,7 +133,7 @@ fn setup_region_selector(
                     monitor.width(), monitor.height(), "Region Selector", glfw::WindowMode::FullScreen(&glfw_monitor),
                 )
             } {
-                Some((window, events)) => (window, events),
+                Some(t) => t.0,
                 None => {
                     for window in &mut glfw_windows {
                         window.set_should_close(true);
@@ -140,9 +154,8 @@ fn setup_region_selector(
                 }
             }
 
-            // Push the window and events.
+            // Push the window.
             glfw_windows.push(window);
-            glfw_events.push(events);
 
             // Set the largest width or height.
             largest_w_or_h = largest_w_or_h.max(monitor.width()).max(monitor.height());
@@ -188,18 +201,18 @@ fn setup_region_selector(
     ).collect::<Vec<_>>();
 
     // Create the context.
-    let (black_texture, white_texture) = get_black_and_white_texture(largest_w_or_h);
+    let (black_texture, white_texture, striped_texture) = get_black_white_and_striped_texture(largest_w_or_h);
     let mut context = RegionSelectorContext {
         setup,
         glfw,
         glfw_windows,
-        glfw_events,
         image_dimensions,
         gl_screenshots,
         light_detectors,
         gl_screenshots_darkened,
         editors: create_editor_vec(),
         black_texture, white_texture,
+        striped_texture,
 
         active_selection: None,
         active_editors: Vec::new(),
@@ -219,6 +232,12 @@ fn setup_region_selector(
 
     // Handle GLFW events. We do some quite dangerous stuff here, but its okay because we know where this is polled.
     iter_windows_or_jump(&mut ctx_boxed.data, None, &|ctx, window, current_index| {
+        // Make this window the current context.
+        window.make_current();
+
+        // Set the swap interval to adaptive vsync.
+        ctx.glfw.set_swap_interval(glfw::SwapInterval::Adaptive);
+
         // Handle the mouse button being pressed.
         let ctx2 = unsafe { &mut *(&mut *ctx as *mut RegionSelectorContext) };
         window.set_mouse_button_callback(move |_, button, action, mods| {
@@ -259,21 +278,15 @@ pub fn invoke(setup: Box<RegionSelectorSetup>, screenshots: &mut Vec<RgbaImage>)
         None => return None,
     };
 
-    // Run the event loop.
-    let res: Option<RegionCapture>;
-    loop {
-        // Call the event loop handler in the main thread. Pull the result into the worker thread.
-        match main_thread_sync(|| region_selector_event_loop_handler(&mut ctx)) {
+    // Call the event loop handler in the main thread. Pull the result into the worker thread.
+    let res = main_thread_sync(|| loop {
+        match region_selector_event_loop_handler(&mut ctx) {
             Some(v) => {
-                res = v;
-                break;
+                return v;
             },
             None => {},
         };
-
-        // Sleep for 1 second / 240fps.
-        thread::sleep(time::Duration::from_millis(4));
-    }
+    });
 
     // Clean up by making sure the context is dropped on the main thread.
     main_thread_drop(ctx);

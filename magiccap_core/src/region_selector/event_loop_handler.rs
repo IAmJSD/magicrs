@@ -202,8 +202,8 @@ pub fn region_selector_event_loop_handler(
     // Convert the container into a mutable reference.
     let ctx = ctx.as_mut().as_mut();
 
-    // Poll for the events.
-    ctx.glfw.poll_events();
+    // Wait for the events.
+    ctx.glfw.wait_events();
 
     // Go through the windows.
     for window in &mut ctx.glfw_windows {
