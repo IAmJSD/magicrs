@@ -229,17 +229,12 @@ pub fn region_selector_io_event_sent(
 
         // Handle mouse left clicks.
         glfw::WindowEvent::MouseButton(glfw::MouseButtonLeft, Action::Press, _) => {
-            let (window_x, window_y) = ctx.glfw_windows[current_index as usize].get_pos();
-            let (cursor_x, cursor_y) = ctx.glfw_windows[current_index as usize].get_cursor_pos();
-            let rel_x = window_x + (cursor_x as i32);
-            let rel_y = window_y + (cursor_y as i32);
-            mouse_left_push(ctx, current_index as usize, rel_x, rel_y);
+            let (cursor_x, cursor_y) = gl_window.get_cursor_pos();
+            mouse_left_push(ctx, current_index as usize, cursor_x as i32, cursor_y as i32);
         },
         glfw::WindowEvent::MouseButton(glfw::MouseButtonLeft, Action::Release, _) => {
-            let (window_x, window_y) = gl_window.get_pos();
             let (cursor_x, cursor_y) = gl_window.get_cursor_pos();
-            let rel_x = window_x + (cursor_x as i32);
-            let rel_y = window_y + (cursor_y as i32);
+            let (rel_x, rel_y) = (cursor_x as i32, cursor_y as i32);
             if let Some(x) = mouse_left_release(ctx, current_index as usize, rel_x, rel_y, gl_window) {
                 // Write the result and kill the windows.
                 ctx.result = Some(x);
