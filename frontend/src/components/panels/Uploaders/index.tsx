@@ -28,7 +28,8 @@ function optionSwitch(
     uploaderId: string, key: string, option: ConfigOption,
     config: { [key: string]: ConfigOption },
 ) {
-    switch (option.config_option) {
+    console.log(option);
+    switch (option.option_type) {
         case "boolean":
             return <Checkbox
                 dbKey={key}
@@ -42,6 +43,7 @@ function optionSwitch(
                 label={option.name}
                 description={option.description}
                 defaultValue={option.default || ""}
+                password={option.password}
                 uploader={{ id: uploaderId, items: config }}
                 validator={
                     option.regex &&

@@ -122,14 +122,14 @@ type StringOptionBase = {
 
 // Defines a config option.
 export type ConfigOption = ({
-    config_option: "string";
+    option_type: "string";
     password: boolean;
     regex: string | null;
     validation_error_message: string | null;
 } & StringOptionBase) | ({
-    config_option: "long_string";
+    option_type: "long_string";
 } & StringOptionBase) | {
-    config_option: "number";
+    option_type: "number";
     name: string;
     description: string;
     default: number | null;
@@ -137,7 +137,7 @@ export type ConfigOption = ({
     max: number | null;
     required: boolean;
 } | {
-    config_option: "boolean";
+    option_type: "boolean";
     name: string;
     description: string;
     default: boolean | null;
