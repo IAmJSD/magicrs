@@ -35,8 +35,12 @@ pub fn region_capture(
     // Grab the image.
     let mut buffer = vec![0u8; (w * h * 4) as usize];
     unsafe {
+        // We need to do this brainfuck maths because OpenGL flips the Y axis. If you are
+        // less dyslexic than me and can make this work nicer, feel free.
+        let (_, screen_h) = window.get_size();
         gl::ReadPixels(
-            x, y, w, h, gl::RGBA, gl::UNSIGNED_BYTE, buffer.as_mut_ptr() as *mut _
+            x, screen_h - h - y, w, h, gl::RGBA,
+            gl::UNSIGNED_BYTE, buffer.as_mut_ptr() as *mut _
         );
     }
 

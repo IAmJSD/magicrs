@@ -90,8 +90,8 @@ fn mouse_left_release(
     }
 
     // Handle if the position is the same.
-    let (start_i, (start_x, start_y)) = ctx.active_selection.unwrap();
-    if start_i == i && start_x == rel_x && start_y == rel_y {
+    let (start_i, (init_x, init_y)) = ctx.active_selection.unwrap();
+    if start_i == i && init_x == rel_x && init_y == rel_y {
         // Get windows within the monitor this is on.
         let monitor = &ctx.setup.monitors[i];
         let windows = ctx.setup.windows.iter()
@@ -149,8 +149,15 @@ fn mouse_left_release(
         return None;
     }
 
+    // Find the start X and Y.
+    let (start_x, start_y) = (init_x.min(rel_x), init_y.min(rel_y));
+
+    // Get the width and height.
+    let (end_x, end_y) = (init_x.max(rel_x), init_y.max(rel_y));
+    let (w, h) = (end_x - start_x, end_y - start_y);
+
     // Call the function to handle the region capture.
-    region_capture(ctx, i, start_x, start_y, rel_x - start_x, rel_y - start_y, gl_window)
+    region_capture(ctx, i, start_x, start_y, w, h, gl_window)
 }
 
 // Defines when a number key is hit. This function is a bit special since we repeat it a lot so we render the UI in here.
