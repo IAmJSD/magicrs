@@ -72,8 +72,8 @@ pub struct Uploader {
 pub static UPLOADERS: Lazy<HashMap<String, Uploader>> = Lazy::new(|| {
     let mut uploaders = HashMap::new();
 
-    uploaders.insert("imgur".to_string(), imgur::imgur_support());
     uploaders.insert("elixire".to_string(), elixire::elixire_support());
+    uploaders.insert("imgur".to_string(), imgur::imgur_support());
 
     uploaders
 });

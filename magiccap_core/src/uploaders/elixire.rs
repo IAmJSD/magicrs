@@ -7,15 +7,14 @@ fn elixire_support_upload(
     reader: Box<dyn std::io::Read + Send + Sync>,
 ) -> Result<String, String> {
     // Guess the MIME type.
-    let (mime, reader) = match guess_mime_type(filename, reader) {
+    let (mime, mut reader) = match guess_mime_type(filename, reader) {
         Ok(v) => v,
         Err(e) => return Err(e.to_string()),
     };
 
     // Build the multipart data from the reader.
-    let mut r = reader;
     let multipart = MultipartBuilder::new()
-        .add_stream(&mut r, "f", Some(filename), Some(mime));
+        .add_stream(&mut reader, "f", Some(filename), Some(mime));
 
     // Check that the stream was consumed okay.
     let multipart = match multipart {
