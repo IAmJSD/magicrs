@@ -28,7 +28,6 @@ function optionSwitch(
     uploaderId: string, key: string, option: ConfigOption,
     config: { [key: string]: ConfigOption },
 ) {
-    console.log(option);
     switch (option.option_type) {
         case "boolean":
             return <Checkbox
