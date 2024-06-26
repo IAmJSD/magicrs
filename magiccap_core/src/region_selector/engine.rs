@@ -240,22 +240,22 @@ fn setup_region_selector(
 
         // Handle the mouse button being pressed.
         let ctx2 = unsafe { &mut *(&mut *ctx as *mut RegionSelectorContext) };
-        window.set_mouse_button_callback(move |_, button, action, mods| {
+        window.set_mouse_button_callback(move |window, button, action, mods| {
             // Wrap it in a glfw::WindowEvent::MouseButton.
             let event = glfw::WindowEvent::MouseButton(button, action, mods);
 
             // Handle the event.
-            region_selector_io_event_sent(ctx2, event, current_index as i32);
+            region_selector_io_event_sent(ctx2, event, current_index as i32, window);
         });
 
         // Handle a key being pressed.
         let ctx2 = unsafe { &mut *(&mut *ctx as *mut RegionSelectorContext) };
-        window.set_key_callback(move |_, key, sc, action, modifiers| {
+        window.set_key_callback(move |window, key, sc, action, modifiers| {
             // Wrap it in a glfw::WindowEvent::Key.
             let event = glfw::WindowEvent::Key(key, sc, action, modifiers);
 
             // Handle the event.
-            region_selector_io_event_sent(ctx2, event, current_index as i32);
+            region_selector_io_event_sent(ctx2, event, current_index as i32, window);
         });
     });
 

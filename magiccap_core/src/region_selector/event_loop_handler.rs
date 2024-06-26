@@ -1,4 +1,4 @@
-use glfw::{Action, Key};
+use glfw::{Action, Key, Window};
 use super::{
     engine::{EditorUsage, RegionSelectorContext, SendSyncBypass}, menu_bar::{menu_bar_click, within_menu_bar},
     region_selected::region_capture, ui_renderer::region_selector_render_ui, Region, RegionCapture
@@ -77,7 +77,10 @@ fn mouse_left_push(ctx: &mut RegionSelectorContext, i: usize, rel_x: i32, rel_y:
 }
 
 // Handles the mouse left button being released.
-fn mouse_left_release(ctx: &mut RegionSelectorContext, i: usize, rel_x: i32, rel_y: i32) -> Option<RegionCapture> {
+fn mouse_left_release(
+    ctx: &mut RegionSelectorContext, i: usize, rel_x: i32, rel_y: i32,
+    gl_window: &mut Window,
+) -> Option<RegionCapture> {
     if ctx.active_selection.is_none() {
         // Handle if this is in the menu bar.
         menu_bar_click(ctx, rel_x, rel_y);
@@ -139,7 +142,7 @@ fn mouse_left_release(ctx: &mut RegionSelectorContext, i: usize, rel_x: i32, rel
             let y = window.y() - monitor.y();
 
             // Call the function to handle the region capture.
-            return region_capture(ctx, i, x, y, w, h);
+            return region_capture(ctx, i, x, y, w, h, gl_window);
         }
 
         // Return here since we just got a single click.
@@ -147,7 +150,7 @@ fn mouse_left_release(ctx: &mut RegionSelectorContext, i: usize, rel_x: i32, rel
     }
 
     // Call the function to handle the region capture.
-    region_capture(ctx, i, start_x, start_y, rel_x - start_x, rel_y - start_y)
+    region_capture(ctx, i, start_x, start_y, rel_x - start_x, rel_y - start_y, gl_window)
 }
 
 // Defines when a number key is hit. This function is a bit special since we repeat it a lot so we render the UI in here.
@@ -173,6 +176,7 @@ pub fn region_selector_io_event_sent(
     ctx: &mut RegionSelectorContext,
     event: glfw::WindowEvent,
     current_index: i32,
+    gl_window: &mut Window,
 ){
     match event {
         // Handle either aborting the selection or closing the window when esc is hit.
@@ -218,18 +222,18 @@ pub fn region_selector_io_event_sent(
 
         // Handle mouse left clicks.
         glfw::WindowEvent::MouseButton(glfw::MouseButtonLeft, Action::Press, _) => {
-            let (x, y) = ctx.glfw_windows[current_index as usize].get_cursor_pos();
-            let (w, h) = ctx.glfw_windows[current_index as usize].get_size();
-            let rel_x = (x * w as f64) as i32;
-            let rel_y = (y * h as f64) as i32;
+            let (window_x, window_y) = ctx.glfw_windows[current_index as usize].get_pos();
+            let (cursor_x, cursor_y) = ctx.glfw_windows[current_index as usize].get_cursor_pos();
+            let rel_x = window_x + (cursor_x as i32);
+            let rel_y = window_y + (cursor_y as i32);
             mouse_left_push(ctx, current_index as usize, rel_x, rel_y);
         },
         glfw::WindowEvent::MouseButton(glfw::MouseButtonLeft, Action::Release, _) => {
-            let (x, y) = ctx.glfw_windows[current_index as usize].get_cursor_pos();
-            let (w, h) = ctx.glfw_windows[current_index as usize].get_size();
-            let rel_x = (x * w as f64) as i32;
-            let rel_y = (y * h as f64) as i32;
-            if let Some(x) = mouse_left_release(ctx, current_index as usize, rel_x, rel_y) {
+            let (window_x, window_y) = gl_window.get_pos();
+            let (cursor_x, cursor_y) = gl_window.get_cursor_pos();
+            let rel_x = window_x + (cursor_x as i32);
+            let rel_y = window_y + (cursor_y as i32);
+            if let Some(x) = mouse_left_release(ctx, current_index as usize, rel_x, rel_y, gl_window) {
                 // Write the result and kill the windows.
                 ctx.result = Some(x);
                 for window in &mut ctx.glfw_windows {

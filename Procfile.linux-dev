@@ -1,2 +1,2 @@
 frontend: cd frontend && yarn run dev
-core: MAGICCAP_DEV_FRONTEND_URL=http://localhost:5173/ ./target/debug/core_embedded
+core: RUST_BACKTRACE=1 MAGICCAP_DEV_FRONTEND_URL=http://localhost:5173/ ./target/debug/core_embedded
