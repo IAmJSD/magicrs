@@ -1,6 +1,7 @@
 use xcap::{Window, Monitor};
 use super::engine::RegionSelectorContext;
 
+#[cfg(target_os = "macos")]
 pub fn get_nearest_window(ctx: &mut RegionSelectorContext, rel_cursor_x: i32, rel_cursor_y: i32, index: usize) -> (
     &Monitor, Option<&Window>,
 ) {
@@ -37,7 +38,7 @@ pub fn get_nearest_window(ctx: &mut RegionSelectorContext, rel_cursor_x: i32, re
             0.0
         };
 
-        // If the distance is less than the nearest distance, set the nearest window.
+        // If the distance is less than the nearest distance, process this window.
         if distance < nearest_distance {
             nearest_window = Some(window);
             nearest_distance = distance;
@@ -46,4 +47,12 @@ pub fn get_nearest_window(ctx: &mut RegionSelectorContext, rel_cursor_x: i32, re
 
     // Return the nearest window.
     (monitor, nearest_window)
+}
+
+#[cfg(target_os = "linux")]
+pub fn get_nearest_window(ctx: &mut RegionSelectorContext, _: i32, _: i32, index: usize) -> (
+    &Monitor, Option<&Window>,
+) {
+    // Display order is too unreliable on Linux :(
+    (ctx.setup.monitors.get(index).unwrap(), None)
 }
