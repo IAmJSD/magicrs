@@ -7,12 +7,9 @@ use super::{
 // Draw the background.
 unsafe fn draw_background(
     texture: &GLTexture, texture_w: i32, texture_h: i32,
-    window_w: i32, window_h: i32
+    window_w: i32, window_h: i32,
 ) {
-    // Create a framebuffer.
-    let mut framebuffer = 0;
-    gl::GenFramebuffers(1, &mut framebuffer);
-    gl::BindFramebuffer(gl::READ_FRAMEBUFFER, framebuffer);
+    // Load content into the framebuffer.
     gl::FramebufferTexture2D(
         gl::READ_FRAMEBUFFER, gl::COLOR_ATTACHMENT0,
         gl::TEXTURE_2D, texture.texture, 0
@@ -24,9 +21,6 @@ unsafe fn draw_background(
         0, window_h, window_w, 0,
         gl::COLOR_BUFFER_BIT, gl::NEAREST
     );
-
-    // Delete the framebuffer.
-    gl::DeleteFramebuffers(1, &framebuffer);
 }
 
 // Renders the line around the window that will be captured if the user clicks.
@@ -85,10 +79,7 @@ unsafe fn render_window_line(
         let x = x - monitor.x();
         let y = y - monitor.y();
 
-        // Load the striped line texture.
-        let mut framebuffer = 0;
-        gl::GenFramebuffers(1, &mut framebuffer);
-        gl::BindFramebuffer(gl::READ_FRAMEBUFFER, framebuffer);
+        // Bind the framebuffer.
         gl::FramebufferTexture2D(
             gl::READ_FRAMEBUFFER, gl::COLOR_ATTACHMENT0,
             gl::TEXTURE_2D, ctx.striped_tex_w.texture, 0
@@ -96,9 +87,6 @@ unsafe fn render_window_line(
 
         // Blit the left and right lines.
         // TODO
-
-        // Delete the framebuffer.
-        gl::DeleteFramebuffers(1, &framebuffer);
     }
 }
 
@@ -115,10 +103,7 @@ unsafe fn render_active_selection(
     let width = max_x - min_x;
     let height = max_y - min_y;
 
-    // Load the selection texture.
-    let mut framebuffer = 0;
-    gl::GenFramebuffers(1, &mut framebuffer);
-    gl::BindFramebuffer(gl::READ_FRAMEBUFFER, framebuffer);
+    // Load the main texture.
     gl::FramebufferTexture2D(
         gl::READ_FRAMEBUFFER, gl::COLOR_ATTACHMENT0,
         gl::TEXTURE_2D, ctx.gl_screenshots[index].texture, 0
@@ -167,9 +152,6 @@ unsafe fn render_active_selection(
         min_x, screen_height - min_y, max_x, screen_height - min_y + 1,
         gl::COLOR_BUFFER_BIT, gl::NEAREST,
     );
-
-    // Delete the framebuffer.
-    gl::DeleteFramebuffers(1, &framebuffer);
 }
 
 // Loads the crosshair and renders it.
@@ -181,9 +163,6 @@ unsafe fn render_crosshair(
     let crosshair_dark = ctx.light_detectors[index].get_lightness(cursor_x as u32, cursor_y as u32);
 
     // Load the crosshair texture.
-    let mut framebuffer = 0;
-    gl::GenFramebuffers(1, &mut framebuffer);
-    gl::BindFramebuffer(gl::READ_FRAMEBUFFER, framebuffer);
     if crosshair_dark {
         gl::FramebufferTexture2D(
             gl::READ_FRAMEBUFFER, gl::COLOR_ATTACHMENT0,
@@ -217,9 +196,6 @@ unsafe fn render_crosshair(
         // Copy the color buffer.
         gl::COLOR_BUFFER_BIT, gl::NEAREST,
     );
-
-    // Delete the framebuffer.
-    gl::DeleteFramebuffers(1, &framebuffer);
 }
 
 // Renders the decorations.
@@ -275,6 +251,11 @@ pub unsafe fn region_selector_render_ui(
         gl::ClearColor(0.0, 0.0, 0.0, 1.0);
         gl::Clear(gl::COLOR_BUFFER_BIT);
 
+        // Create a framebuffer.
+        let mut framebuffer = 0;
+        gl::GenFramebuffers(1, &mut framebuffer);
+        gl::BindFramebuffer(gl::READ_FRAMEBUFFER, framebuffer);
+
         // Render the background.
         let screenshot_non_darkened = &ctx.gl_screenshots[i];
         let screenshot = if with_decorations {
@@ -297,8 +278,14 @@ pub unsafe fn region_selector_render_ui(
             }
         }
 
+        // Re-bind the framebuffer.
+        gl::BindFramebuffer(gl::READ_FRAMEBUFFER, framebuffer);
+
         // If decorations should be rendered, render them.
         if with_decorations { render_decorations(ctx, window, i) }
+
+        // Delete the framebuffer.
+        gl::DeleteFramebuffers(1, &framebuffer);
 
         // Flush the buffer.
         gl::Flush();
