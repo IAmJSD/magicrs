@@ -31,6 +31,7 @@ pub struct RegionSelectorSetup {
     pub windows: Vec<xcap::Window>,
     pub monitors: Vec<xcap::Monitor>,
     pub show_editors: bool,
+    pub show_magnifier: bool,
 }
 
 // Doesn't actually matter here.

@@ -5,11 +5,14 @@ mod light_detector;
 mod ui_renderer;
 mod image_manipulation_simd;
 mod editors;
+mod magnifier;
 mod menu_bar;
 mod region_selected;
+mod window_line;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use xcap::{Monitor, Window};
+use crate::database::get_config_option;
 use self::engine::RegionSelectorSetup;
 
 // Only one selector can be open at a time.
@@ -91,6 +94,10 @@ pub fn open_region_selector(show_editors: bool) -> Option<RegionCapture> {
     // Push the monitor back onto the list.
     monitors.push(last_monitor);
 
+    // Figure out if we should show the magnifier. Do it here since the other threads can work while we are doing this.
+    let show_magnifier = get_config_option("show_magnifier").
+        unwrap_or(serde_json::Value::Bool(true)).as_bool().unwrap();
+
     // Wait for all the threads to finish.
     let mut screenshots = Vec::with_capacity(threads.len() + 1);
     for thread in threads {
@@ -106,7 +113,7 @@ pub fn open_region_selector(show_editors: bool) -> Option<RegionCapture> {
 
     // Call the engine.
     let result = engine::invoke(Box::new(RegionSelectorSetup {
-        monitors, windows, show_editors,
+        monitors, windows, show_editors, show_magnifier,
     }), &mut screenshots);
 
     // Make sure to set the selector opened to false.
