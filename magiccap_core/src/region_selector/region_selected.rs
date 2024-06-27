@@ -12,6 +12,11 @@ pub fn region_capture(
     // Set the current selection to None since otherwise it will break Escape.
     ctx.active_selection = None;
 
+    // Return immediately if either the width or height is 0. This will panic the application.
+    if w == 0 || h == 0 {
+        return None;
+    }
+
     // Handle if a editor is selected.
     if let Some(editor_index) = ctx.editor_index {
         let editor = ctx.editors[editor_index].create_editor();

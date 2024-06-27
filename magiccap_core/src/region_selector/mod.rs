@@ -8,6 +8,7 @@ mod editors;
 mod magnifier;
 mod menu_bar;
 mod region_selected;
+mod window_find;
 mod window_line;
 
 use std::sync::atomic::{AtomicBool, Ordering};

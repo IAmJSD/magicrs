@@ -1,7 +1,8 @@
 use glfw::{Action, Key, Window};
 use super::{
-    engine::{EditorUsage, RegionSelectorContext, SendSyncBypass}, menu_bar::{menu_bar_click, within_menu_bar},
-    region_selected::region_capture, ui_renderer::region_selector_render_ui, Region, RegionCapture
+    engine::{EditorUsage, RegionSelectorContext, SendSyncBypass},
+    menu_bar::{menu_bar_click, within_menu_bar}, region_selected::region_capture,
+    ui_renderer::region_selector_render_ui, window_find::get_nearest_window, Region, RegionCapture,
 };
 
 // Handles the fullscreen key being pressed.
@@ -97,46 +98,8 @@ fn mouse_left_release(
         return None;
     }
     if init_x == rel_x && init_y == rel_y {
-        // Get windows within the monitor this is on.
-        let monitor = &ctx.setup.monitors[i];
-        let windows = ctx.setup.windows.iter()
-            .filter(|w| w.current_monitor().id() == monitor.id())
-            .collect::<Vec<_>>();
-
-        // Get the un-relative cursor position.
-        let (mut cursor_x, mut cursor_y) = (rel_x, rel_y);
-        cursor_y = monitor.height() as i32 - cursor_y;
-        cursor_x += monitor.x();
-
-        // Get the window nearest to the cursor.
-        let mut nearest_window = None;
-        let mut nearest_distance = std::f64::MAX;
-        for window in windows {
-            // Get the window X/Y/W/H.
-            let x = window.x();
-            let y = window.y();
-            let w = window.width() as i32;
-            let h = window.height() as i32;
-
-            // Get the distance to the window.
-            let distance = if cursor_x < x {
-                (x - cursor_x).pow(2) as f64
-            } else if cursor_x > x + w {
-                (cursor_x - (x + w)).pow(2) as f64
-            } else if cursor_y < y {
-                (y - cursor_y).pow(2) as f64
-            } else if cursor_y > y + h {
-                (cursor_y - (y + h)).pow(2) as f64
-            } else {
-                0.0
-            };
-
-            // If the distance is less than the nearest distance, set the nearest window.
-            if distance < nearest_distance {
-                nearest_window = Some(window);
-                nearest_distance = distance;
-            }
-        }
+        // Get the nearest window.
+        let (monitor, nearest_window) = get_nearest_window(ctx, rel_x, rel_y, i);
 
         // Handle if the nearest window is set.
         if let Some(window) = nearest_window {
