@@ -91,7 +91,7 @@ unsafe fn render_window_line(
         gl::BindFramebuffer(gl::READ_FRAMEBUFFER, framebuffer);
         gl::FramebufferTexture2D(
             gl::READ_FRAMEBUFFER, gl::COLOR_ATTACHMENT0,
-            gl::TEXTURE_2D, ctx.striped_texture.texture, 0
+            gl::TEXTURE_2D, ctx.striped_tex_w.texture, 0
         );
 
         // Blit the left and right lines.
@@ -130,6 +130,42 @@ unsafe fn render_active_selection(
         min_x, screen_height - max_y, max_x, screen_height - min_y,
         gl::COLOR_BUFFER_BIT,
         gl::NEAREST
+    );
+
+    // Load the striped line height texture into the framebuffer.
+    gl::FramebufferTexture2D(
+        gl::READ_FRAMEBUFFER, gl::COLOR_ATTACHMENT0,
+        gl::TEXTURE_2D, ctx.striped_tex_h.texture, 0
+    );
+
+    // Blit the left and right lines.
+    gl::BlitFramebuffer(
+        0, 0, 1, height,
+        min_x - 1, screen_height - max_y, min_x, screen_height - min_y,
+        gl::COLOR_BUFFER_BIT, gl::NEAREST,
+    );
+    gl::BlitFramebuffer(
+        0, 0, 1, height,
+        max_x, screen_height - max_y, max_x + 1, screen_height - min_y,
+        gl::COLOR_BUFFER_BIT, gl::NEAREST,
+    );
+
+    // Load the striped line width texture into the framebuffer.
+    gl::FramebufferTexture2D(
+        gl::READ_FRAMEBUFFER, gl::COLOR_ATTACHMENT0,
+        gl::TEXTURE_2D, ctx.striped_tex_w.texture, 0
+    );
+
+    // Blit the top and bottom lines.
+    gl::BlitFramebuffer(
+        0, 0, width, 1,
+        min_x, screen_height - max_y, max_x, screen_height - max_y + 1,
+        gl::COLOR_BUFFER_BIT, gl::NEAREST,
+    );
+    gl::BlitFramebuffer(
+        0, 0, width, 1,
+        min_x, screen_height - min_y, max_x, screen_height - min_y + 1,
+        gl::COLOR_BUFFER_BIT, gl::NEAREST,
     );
 
     // Delete the framebuffer.
@@ -202,15 +238,16 @@ unsafe fn render_decorations(
         // Get the cursor position relative to the window.
         let (cursor_x, cursor_y) = (cursor_x.floor() as i32, cursor_y.floor() as i32);
 
-        if ctx.active_selection.is_none() {
-            // If we aren't actively in a selection, render the line around the window we will capture if we just click.
-            render_window_line(ctx, index, cursor_x, cursor_y);
-        } else {
-            // Draw the thing actively being captured.
-            let (display, (x, y)) = ctx.active_selection.unwrap();
-            if display == index {
-                // Render the selection on this display too.
-                render_active_selection(ctx, index, x, y, cursor_x, cursor_y, height);
+        match ctx.active_selection {
+            None => {
+                // If we aren't actively in a selection, render the line around the window we will capture if we just click.
+                render_window_line(ctx, index, cursor_x, cursor_y);
+            },
+            Some((display, (x, y))) => {
+                if display == index {
+                    // Render the selection on this display.
+                    render_active_selection(ctx, index, x, y, cursor_x, cursor_y, height);
+                }
             }
         }
 

@@ -59,7 +59,8 @@ pub struct RegionSelectorContext {
     pub editors: Vec<Lazy<Box<dyn EditorFactory>>>,
     pub black_texture: GLTexture,
     pub white_texture: GLTexture,
-    pub striped_texture: GLTexture,
+    pub striped_tex_w: GLTexture,
+    pub striped_tex_h: GLTexture,
 
     // Defines event driven items.
     pub active_selection: Option<(usize, (i32, i32))>,
@@ -69,7 +70,7 @@ pub struct RegionSelectorContext {
 }
 
 // Get the line textures used within the UI.
-fn get_black_white_and_striped_texture(size: u32) -> (GLTexture, GLTexture, GLTexture) {
+fn get_black_white_and_striped_texture(size: u32) -> (GLTexture, GLTexture, GLTexture, GLTexture) {
     let data = vec![0; size as usize * 4];
     let black = RgbaImage::from_vec(size, 1, data).unwrap();
     let black_tex = GLTexture::from_rgba(&black);
@@ -92,10 +93,14 @@ fn get_black_white_and_striped_texture(size: u32) -> (GLTexture, GLTexture, GLTe
         }
     }
     let striped = RgbaImage::from_vec(size, 1, data).unwrap();
-    let striped_tex = GLTexture::from_rgba(&striped);
+    let striped_tex_w = GLTexture::from_rgba(&striped);
+
+    // Swap the width and height.
+    let striped = RgbaImage::from_vec(1, size, striped.into_vec()).unwrap();
+    let striped_tex_h = GLTexture::from_rgba(&striped);
 
     // Return the textures.
-    (black_tex, white_tex, striped_tex)
+    (black_tex, white_tex, striped_tex_w, striped_tex_h)
 }
 
 // Handles iterating or jumping right to a index.
@@ -227,7 +232,7 @@ fn setup_region_selector(
     ).collect::<Vec<_>>();
 
     // Create the context.
-    let (black_texture, white_texture, striped_texture) = get_black_white_and_striped_texture(largest_w_or_h);
+    let (black_texture, white_texture, striped_tex_w, striped_tex_h) = get_black_white_and_striped_texture(largest_w_or_h);
     let mut context = RegionSelectorContext {
         setup,
         glfw,
@@ -238,7 +243,7 @@ fn setup_region_selector(
         gl_screenshots_darkened,
         editors: create_editor_vec(),
         black_texture, white_texture,
-        striped_texture,
+        striped_tex_w, striped_tex_h,
 
         active_selection: None,
         active_editors: Vec::new(),
