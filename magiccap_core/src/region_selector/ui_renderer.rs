@@ -36,8 +36,7 @@ unsafe fn render_window_line(
     // Get windows within the monitor this is on.
     let monitor = &ctx.setup.monitors[index];
     let windows = ctx.setup.windows.iter()
-        .filter(|w| w.current_monitor().id() == monitor.id())
-        .collect::<Vec<_>>();
+        .filter(|w| w.current_monitor().id() == monitor.id());
 
     // Get the un-relative cursor position.
     let (mut cursor_x, mut cursor_y) = (cursor_x, cursor_y);
@@ -106,6 +105,7 @@ unsafe fn render_window_line(
 // Render the active selection.
 unsafe fn render_active_selection(
     ctx: &mut RegionSelectorContext, index: usize, x1: i32, y1: i32, x2: i32, y2: i32,
+    screen_height: i32,
 ) {
     // Get the min/max X/Y.
     let (min_x, max_x) = (x1.min(x2), x1.max(x2));
@@ -124,20 +124,13 @@ unsafe fn render_active_selection(
         gl::TEXTURE_2D, ctx.gl_screenshots[index].texture, 0
     );
 
-    // Get the Y0 and Y1 for OpenGL.
-    let (_, window_height) = ctx.glfw_windows[index].get_size();
-    let gl_y0 = window_height - min_y;
-    let gl_y1 = window_height - max_y;
-
     // Blit the selection.
-    unsafe {
-        // TODO: make this work, this is infurating.
-        gl::BlitFramebuffer(
-            min_x, min_y, max_x, max_y,
-            min_x,gl_y1, max_x, gl_y0,
-            gl::COLOR_BUFFER_BIT, gl::NEAREST,
-        );
-    }
+    gl::BlitFramebuffer(
+        min_x, max_y, max_x, min_y,
+        min_x, screen_height - max_y, max_x, screen_height - min_y,
+        gl::COLOR_BUFFER_BIT,
+        gl::NEAREST
+    );
 
     // Delete the framebuffer.
     gl::DeleteFramebuffers(1, &framebuffer);
@@ -173,7 +166,7 @@ unsafe fn render_crosshair(
         0, 0, width, 1,
 
         // Place it at the cursor position so it goes through the cursor.
-        0, cursor_y, width, cursor_y + 1,
+        0, height - cursor_y, width, height - cursor_y + 1,
 
         // Copy the color buffer.
         gl::COLOR_BUFFER_BIT, gl::NEAREST,
@@ -207,7 +200,7 @@ unsafe fn render_decorations(
     let within = cursor_x >= 0.0 && cursor_x < width as f64 && cursor_y >= 0.0 && cursor_y < height as f64;
     if within {
         // Get the cursor position relative to the window.
-        let (cursor_x, cursor_y) = (cursor_x as i32, height as i32 - cursor_y as i32);
+        let (cursor_x, cursor_y) = (cursor_x.floor() as i32, cursor_y.floor() as i32);
 
         if ctx.active_selection.is_none() {
             // If we aren't actively in a selection, render the line around the window we will capture if we just click.
@@ -217,7 +210,7 @@ unsafe fn render_decorations(
             let (display, (x, y)) = ctx.active_selection.unwrap();
             if display == index {
                 // Render the selection on this display too.
-                render_active_selection(ctx, index, x, y, cursor_x, cursor_y);
+                render_active_selection(ctx, index, x, y, cursor_x, cursor_y, height);
             }
         }
 
