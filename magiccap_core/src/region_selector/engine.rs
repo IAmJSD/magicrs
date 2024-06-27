@@ -1,8 +1,8 @@
-use std::{thread, time};
 use super::{
-    editors::{create_editor_vec, Editor, EditorFactory}, event_loop_handler::{region_selector_event_loop_handler, region_selector_io_event_sent},
+    editors::{create_editor_vec, Editor, EditorFactory},
+    event_loop_handler::{region_selector_event_loop_handler, region_selector_io_event_sent},
     gl_abstractions::GLTexture, light_detector::LightDetector,
-    ui_renderer::{iter_windows_or_jump, region_selector_render_ui}, RegionCapture,
+    ui_renderer::region_selector_render_ui, RegionCapture,
 };
 use crate::mainthread::{main_thread_async, main_thread_sync};
 use glfw::{Context, Glfw, PWindow};
@@ -96,6 +96,32 @@ fn get_black_white_and_striped_texture(size: u32) -> (GLTexture, GLTexture, GLTe
 
     // Return the textures.
     (black_tex, white_tex, striped_tex)
+}
+
+// Handles iterating or jumping right to a index.
+pub fn iter_windows_or_jump(
+    ctx: &mut RegionSelectorContext, index: Option<usize>,
+    closure: &dyn Fn(&mut RegionSelectorContext, &mut glfw::Window, usize)
+) {
+    // Use unsafe to get the mutable reference. This is safe because we know that the context will outlive
+    // the mutable reference.
+    let ctx2 = unsafe { &mut *(&mut *ctx as *mut RegionSelectorContext) };
+
+    // Handle if the index is set.
+    if let Some(index) = index {
+        // Get the window.
+        let window = &mut ctx2.glfw_windows[index];
+
+        // Call the closure with separate mutable references.
+        closure(ctx, window, index);
+        return;
+    }
+
+    // Iterate through the screenshots.
+    for (i, window) in ctx2.glfw_windows.iter_mut().enumerate() {
+        // Call the closure with separate mutable references.
+        closure(ctx, window, i);
+    }
 }
 
 // Sets up the region selector.

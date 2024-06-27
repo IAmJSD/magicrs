@@ -91,7 +91,12 @@ fn mouse_left_release(
 
     // Handle if the position is the same.
     let (start_i, (init_x, init_y)) = ctx.active_selection.unwrap();
-    if start_i == i && init_x == rel_x && init_y == rel_y {
+    if start_i != i {
+        // Reset and return.
+        ctx.active_selection = None;
+        return None;
+    }
+    if init_x == rel_x && init_y == rel_y {
         // Get windows within the monitor this is on.
         let monitor = &ctx.setup.monitors[i];
         let windows = ctx.setup.windows.iter()

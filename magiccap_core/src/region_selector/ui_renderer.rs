@@ -1,6 +1,6 @@
 use glfw::{Context, Window};
 use super::{
-    engine::RegionSelectorContext,
+    engine::{iter_windows_or_jump, RegionSelectorContext},
     gl_abstractions::GLTexture, menu_bar::draw_menu_bar
 };
 
@@ -103,6 +103,46 @@ unsafe fn render_window_line(
     }
 }
 
+// Render the active selection.
+unsafe fn render_active_selection(
+    ctx: &mut RegionSelectorContext, index: usize, x1: i32, y1: i32, x2: i32, y2: i32,
+) {
+    // Get the min/max X/Y.
+    let (min_x, max_x) = (x1.min(x2), x1.max(x2));
+    let (min_y, max_y) = (y1.min(y2), y1.max(y2));
+
+    // Get the width and height.
+    let width = max_x - min_x;
+    let height = max_y - min_y;
+
+    // Load the selection texture.
+    let mut framebuffer = 0;
+    gl::GenFramebuffers(1, &mut framebuffer);
+    gl::BindFramebuffer(gl::READ_FRAMEBUFFER, framebuffer);
+    gl::FramebufferTexture2D(
+        gl::READ_FRAMEBUFFER, gl::COLOR_ATTACHMENT0,
+        gl::TEXTURE_2D, ctx.gl_screenshots[index].texture, 0
+    );
+
+    // Get the Y0 and Y1 for OpenGL.
+    let (_, window_height) = ctx.glfw_windows[index].get_size();
+    let gl_y0 = window_height - min_y;
+    let gl_y1 = window_height - max_y;
+
+    // Blit the selection.
+    unsafe {
+        // TODO: make this work, this is infurating.
+        gl::BlitFramebuffer(
+            min_x, min_y, max_x, max_y,
+            min_x,gl_y1, max_x, gl_y0,
+            gl::COLOR_BUFFER_BIT, gl::NEAREST,
+        );
+    }
+
+    // Delete the framebuffer.
+    gl::DeleteFramebuffers(1, &framebuffer);
+}
+
 // Loads the crosshair and renders it.
 unsafe fn render_crosshair(
     ctx: &mut RegionSelectorContext, index: usize, cursor_x: i32, cursor_y: i32,
@@ -169,42 +209,23 @@ unsafe fn render_decorations(
         // Get the cursor position relative to the window.
         let (cursor_x, cursor_y) = (cursor_x as i32, height as i32 - cursor_y as i32);
 
-        // If we aren't actively in a selection, render the line around the window we will capture if we just click.
-        if ctx.editor_index.is_none() {
+        if ctx.active_selection.is_none() {
+            // If we aren't actively in a selection, render the line around the window we will capture if we just click.
             render_window_line(ctx, index, cursor_x, cursor_y);
+        } else {
+            // Draw the thing actively being captured.
+            let (display, (x, y)) = ctx.active_selection.unwrap();
+            if display == index {
+                // Render the selection on this display too.
+                render_active_selection(ctx, index, x, y, cursor_x, cursor_y);
+            }
         }
-
-        // Render the menu bar.
-        draw_menu_bar(ctx, window, index);
 
         // Render the crosshair.
         render_crosshair(ctx, index, cursor_x, cursor_y, width, height);
-    }
-}
 
-// Handles iterating or jumping right to a index.
-pub fn iter_windows_or_jump(
-    ctx: &mut RegionSelectorContext, index: Option<usize>,
-    closure: &dyn Fn(&mut RegionSelectorContext, &mut Window, usize)
-) {
-    // Use unsafe to get the mutable reference. This is safe because we know that the context will outlive
-    // the mutable reference.
-    let ctx2 = unsafe { &mut *(&mut *ctx as *mut RegionSelectorContext) };
-
-    // Handle if the index is set.
-    if let Some(index) = index {
-        // Get the window.
-        let window = &mut ctx2.glfw_windows[index];
-
-        // Call the closure with separate mutable references.
-        closure(ctx, window, index);
-        return;
-    }
-
-    // Iterate through the screenshots.
-    for (i, window) in ctx2.glfw_windows.iter_mut().enumerate() {
-        // Call the closure with separate mutable references.
-        closure(ctx, window, i);
+        // Render the menu bar.
+        draw_menu_bar(ctx, window, index);
     }
 }
 
