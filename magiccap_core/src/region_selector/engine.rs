@@ -82,17 +82,12 @@ fn get_black_white_and_striped_texture(size: u32) -> (GLTexture, GLTexture, GLTe
     let white_tex = GLTexture::from_rgba(&white);
 
     // Create the striped texture.
-    let mut data = white.into_vec();
-    let mut black = true;
-    for (i, v) in data.iter_mut().enumerate() {
-        if black {
-            *v = 0;
-        }
-        if i % 4 == 0 {
-            black = !black;
+    let mut striped = white;
+    for (i, pixel) in striped.pixels_mut().enumerate() {
+        if i % 2 == 0 {
+            *pixel = image::Rgba([0, 0, 0, 255]);
         }
     }
-    let striped = RgbaImage::from_vec(size, 1, data).unwrap();
     let striped_tex_w = GLTexture::from_rgba(&striped);
 
     // Swap the width and height.
