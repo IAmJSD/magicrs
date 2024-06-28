@@ -2,6 +2,7 @@ mod engine;
 mod event_loop_handler;
 mod gl_abstractions;
 mod light_detector;
+mod texture_pack;
 mod ui_renderer;
 mod image_manipulation_simd;
 mod editors;
@@ -15,6 +16,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use xcap::{Monitor, Window};
 use crate::database::get_config_option;
 use self::engine::RegionSelectorSetup;
+
+// Export out the texture pack preloader.
+pub use texture_pack::preload_textures;
 
 // Only one selector can be open at a time.
 static SELECTOR_OPENED: AtomicBool = AtomicBool::new(false);

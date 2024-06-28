@@ -2,7 +2,7 @@ use super::{
     editors::{create_editor_vec, Editor, EditorFactory},
     event_loop_handler::{region_selector_event_loop_handler, region_selector_io_event_sent},
     gl_abstractions::GLTexture, light_detector::LightDetector,
-    ui_renderer::region_selector_render_ui, RegionCapture,
+    texture_pack::TexturePack, ui_renderer::region_selector_render_ui, RegionCapture,
 };
 use crate::mainthread::{main_thread_async, main_thread_sync};
 use glfw::{Context, Glfw, PWindow};
@@ -28,6 +28,7 @@ unsafe impl<T> Sync for SendSyncBypass<T> {}
 
 // Defines the items required to setup the region selector.
 pub struct RegionSelectorSetup {
+    #[allow(dead_code)] // Only dead in cases where the feature is disabled.
     pub windows: Vec<xcap::Window>,
     pub monitors: Vec<xcap::Monitor>,
     pub show_editors: bool,
@@ -62,6 +63,7 @@ pub struct RegionSelectorContext {
     pub white_texture: GLTexture,
     pub striped_tex_w: GLTexture,
     pub striped_tex_h: GLTexture,
+    pub texture_pack: TexturePack,
 
     // Defines event driven items.
     pub active_selection: Option<(usize, (i32, i32))>,
@@ -240,6 +242,7 @@ fn setup_region_selector(
         editors: create_editor_vec(),
         black_texture, white_texture,
         striped_tex_w, striped_tex_h,
+        texture_pack: TexturePack::new(),
 
         active_selection: None,
         active_editors: Vec::new(),
