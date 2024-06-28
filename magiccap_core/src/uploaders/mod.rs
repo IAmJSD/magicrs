@@ -1,6 +1,7 @@
 mod elixire;
 mod imgur;
 mod mime;
+mod shell;
 
 use std::{collections::HashMap, sync::atomic::Ordering};
 use once_cell::sync::Lazy;
@@ -74,6 +75,7 @@ pub static UPLOADERS: Lazy<HashMap<String, Uploader>> = Lazy::new(|| {
 
     uploaders.insert("elixire".to_string(), elixire::elixire_support());
     uploaders.insert("imgur".to_string(), imgur::imgur_support());
+    uploaders.insert("shell".to_string(), shell::shell_support());
 
     uploaders
 });
