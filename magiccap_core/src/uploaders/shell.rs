@@ -34,13 +34,12 @@ fn shell_support_upload(
         Ok(p) => p,
         Err(e) => return Err(format!("Failed to start the process: {}", e)),
     };
-    let proc2 = unsafe { &mut *(&mut process as *mut Child) };
 
     // Handle writing the reader to the stdin.
-    let mut stdin = process.stdin.unwrap();
+    let mut stdin = process.stdin.take().unwrap();
     if let Some(_) = std::io::copy(&mut reader, &mut stdin).err() {
         // Make a best effort to kill the process.
-        let _ = proc2.kill();
+        let _ = process.kill();
 
         // Return the error.
         return Err("Failed to write the reader to the stdin.".to_string());
@@ -53,7 +52,7 @@ fn shell_support_upload(
         Ok(_) => {},
         Err(e) => {
             // Make sure the process is dead if possible.
-            let _ = proc2.kill();
+            let _ = process.kill();
 
             // Return the error.
             return Err(format!("Failed to read the stdout: {}", e));
@@ -61,7 +60,7 @@ fn shell_support_upload(
     }
 
     // Wait for the process to finish.
-    match proc2.wait() {
+    match process.wait() {
         Ok(status) => {
             if !status.success() {
                 return Err(format!("The command failed with a non-zero exit code: {}", status));
