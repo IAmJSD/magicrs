@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io::Read, process::{Child, Command, Stdio}};
+use std::{collections::HashMap, io::Read, process::{Command, Stdio}};
 use super::{ConfigOption, Uploader};
 
 fn shell_support_upload(
