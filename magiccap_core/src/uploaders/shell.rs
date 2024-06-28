@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io::Read, process::{Command, Stdio}};
+use std::{collections::HashMap, process::{Command, Stdio}};
 use super::{ConfigOption, Uploader};
 
 fn shell_support_upload(
@@ -45,36 +45,20 @@ fn shell_support_upload(
         return Err("Failed to write the reader to the stdin.".to_string());
     }
 
-    // Handle reading the stdout.
-    let mut stdout = process.stdout.take().unwrap();
-    let mut output = Vec::new();
-    match stdout.read_to_end(&mut output) {
-        Ok(_) => {},
-        Err(e) => {
-            // Make sure the process is dead if possible.
-            let _ = process.kill();
-
-            // Return the error.
-            return Err(format!("Failed to read the stdout: {}", e));
-        },
-    }
-
-    // Wait for the process to finish.
-    match process.wait() {
-        Ok(status) => {
-            if !status.success() {
-                return Err(format!("The command failed with a non-zero exit code: {}", status));
+    // Wait for the process to finish and output the result.
+    match process.wait_with_output() {
+        Ok(output) => {
+            if !output.status.success() {
+                return Err(format!("The command failed with a non-zero exit code: {}", output.status));
+            }
+            match String::from_utf8(output.stdout) {
+                Ok(url) => Ok(url),
+                Err(e) => return Err(format!("Failed to read the URL from the stdout: {}", e)),
             }
         },
         Err(e) => {
-            return Err(format!("Failed to wait for the process to finish: {}", e));
+            Err(format!("Failed to wait for the process to finish: {}", e))
         },
-    }
-
-    // Get the URL from the stdout.
-    match String::from_utf8(output) {
-        Ok(url) => Ok(url),
-        Err(e) => return Err(format!("Failed to read the URL from the stdout: {}", e)),
     }
 }
 
