@@ -39,6 +39,9 @@ fn shell_support_upload(
     // Handle writing the reader to the stdin.
     let mut stdin = process.stdin.unwrap();
     if let Some(_) = std::io::copy(&mut reader, &mut stdin).err() {
+        // Make a best effort to kill the process.
+        let _ = proc2.kill();
+
         // Return the error.
         return Err("Failed to write the reader to the stdin.".to_string());
     }
