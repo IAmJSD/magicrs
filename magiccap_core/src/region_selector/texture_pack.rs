@@ -28,7 +28,8 @@ fn generate_texture(dark: bool) -> RgbaImage {
     }).collect::<Vec<_>>();
 
     // Calculate the width and height of the texture.
-    let height = 200 + charset_height;
+    let icons_height = icons.iter().map(|icon| icon.height()).max().unwrap();
+    let height = icons_height.max(charset_height);
     let width = icons.iter().map(|icon| icon.width()).sum::<u32>() + charset_width;
 
     // Create the texture.
