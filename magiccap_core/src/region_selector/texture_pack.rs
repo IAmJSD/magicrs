@@ -15,6 +15,10 @@ static BLACK_NO_HOVER: &[u8] = include_bytes!("textures/black_no_hover.png");
 static WHITE_HOVER: &[u8] = include_bytes!("textures/white_hover.png");
 static WHITE_NO_HOVER: &[u8] = include_bytes!("textures/white_no_hover.png");
 
+// Defines the width/height of a bar chunk.
+const BAR_CHUNK_HEIGHT: i32 = 50;
+const BAR_CHUNK_WIDTH: i32 = 75;
+
 // Defines the highlight texture.
 static HIGHLIGHTED: &[u8] = include_bytes!("textures/highlighted.png");
 
@@ -26,8 +30,15 @@ static LOADED_FONT: Lazy<rusttype::Font<'static>> = Lazy::new(|| {
 // Defines the charset.
 const CHARSET: &str = "? ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}\\|;:'\",.<>/`~";
 
+// Defines the static texture.
+struct StaticTexture {
+    full_image: RgbaImage,
+    menu_offsets: Vec<i32>,
+    icon_offsets: Vec<(i32, i32, i32)>,
+}
+
 // Generates the static textures.
-fn generate_static_texture(dark: bool) -> RgbaImage {
+fn generate_static_texture(dark: bool) -> StaticTexture {
     // Get the icon bytes and map them to RGBA.
     let icons = editors::create_editor_icons().iter().map(|icon| {
         image::load_from_memory(icon).unwrap().to_rgba8()
@@ -36,15 +47,15 @@ fn generate_static_texture(dark: bool) -> RgbaImage {
     // Get the menu textures.
     let menu_textures = if dark {
         vec![
+            image::load_from_memory(HIGHLIGHTED).unwrap().to_rgba8(),
             image::load_from_memory(BLACK_HOVER).unwrap().to_rgba8(),
             image::load_from_memory(BLACK_NO_HOVER).unwrap().to_rgba8(),
-            image::load_from_memory(HIGHLIGHTED).unwrap().to_rgba8(),
         ]
     } else {
         vec![
+            image::load_from_memory(HIGHLIGHTED).unwrap().to_rgba8(),
             image::load_from_memory(WHITE_HOVER).unwrap().to_rgba8(),
             image::load_from_memory(WHITE_NO_HOVER).unwrap().to_rgba8(),
-            image::load_from_memory(HIGHLIGHTED).unwrap().to_rgba8(),
         ]
     };
 
@@ -60,20 +71,28 @@ fn generate_static_texture(dark: bool) -> RgbaImage {
     let mut rgba = RgbaImage::new(width, height);
 
     // Draw each menu item next to each other.
+    let mut menu_offsets = Vec::with_capacity(menu_textures.len());
     let mut x = 0;
     for texture in &menu_textures {
         rgba.copy_from(texture, x, 0).unwrap();
+        menu_offsets.push(x as i32);
         x += texture.width();
     }
 
     // Draw each icon next to each other.
+    let mut icon_offsets = Vec::with_capacity(icons.len());
     for icon in &icons {
         rgba.copy_from(icon, x, 0).unwrap();
+        icon_offsets.push((x as i32, icon.width() as i32, icon.height() as i32));
         x += icon.width();
     }
 
     // Return the texture.
-    rgba
+    StaticTexture {
+        full_image: rgba,
+        menu_offsets,
+        icon_offsets,
+    }
 }
 
 // Defines information about the charset texture.
@@ -152,10 +171,10 @@ fn generate_charset(dark: bool) -> CharsetTexture {
 }
 
 // Defines the dark texture lazy container.
-const DARK_TEXTURE: Lazy<(RgbaImage, CharsetTexture)> = Lazy::new(|| (generate_static_texture(true), generate_charset(true)));
+const DARK_TEXTURE: Lazy<(StaticTexture, CharsetTexture)> = Lazy::new(|| (generate_static_texture(true), generate_charset(true)));
 
 // Defines the light texture lazy container.
-const LIGHT_TEXTURE: Lazy<(RgbaImage, CharsetTexture)> = Lazy::new(|| (generate_static_texture(false), generate_charset(false)));
+const LIGHT_TEXTURE: Lazy<(StaticTexture, CharsetTexture)> = Lazy::new(|| (generate_static_texture(false), generate_charset(false)));
 
 // Preloads the dark and light textures.
 pub fn preload_textures() {
@@ -169,6 +188,42 @@ pub struct TexturePack {
     charset_texture: GLTexture,
     charset_offsets: HashMap<u8, (i32, i32)>,
     space_w: i32,
+    menu_offsets: Vec<i32>,
+    icon_offsets: Vec<(i32, i32, i32)>,
+}
+
+// Defines a structure for putting a section of a texture somewhere onto the screen.
+struct TextureSection {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+}
+
+impl TextureSection {
+    // Renders to the specific point on the screen, handling OpenGL flipping.
+    unsafe fn render(&self, x: i32, y: i32, w: i32, h: i32, screen_h: i32, flip_x: bool) {
+        let x1 = if flip_x { x + w } else { x };
+        let x2 = if flip_x { x } else { x + w };
+        gl::BlitFramebuffer(
+            self.x, self.y, self.x + self.width, self.y + self.height,
+            x1, screen_h - y, x2, screen_h - y - h,
+            gl::COLOR_BUFFER_BIT, gl::NEAREST,
+        );
+    }
+}
+
+// Handles putting a contained texture onto the screen.
+unsafe fn generate_item_container(mut x: i32, mut y: i32, mut w: i32, mut h: i32, sh: i32, texture: TextureSection) {
+    // Handle a margin around the texture.
+    const MARGIN: i32 = 5;
+    x += MARGIN;
+    y += MARGIN;
+    w -= MARGIN * 2;
+    h -= MARGIN * 2;
+
+    // Render the texture.
+    texture.render(x, y, w, h, sh, false);
 }
 
 impl TexturePack {
@@ -181,12 +236,14 @@ impl TexturePack {
             &*LIGHT_TEXTURE
         };
 
-        // Create the texture pack.
+        // Create the texture pack. Some minor optimisations could be made here, but I don't want to spend my time here.
         Self {
-            static_texture: GLTexture::from_rgba(static_texture),
+            static_texture: GLTexture::from_rgba(&static_texture.full_image),
             charset_texture: GLTexture::from_rgba(&charset_texture.image),
             charset_offsets: charset_texture.x_offsets.clone(),
             space_w: charset_texture.x_offsets.get(&(' ' as u8)).unwrap().1,
+            menu_offsets: static_texture.menu_offsets.clone(),
+            icon_offsets: static_texture.icon_offsets.clone(),
         }
     }
 
@@ -235,5 +292,60 @@ impl TexturePack {
 
         // Stop Rust whining about rel_x being unused.
         let _ = rel_x;
+    }
+
+    // Render the menu bar. Marked as unsafe due to OpenGL usage.
+    pub unsafe fn render_menu_bar(
+        &self, selected: usize, hovering: Option<usize>, mut rel_x: i32, rel_y: i32, screen_height: i32,
+    ) {
+        // Load content into the framebuffer.
+        gl::FramebufferTexture2D(
+            gl::READ_FRAMEBUFFER, gl::COLOR_ATTACHMENT0,
+            gl::TEXTURE_2D, self.static_texture.texture, 0
+        );
+
+        // Iterate over the menu bar items with the index.
+        let menu_item_count = self.icon_offsets.len();
+        for (
+            i, (item_texture_x, icon_texture_w, icon_texture_h),
+        ) in self.icon_offsets.iter().map(|x| *x).enumerate() {
+            // Find the menu texture to use.
+            let menu_texture_x = self.menu_offsets[if selected == i {
+                0
+            } else if hovering == Some(i) {
+                1
+            } else {
+                2
+            }];
+
+            // Defines if the curve should be rendered.
+            let render_curve = i == 0 || i == menu_item_count - 1;
+
+            // Render the menu texture.
+            let x_offset = if render_curve { 0 } else { 25 };
+            TextureSection {
+                x: menu_texture_x + x_offset,
+                y: 0,
+                width: BAR_CHUNK_WIDTH - x_offset,
+                height: BAR_CHUNK_HEIGHT,
+            }.render(
+                rel_x, rel_y, BAR_CHUNK_WIDTH - x_offset, BAR_CHUNK_HEIGHT,
+                screen_height, i == menu_item_count - 1,
+            );
+
+            // Render the item texture.
+            generate_item_container(
+                rel_x + x_offset, rel_y, BAR_CHUNK_WIDTH - x_offset, BAR_CHUNK_HEIGHT,
+                screen_height, TextureSection {
+                    x: item_texture_x,
+                    y: 0,
+                    width: icon_texture_w,
+                    height: icon_texture_h,
+                },
+            );
+
+            // Add to the relative X position.
+            rel_x += BAR_CHUNK_WIDTH - x_offset;
+        }
     }
 }
