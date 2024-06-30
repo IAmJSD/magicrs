@@ -168,6 +168,7 @@ pub struct TexturePack {
     static_texture: GLTexture,
     charset_texture: GLTexture,
     charset_offsets: HashMap<u8, (i32, i32)>,
+    space_w: i32,
 }
 
 impl TexturePack {
@@ -185,6 +186,7 @@ impl TexturePack {
             static_texture: GLTexture::from_rgba(static_texture),
             charset_texture: GLTexture::from_rgba(&charset_texture.image),
             charset_offsets: charset_texture.x_offsets.clone(),
+            space_w: charset_texture.x_offsets.get(&(' ' as u8)).unwrap().1,
         }
     }
 
@@ -194,7 +196,7 @@ impl TexturePack {
             self.charset_offsets.get(&c).unwrap_or(
                 self.charset_offsets.get(&('?' as u8)).unwrap()
             ).1
-        }).sum()
+        }).sum::<i32>() + (self.space_w * 2)
     }
 
     // Write text at a position. Marked as unsafe due to OpenGL usage.
