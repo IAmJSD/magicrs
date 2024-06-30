@@ -188,6 +188,15 @@ impl TexturePack {
         }
     }
 
+    // Get the length of the text specified.
+    pub fn text_length(&self, text: &str) -> i32 {
+        text.bytes().map(|c| {
+            self.charset_offsets.get(&c).unwrap_or(
+                self.charset_offsets.get(&('?' as u8)).unwrap()
+            ).1
+        }).sum()
+    }
+
     // Write text at a position. Marked as unsafe due to OpenGL usage.
     pub unsafe fn write_text(&self, text: &str, mut rel_x: i32, rel_y: i32, screen_height: i32) {
         // Load content into the framebuffer.
