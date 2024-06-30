@@ -322,20 +322,21 @@ impl TexturePack {
             let render_curve = i == 0 || i == menu_item_count - 1;
 
             // Render the menu texture.
-            let x_offset = if render_curve { 0 } else { 25 };
+            let x_sub = if render_curve { 0 } else { 25 };
+            let x_add = if i == 0 { 0 } else { x_sub };
             TextureSection {
-                x: menu_texture_x + x_offset,
+                x: menu_texture_x + x_add,
                 y: 0,
-                width: BAR_CHUNK_WIDTH - x_offset,
+                width: BAR_CHUNK_WIDTH - x_sub,
                 height: BAR_CHUNK_HEIGHT,
             }.render(
-                rel_x, rel_y, BAR_CHUNK_WIDTH - x_offset, BAR_CHUNK_HEIGHT,
+                rel_x, rel_y, BAR_CHUNK_WIDTH - x_sub, BAR_CHUNK_HEIGHT,
                 screen_height, i == menu_item_count - 1,
             );
 
             // Render the item texture.
             generate_item_container(
-                rel_x + x_offset, rel_y, BAR_CHUNK_WIDTH - x_offset, BAR_CHUNK_HEIGHT,
+                rel_x + x_add, rel_y, BAR_CHUNK_WIDTH - x_sub, BAR_CHUNK_HEIGHT,
                 screen_height, TextureSection {
                     x: item_texture_x,
                     y: 0,
@@ -345,7 +346,7 @@ impl TexturePack {
             );
 
             // Add to the relative X position.
-            rel_x += BAR_CHUNK_WIDTH - x_offset;
+            rel_x += BAR_CHUNK_WIDTH - x_sub;
         }
     }
 }
