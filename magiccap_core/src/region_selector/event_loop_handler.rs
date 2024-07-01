@@ -70,8 +70,12 @@ fn fullscreen_key(ctx: &mut RegionSelectorContext, shift_held: bool) -> Option<R
 }
 
 // Handles the mouse left button being pushed.
-fn mouse_left_push(ctx: &mut RegionSelectorContext, i: usize, rel_x: i32, rel_y: i32) {
-    if !within_menu_bar(ctx, rel_x, rel_y) {
+fn mouse_left_push(
+    ctx: &mut RegionSelectorContext, i: usize, rel_x: i32, rel_y: i32,
+    window: &mut Window,
+) {
+    let (screen_w, _) = window.get_size();
+    if !within_menu_bar(ctx, rel_x, rel_y, screen_w) {
         // Update where the active selection is.
         ctx.active_selection = Some((i, (rel_x, rel_y)));
     }
@@ -198,7 +202,10 @@ pub fn region_selector_io_event_sent(
         // Handle mouse left clicks.
         glfw::WindowEvent::MouseButton(glfw::MouseButtonLeft, Action::Press, _) => {
             let (cursor_x, cursor_y) = gl_window.get_cursor_pos();
-            mouse_left_push(ctx, current_index as usize, cursor_x as i32, cursor_y as i32);
+            mouse_left_push(
+                ctx, current_index as usize, cursor_x as i32, cursor_y as i32,
+                gl_window,
+            );
         },
         glfw::WindowEvent::MouseButton(glfw::MouseButtonLeft, Action::Release, _) => {
             let (cursor_x, cursor_y) = gl_window.get_cursor_pos();
