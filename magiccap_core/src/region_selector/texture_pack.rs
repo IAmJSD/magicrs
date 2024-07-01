@@ -216,7 +216,7 @@ impl TextureSection {
 // Handles putting a contained texture onto the screen.
 unsafe fn generate_item_container(mut x: i32, mut y: i32, mut w: i32, mut h: i32, sh: i32, texture: TextureSection) {
     // Handle a margin around the texture.
-    const MARGIN: i32 = 5;
+    const MARGIN: i32 = 7;
     x += MARGIN;
     y += MARGIN;
     w -= MARGIN * 2;
@@ -323,21 +323,22 @@ impl TexturePack {
             let render_curve = i == 0 || i == menu_item_count - 1;
 
             // Render the menu texture.
-            let x_sub = if render_curve { 0 } else { 25 };
-            let x_add = if i == 0 { 0 } else { x_sub };
+            const CURVE_WIDTH: i32 = 10;
+            let body_sub = if render_curve { 0 } else { CURVE_WIDTH };
             TextureSection {
-                x: menu_texture_x + x_add,
+                x: menu_texture_x + body_sub,
                 y: 0,
-                width: BAR_CHUNK_WIDTH - x_sub,
+                width: BAR_CHUNK_WIDTH - body_sub,
                 height: BAR_CHUNK_HEIGHT,
             }.render(
-                rel_x, rel_y, BAR_CHUNK_WIDTH - x_sub, BAR_CHUNK_HEIGHT,
+                rel_x, rel_y, BAR_CHUNK_WIDTH - body_sub, BAR_CHUNK_HEIGHT,
                 screen_height, i == menu_item_count - 1,
             );
 
             // Render the item texture.
+            let x_add = if i == 0 { CURVE_WIDTH } else { 0 };
             generate_item_container(
-                rel_x + x_add, rel_y, BAR_CHUNK_WIDTH - x_sub, BAR_CHUNK_HEIGHT,
+                rel_x + x_add, rel_y, BAR_CHUNK_WIDTH - CURVE_WIDTH, BAR_CHUNK_HEIGHT,
                 screen_height, TextureSection {
                     x: item_texture_x,
                     y: 0,
@@ -347,7 +348,7 @@ impl TexturePack {
             );
 
             // Add to the relative X position.
-            rel_x += BAR_CHUNK_WIDTH - x_sub;
+            rel_x += BAR_CHUNK_WIDTH - body_sub;
         }
     }
 }
