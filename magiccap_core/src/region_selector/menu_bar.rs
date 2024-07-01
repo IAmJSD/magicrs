@@ -75,7 +75,20 @@ pub unsafe fn draw_menu_bar(
     );
 
     // Render the description.
-    // TODO
+    if let Some(i) = hovering {
+        // Defines the X position of the description.
+        let x = if i == 0 { x } else { x + 25 + (i as i32 * 50) };
+
+        // Get the description.
+        let desc = if i == 0 {
+            "The selector for a region of the screen."
+        } else {
+            ctx.editors[i - 1].description()
+        };
+
+        // Render the description.
+        ctx.texture_pack.write_text(desc, x, top_gap + 55, screen_h);
+    }
 }
 
 // Check if the cursor is within the menu bar.

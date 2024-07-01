@@ -63,6 +63,10 @@ impl EditorFactory for PixelateFactory {
         PixelateFactory { program }
     }
 
+    fn description(&self) -> &'static str {
+        "Pixelates the region specified."
+    }
+
     fn create_editor(&mut self) -> Box<dyn Editor> {
         Box::new(Pixelate { program_id: self.program.program })
     }

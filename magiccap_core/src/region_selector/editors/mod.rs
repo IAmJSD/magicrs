@@ -8,6 +8,9 @@ pub trait EditorFactory {
     // Creates a new instance of the editor factory.
     fn new() -> Self where Self: Sized;
 
+    // Defines the description of the editor.
+    fn description(&self) -> &'static str;
+
     // Creates a new instance of the editor.
     fn create_editor(&mut self) -> Box<dyn Editor>;
 }
