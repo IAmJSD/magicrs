@@ -101,14 +101,17 @@ struct CharsetTexture {
     x_offsets: HashMap<u8, (i32, i32)>,
 }
 
+// Defines the charset scale.
+const CHARSET_SCALE: f32 = 2.0;
+
 // Generates the charset.
 fn generate_charset(dark: bool) -> CharsetTexture {
     // Figure out the width and height of the charset.
     let charset_width = CHARSET.chars().map(|c| {
-        let glyph = LOADED_FONT.glyph(c).scaled(rusttype::Scale::uniform(24.0));
+        let glyph = LOADED_FONT.glyph(c).scaled(rusttype::Scale::uniform(24.0 * CHARSET_SCALE));
         glyph.h_metrics().advance_width
     }).sum::<f32>().ceil() as u32;
-    let charset_height = 28;
+    let charset_height = 28 * CHARSET_SCALE as u32;
 
     // Create the charset with a background that is either black or white.
     let mut charset = RgbaImage::new(charset_width, charset_height);
@@ -126,7 +129,7 @@ fn generate_charset(dark: bool) -> CharsetTexture {
     let mut x_offsets = HashMap::with_capacity(CHARSET.len());
 
     // Prepare the font drawing scale and position.
-    let scale = Scale::uniform(24.0);
+    let scale = Scale::uniform(24.0 * CHARSET_SCALE);
     let v_metrics = LOADED_FONT.v_metrics(scale);
     let offset_y = v_metrics.ascent;
 
@@ -157,11 +160,17 @@ fn generate_charset(dark: bool) -> CharsetTexture {
 
         // Store the x offset.
         let aw = glyph.unpositioned().h_metrics().advance_width;
-        x_offsets.insert(c, (x_offset as i32, aw as i32));
+        x_offsets.insert(c, ((x_offset / CHARSET_SCALE) as i32, (aw / CHARSET_SCALE) as i32));
 
         // Advance the x_offset for the next glyph.
         x_offset += aw;
     }
+
+    // Shrink the image to the minimum size.
+    let charset = image::imageops::resize(
+        &charset, charset_width / CHARSET_SCALE as u32,
+        charset_height / CHARSET_SCALE as u32, image::imageops::FilterType::Gaussian,
+    );
 
     // Return the charset and offsets.
     CharsetTexture {
