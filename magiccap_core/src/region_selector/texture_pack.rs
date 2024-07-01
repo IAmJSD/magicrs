@@ -230,12 +230,11 @@ impl TexturePack {
     // Creates a new texture pack.
     pub fn new() -> Self {
         // Get a reference to the relevant texture.
-        // TODO: Fix detection here.
         // TODO: Figure out why the font is so shit.
-        let (static_texture, charset_texture) = if dark_light::detect() == dark_light::Mode::Dark {
-            &*DARK_TEXTURE
-        } else {
+        let (static_texture, charset_texture) = if dark_light::detect() == dark_light::Mode::Light {
             &*LIGHT_TEXTURE
+        } else {
+            &*DARK_TEXTURE
         };
 
         // Create the texture pack. Some minor optimisations could be made here, but I don't want to spend my time here.
