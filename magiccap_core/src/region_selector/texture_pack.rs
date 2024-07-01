@@ -171,10 +171,10 @@ fn generate_charset(dark: bool) -> CharsetTexture {
 }
 
 // Defines the dark texture lazy container.
-const DARK_TEXTURE: Lazy<(StaticTexture, CharsetTexture)> = Lazy::new(|| (generate_static_texture(true), generate_charset(true)));
+static DARK_TEXTURE: Lazy<(StaticTexture, CharsetTexture)> = Lazy::new(|| (generate_static_texture(true), generate_charset(true)));
 
 // Defines the light texture lazy container.
-const LIGHT_TEXTURE: Lazy<(StaticTexture, CharsetTexture)> = Lazy::new(|| (generate_static_texture(false), generate_charset(false)));
+static LIGHT_TEXTURE: Lazy<(StaticTexture, CharsetTexture)> = Lazy::new(|| (generate_static_texture(false), generate_charset(false)));
 
 // Preloads the dark and light textures.
 pub fn preload_textures() {
