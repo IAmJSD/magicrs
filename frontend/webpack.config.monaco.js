@@ -10,6 +10,7 @@ module.exports = {
         publicPath: "/monaco",
 	},
     cache: true,
+	devtool: false,
 	module: {
 		rules: [
 			{

@@ -2,7 +2,7 @@
     "name": "frontend",
     "private": true,
     "scripts": {
-        "build:monaco": "node ./cacheManager.js validate || (rm -rf public/monaco && rspack --config webpack.config.monaco.js && node ./cacheManager.js set)",
+        "build:monaco": "node ./cacheManager.js validate || (rm -rf public/monaco && NODE_ENV=production rspack --config webpack.config.monaco.js && node ./cacheManager.js set)",
         "build:vite": "vite build",
         "build": "yarn run build:monaco && yarn run build:vite",
         "dev": "vite --port 5173"
