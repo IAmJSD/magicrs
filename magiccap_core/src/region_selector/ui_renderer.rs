@@ -170,7 +170,7 @@ unsafe fn render_decorations(
         }
 
         // Render the menu bar.
-        draw_menu_bar(ctx, window, index);
+        draw_menu_bar(ctx, cursor_x, cursor_y, width, height);
     }
 }
 

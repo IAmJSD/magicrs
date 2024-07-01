@@ -88,7 +88,8 @@ fn mouse_left_release(
 ) -> Option<RegionCapture> {
     if ctx.active_selection.is_none() {
         // Handle if this is in the menu bar.
-        menu_bar_click(ctx, rel_x, rel_y);
+        let (screen_w, _) = gl_window.get_size();
+        menu_bar_click(ctx, rel_x, rel_y, screen_w);
 
         // Return None since we don't want to close the window.
         return None;
