@@ -216,11 +216,12 @@ impl TextureSection {
 // Handles putting a contained texture onto the screen.
 unsafe fn generate_item_container(mut x: i32, mut y: i32, mut w: i32, mut h: i32, sh: i32, texture: TextureSection) {
     // Handle a margin around the texture.
-    const MARGIN: i32 = 7;
-    x += MARGIN;
-    y += MARGIN;
-    w -= MARGIN * 2;
-    h -= MARGIN * 2;
+    const X_MARGIN: i32 = 14;
+    const Y_MARGIN: i32 = 7;
+    x += X_MARGIN;
+    y += Y_MARGIN;
+    w -= X_MARGIN * 2;
+    h -= Y_MARGIN * 2;
 
     // Render the texture.
     texture.render(x, y, w, h, sh, false);
