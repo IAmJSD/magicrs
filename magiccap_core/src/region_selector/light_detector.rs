@@ -34,7 +34,11 @@ impl LightDetector {
         // Determine the chunk index based on the cursor position.
         let chunk_x = cursor_x / chunk_w;
         let chunk_y = cursor_y / chunk_h;
-        let chunk_index = (chunk_y * chunks_per_side + chunk_x) as usize;
+        let mut chunk_index = (chunk_y * chunks_per_side + chunk_x) as usize;
+        if chunk_index >= self.cached.len() {
+            // Hmm, weird. Not worth panicking over.
+            chunk_index = self.cached.len() - 1;
+        }
 
         // Check if we have a cached result for this chunk.
         if let Some(cached_result) = self.cached[chunk_index] {
