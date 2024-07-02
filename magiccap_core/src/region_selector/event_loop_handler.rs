@@ -76,6 +76,29 @@ fn mouse_left_push(
 ) {
     let (screen_w, _) = window.get_size();
     if !within_menu_bar(ctx, rel_x, rel_y, screen_w) {
+        // If there is an active editor, check if the click function returns anything.
+        if let Some(i) = ctx.editor_index {
+            // Create a instance of the editor.
+            let editor_factory = &mut ctx.editors[i];
+            let mut editor_instance = editor_factory.create_editor();
+
+            // Check if clicking the editor returns anything.
+            let region = editor_instance.click(rel_x, rel_y);
+            if let Some(region) = region {
+                // Create the active editor and return.
+                let active_editor = EditorUsage {
+                    editor: editor_instance,
+                    display_index: i,
+                    x: rel_x,
+                    y: rel_y,
+                    width: region.width,
+                    height: region.height,
+                };
+                ctx.active_editors.push(active_editor);
+                return;
+            }
+        }
+
         // Update where the active selection is.
         ctx.active_selection = Some((i, (rel_x, rel_y)));
     }
