@@ -4,11 +4,10 @@ use super::engine::RegionSelectorContext;
 const GAP: i32 = 15;
 
 // Defines the size of the plucked content.
-// TODO: play with these constants
-const PLUCKED_SIZE: i32 = 50;
+const PLUCKED_SIZE: i32 = 31;
 
 // Defines the size of the magnifier.
-const MAGNIFIER_SIZE: i32 = 125;
+const MAGNIFIER_SIZE: i32 = 124;
 
 // Renders the magnifier.
 pub unsafe fn render_magnifier(
