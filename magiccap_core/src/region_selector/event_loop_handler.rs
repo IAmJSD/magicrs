@@ -5,6 +5,8 @@ use super::{
     ui_renderer::region_selector_render_ui, window_find::get_nearest_window, Region, RegionCapture,
 };
 
+// TODO: can we do something cool with the scroll wheel?
+
 // Handles the fullscreen key being pressed.
 fn fullscreen_key(ctx: &mut RegionSelectorContext, shift_held: bool) -> Option<RegionCapture> {
     // Find the window the mouse is on.

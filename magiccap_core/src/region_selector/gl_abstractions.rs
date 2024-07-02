@@ -180,6 +180,9 @@ pub fn copy_texture(texture: &GLTexture, width: u32, height: u32, x: i32, y: i32
             );
         }
 
+        // Re-bind the new texture.
+        unsafe { gl::BindTexture(gl::TEXTURE_2D, new_texture) };
+
         // Set the texture parameters.
         unsafe {
             gl::TexImage2D(
@@ -191,6 +194,9 @@ pub fn copy_texture(texture: &GLTexture, width: u32, height: u32, x: i32, y: i32
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
         }
+
+        // Free data here.
+        drop(data);
     }
 
     // Set the texture parameters.
