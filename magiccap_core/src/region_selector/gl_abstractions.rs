@@ -127,12 +127,6 @@ impl GLTexture {
             );
         }
 
-        // Set the texture parameters.
-        unsafe {
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
-        }
-
         // Unbind the texture.
         unsafe { gl::BindTexture(gl::TEXTURE_2D, 0) };
 

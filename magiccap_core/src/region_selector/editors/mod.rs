@@ -44,18 +44,18 @@ pub fn create_editor_vec() -> Vec<Lazy<Box<dyn EditorFactory>>> {
 // Create the editor icons.
 pub fn create_editor_icons() -> Vec<&'static [u8]> {
     // Defines the macro to handle the weird path.
-    macro_rules! include_asset {
+    macro_rules! include_texture {
         ($filename:expr) => {
-            include_bytes!(concat!("../../../../assets/", $filename))
+            include_bytes!(concat!("../textures/", $filename))
         };
     }
 
     // Return the icons.
     vec![
         // Crosshair is always the first icon.
-        include_asset!("crosshair.png"),
+        include_texture!("cursor.png"),
 
         // Defines the editor icons.
-        include_asset!("pixelate.png"),
+        include_texture!("pixelate.png"),
     ]
 }

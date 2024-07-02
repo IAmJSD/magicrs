@@ -15,10 +15,6 @@ static BLACK_NO_HOVER: &[u8] = include_bytes!("textures/black_no_hover.png");
 static WHITE_HOVER: &[u8] = include_bytes!("textures/white_hover.png");
 static WHITE_NO_HOVER: &[u8] = include_bytes!("textures/white_no_hover.png");
 
-// Defines the width/height of a bar chunk.
-const BAR_CHUNK_HEIGHT: i32 = 50;
-const BAR_CHUNK_WIDTH: i32 = 75;
-
 // Defines the highlight texture.
 static HIGHLIGHTED: &[u8] = include_bytes!("textures/highlighted.png");
 
@@ -217,7 +213,7 @@ impl TextureSection {
         gl::BlitFramebuffer(
             self.x, self.y, self.x + self.width, self.y + self.height,
             x1, screen_h - y, x2, screen_h - y - h,
-            gl::COLOR_BUFFER_BIT, gl::NEAREST,
+            gl::COLOR_BUFFER_BIT, gl::LINEAR
         );
     }
 }
@@ -225,12 +221,11 @@ impl TextureSection {
 // Handles putting a contained texture onto the screen.
 unsafe fn generate_item_container(mut x: i32, mut y: i32, mut w: i32, mut h: i32, sh: i32, texture: TextureSection) {
     // Handle a margin around the texture.
-    const X_MARGIN: i32 = 14;
-    const Y_MARGIN: i32 = 7;
-    x += X_MARGIN;
-    y += Y_MARGIN;
-    w -= X_MARGIN * 2;
-    h -= Y_MARGIN * 2;
+    const MARGIN: i32 = 10;
+    x += MARGIN;
+    y += MARGIN;
+    w -= MARGIN * 2;
+    h -= MARGIN * 2;
 
     // Render the texture.
     texture.render(x, y, w, h, sh, false);
@@ -328,26 +323,20 @@ impl TexturePack {
                 2
             }];
 
-            // Defines if the curve should be rendered.
-            let render_curve = i == 0 || i == menu_item_count - 1;
-
             // Render the menu texture.
-            const CURVE_WIDTH: i32 = 10;
-            let body_sub = if render_curve { 0 } else { CURVE_WIDTH };
             TextureSection {
-                x: menu_texture_x + body_sub,
+                x: menu_texture_x,
                 y: 0,
-                width: BAR_CHUNK_WIDTH - body_sub,
-                height: BAR_CHUNK_HEIGHT,
+                width: 50,
+                height: 50,
             }.render(
-                rel_x, rel_y, BAR_CHUNK_WIDTH - body_sub, BAR_CHUNK_HEIGHT,
-                screen_height, i == menu_item_count - 1,
+                rel_x, rel_y, 50, 50, screen_height,
+                i == menu_item_count - 1,
             );
 
             // Render the item texture.
-            let x_add = if i == 0 { CURVE_WIDTH } else { 0 };
             generate_item_container(
-                rel_x + x_add, rel_y, BAR_CHUNK_WIDTH - CURVE_WIDTH, BAR_CHUNK_HEIGHT,
+                rel_x, rel_y, 50, 50,
                 screen_height, TextureSection {
                     x: item_texture_x,
                     y: 0,
@@ -357,7 +346,7 @@ impl TexturePack {
             );
 
             // Add to the relative X position.
-            rel_x += BAR_CHUNK_WIDTH - body_sub;
+            rel_x += 50;
         }
     }
 }

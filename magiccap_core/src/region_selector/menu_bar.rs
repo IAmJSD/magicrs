@@ -11,11 +11,8 @@ fn get_editor_index(
     icons_count: usize, rel_x: i32, rel_y: i32, screen_w: i32,
     top_gap: i32,
 ) -> Option<usize> {
-    // Add the width of the curves here.
-    let curve_w = if icons_count == 1 { 25 } else { 50 };
-
     // Calculate the total width of the menu bar.
-    let menu_width = (icons_count * 50) + curve_w;
+    let menu_width = (icons_count * 50) - 1;
 
     // Get the bounds of the menu bar on the window.
     let half_sw = screen_w / 2;
@@ -26,22 +23,10 @@ fn get_editor_index(
     // Check if the cursor is within the menu bar.
     let y1 = top_gap + 50;
     if x0 <= rel_x && rel_x <= x1 && top_gap <= rel_y && rel_y <= y1 {
-        // Get the width/height of the menu.
-        let icon_w = x1 - x0;
-
         // Get the relative X.
         let rel_x = rel_x - x0;
 
-        // Handle if we are in the start/end curve.
-        if rel_x <= 25 {
-            return Some(0);
-        }
-        if rel_x >= icon_w - 25 {
-            return Some(icons_count - 1);
-        }
-
-        // Subtract the curve width from the relative X and divide by the icon width.
-        let rel_x = rel_x - 25;
+        // Divide by the icon width.
         return Some(rel_x as usize / 50);
     }
 
@@ -62,7 +47,7 @@ pub unsafe fn draw_menu_bar(
 
     // Get the X position of the menu bar.
     let half_sw = screen_w / 2;
-    let half_mw = ((icons_count * 50) + if icons_count == 1 { 25 } else { 50 }) as i32 / 2;
+    let half_mw = (icons_count * 50) as i32 / 2;
     let x = half_sw - half_mw;
 
     // Render the menu bar.
@@ -77,7 +62,7 @@ pub unsafe fn draw_menu_bar(
     // Render the description.
     if let Some(i) = hovering {
         // Defines the X position of the description.
-        let x = if i == 0 { x } else { x + 25 + (i as i32 * 50) };
+        let x = if i == 0 { x } else { x + (i as i32 * 50) };
 
         // Get the description.
         let desc = if i == 0 {
@@ -96,11 +81,8 @@ pub fn within_menu_bar(ctx: &RegionSelectorContext, rel_x: i32, rel_y: i32, scre
     // Get the editors count and add 1 for the icon count.
     let icons_count = ctx.editors.len() as i32 + 1;
 
-    // Add the width of the curves here.
-    let curve_w = if icons_count == 1 { 25 } else { 50 };
-
     // Calculate the total width of the menu bar.
-    let menu_width = (icons_count * 50) + curve_w;
+    let menu_width = icons_count * 50;
 
     // Get the bounds of the menu bar on the window.
     let half_sw = screen_w / 2;
