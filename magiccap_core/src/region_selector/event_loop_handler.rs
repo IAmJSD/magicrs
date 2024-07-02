@@ -5,8 +5,6 @@ use super::{
     ui_renderer::region_selector_render_ui, window_find::get_nearest_window, Region, RegionCapture,
 };
 
-// TODO: can we do something cool with the scroll wheel?
-
 // Handles the fullscreen key being pressed.
 fn fullscreen_key(ctx: &mut RegionSelectorContext, shift_held: bool) -> Option<RegionCapture> {
     // Find the window the mouse is on.
@@ -242,6 +240,58 @@ pub fn region_selector_io_event_sent(
                 for window in &mut ctx.glfw_windows {
                     window.set_should_close(true);
                 }
+            }
+        },
+
+        // Handle the scroll wheel.
+        glfw::WindowEvent::Scroll(_, y) => {
+            let editor_len = ctx.editors.len();
+            let scroll_forward = y > 0.0;
+            match ctx.editor_index {
+                Some(i) => {
+                    if i == 0 {
+                        if editor_len == 1 || !scroll_forward {
+                            // Remove the editor index.
+                            ctx.editor_index = None;
+                            return;
+                        }
+
+                        // Go to the next index because we are at the first index.
+                        ctx.editor_index = Some(1);
+                        return;
+                    }
+
+                    if i == editor_len - 1 {
+                        if scroll_forward {
+                            // Remove the editor index.
+                            ctx.editor_index = None;
+                        } else {
+                            // Go to the previous index because we are at the last index.
+                            if i == 0 {
+                                ctx.editor_index = None;
+                            } else {
+                                ctx.editor_index = Some(editor_len - 2);
+                            }
+                        }
+                        return;
+                    }
+
+                    // Go to the next or previous index.
+                    if scroll_forward {
+                        ctx.editor_index = Some(i + 1);
+                    } else {
+                        ctx.editor_index = Some(i - 1);
+                    }
+                }
+                None => {
+                    if scroll_forward {
+                        // Scroll to the second index.
+                        ctx.editor_index = Some(0);
+                    } else {
+                        // Do infinite scrolling and go to the last index.
+                        ctx.editor_index = Some(editor_len - 1);
+                    }
+                },
             }
         },
 

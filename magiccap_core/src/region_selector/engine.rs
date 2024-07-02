@@ -278,6 +278,16 @@ fn setup_region_selector(
             region_selector_io_event_sent(ctx2, event, current_index as i32, window);
         });
 
+        // Handle the scroll wheel being scrolled.
+        let ctx2 = unsafe { &mut *(&mut *ctx as *mut RegionSelectorContext) };
+        window.set_scroll_callback(move |window, x, y| {
+            // Wrap it in a glfw::WindowEvent::Scroll.
+            let event = glfw::WindowEvent::Scroll(x, y);
+
+            // Handle the event.
+            region_selector_io_event_sent(ctx2, event, current_index as i32, window);
+        });
+
         // Handle a key being pressed.
         let ctx2 = unsafe { &mut *(&mut *ctx as *mut RegionSelectorContext) };
         window.set_key_callback(move |window, key, sc, action, modifiers| {
