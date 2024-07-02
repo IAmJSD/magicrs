@@ -51,8 +51,14 @@ impl LightDetector {
 
         let start_x = chunk_x * chunk_w;
         let start_y = chunk_y * chunk_h;
-        let end_x = (chunk_x + 1) * chunk_w;
-        let end_y = (chunk_y + 1) * chunk_h;
+        let mut end_x = (chunk_x + 1) * chunk_w;
+        let mut end_y = (chunk_y + 1) * chunk_h;
+        if end_x >= img_width {
+            end_x = img_width - 1;
+        }
+        if end_y >= img_height {
+            end_y = img_height - 1;
+        }
 
         for y in start_y..end_y {
             for x in start_x..end_x {
@@ -63,7 +69,7 @@ impl LightDetector {
             }
         }
 
-        let average_brightness = total_brightness / pixel_count;
+        let average_brightness = total_brightness / if pixel_count == 0 { 1 } else { pixel_count };
         let is_light = average_brightness > 128; // Threshold for light/dark
 
         // Cache the result.
