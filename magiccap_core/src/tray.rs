@@ -6,7 +6,6 @@ use crate::database;
 use crate::mainthread::main_thread_async;
 
 // TODO: update tray on Linux
-// TODO: reminder to add success message to webview, in the wrong place I know, but hey, I run this shit
 
 // Defines the safe call which is wrapped.
 fn safely_upload(name: &str, path: &str) {
