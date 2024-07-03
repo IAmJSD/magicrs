@@ -1,14 +1,20 @@
 <body>
     <form>
-        <input id="v_0" type="radio" name="m_domain" value="0" checked> Use elixi.re to manage my domain<br>
-        <input id="v_1" type="radio" name="m_domain" value="1"> Manage the domain used within MagicCap
+        <label for="v_0" style="display: flex; align-items: center;">
+            <input id="v_0" type="radio" name="m_domain" value="0" checked> 
+            <span class="margin-left: 5px">Use elixi.re to manage my domain</span>
+        </label>
+        <label for="v_1" style="display: flex; align-items: center;">
+            <input id="v_1" type="radio" name="m_domain" value="1"> 
+            <span class="margin-left: 5px">Manage the domain used within MagicCap</span>
+        </label>
     </form>
 
     <div id="domain_config" style="display: none;">
-        <p>
+        <p id="info_load">
             <i>Loading domain information from elixi.re...</i>
         </p>
-        <div id="domain_select"></div>
+        <div id="domain_select" style="margin-top: 1em;"></div>
     </div>
 </body>
 
@@ -40,7 +46,7 @@
         }
 
         // Get the elixi.re result.
-        const elixireResponse = fetch("https://elixi.re/api/domains").
+        const elixireResponse = fetch("https://elixire-domains-list-proxy.astrids.workers.dev/").
             then(r => r.json()).catch((e) => ({err: e}));
 
         // Handle rendering the domain panel.
@@ -60,12 +66,23 @@
                         return;
                     }
 
+                    // Wipe the domain config loading message.
+                    document.getElementById("info_load")?.remove();
+
                     // Build the select menu.
                     const inputBox = document.createElement("input");
+                    inputBox.value = "*";
                     const inputContainer = document.createElement("div");
                     const select = document.createElement("select");
                     let inputVisible = true;
-                    for (const domain of elixireResponse.domains) {
+                    const domains = Object.keys(elixireResponse.domains).sort((a, b) => {
+                        a = Number(a);
+                        b = Number(b);
+                        if (a < b) return -1;
+                        if (a > b) return 1;
+                        return 0;
+                    }).map(k => elixireResponse.domains[k]);
+                    for (let domain of domains) {
                         // Build the option.
                         const option = document.createElement("option");
 
@@ -154,6 +171,7 @@
             if (v) {
                 renderDomainPanel(v);
                 document.getElementById("domain_config").style.display = "block";
+                document.getElementById("v_1").checked = true;
             }
         });
     })();
@@ -162,14 +180,27 @@
 <style>
     html, body {
         margin: 0;
+        margin-left: 0.1em;
     }
 
     * {
         user-select: none;
     }
 
+    input {
+        border: 0;
+        height: 2em;
+        padding: 0.1em;
+        border-radius: 0.25em;
+    }
+
     @media (prefers-color-scheme: dark) {
         body {
+            color: #fff;
+        }
+
+        input {
+            background-color: #333;
             color: #fff;
         }
     }
