@@ -40,7 +40,13 @@ pub enum ConfigOption {
         description: String,
         default: Option<bool>,
         required: bool,
-    }
+    },
+    Custom {
+        name: String,
+        description: String,
+        frame_html: String,
+        required: bool,
+    },
 }
 
 impl ConfigOption {
@@ -50,6 +56,7 @@ impl ConfigOption {
             ConfigOption::LongString { required, .. } => *required,
             ConfigOption::Number { required, .. } => *required,
             ConfigOption::Boolean { required, .. } => *required,
+            ConfigOption::Custom { required, .. } => *required,
         }
     }
 }

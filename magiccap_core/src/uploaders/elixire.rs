@@ -65,6 +65,12 @@ pub fn elixire_support() -> Uploader {
                 regex: None,
                 validation_error_message: None,
             }),
+            ("domain_config".to_string(), ConfigOption::Custom {
+                name: "Domain Configuration".to_string(),
+                description: "The configuration for the domain to use.".to_string(),
+                frame_html: include_str!("frames/elixire.domain_config.html").to_string(),
+                required: false,
+            })
         ]),
         upload: elixire_support_upload,
     }

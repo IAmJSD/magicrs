@@ -142,6 +142,11 @@ export type ConfigOption = ({
     description: string;
     default: boolean | null;
     required: boolean;
+} | {
+    option_type: "custom";
+    name: string;
+    description: string;
+    frame_html: string;
 };
 
 // Defines how a uploader is structured.
