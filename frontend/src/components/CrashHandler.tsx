@@ -35,10 +35,6 @@ export default class CrashHandler extends Component<PropsWithChildren<{}>> {
         return { error };
     }
 
-    componentDidCatch(error: any) {
-        // TODO: sentry if user consents
-    }
-
     render() {
         return this.state.error ?
             <ErrorMessage error={this.state.error} /> :
