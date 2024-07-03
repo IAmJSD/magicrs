@@ -69,12 +69,15 @@ function captureFormSubmit(event: Event) {
 }
 
 // Hooks all the forms/images that are children of the given element.
+let tick = 0;
 function hookCaptureChildren(element: HTMLElement) {
     element.querySelectorAll("[data-filesystem-path]").forEach((img: HTMLImageElement) => {
+        const magicUrl = "magiccap-internal://frontend-dist/placeholder.png";
+        if (!img.src.startsWith(magicUrl)) return;
+        img.src = `${magicUrl}#${tick++}`;
         img.addEventListener("load", () => {
             const fp = img.dataset.filesystemPath!;
             if (!fp) return;
-            img.src = "magiccap-internal://frontend-dist/placeholder.png";
             fileSystemProxy(fp).then(res => {
                 if (res.ok) img.src = res.data;
             });
