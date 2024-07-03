@@ -4,7 +4,7 @@ generate-license-file:
 
 dev-preinit:
 	make generate-license-file
-	cd frontend && yarn && yarn run build
+	cd frontend && npm ci && npm run build
 
 linux-dev:
 	# Generate the Rust license file.
@@ -49,7 +49,7 @@ build:
 	node ./build/compile.js
 
 package:
-	cd build/packaging && yarn && yarn start
+	cd build/packaging && npm ci && npm run start
 
 all:
 	node ./build/compile.js

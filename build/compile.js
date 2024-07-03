@@ -53,7 +53,7 @@ function buildNoAutoupdate() {
     runCommand("make generate-license-file");
 
     // Compile the frontend.
-    runCommand("cd frontend && yarn && yarn run build");
+    runCommand("cd frontend && npm ci && npm run build");
 
     // Handle macOS compilation.
     if (process.platform === "darwin") {
@@ -143,7 +143,7 @@ function buildWithAutoupdate(privateKeyPath) {
     runCommand("make generate-license-file");
 
     // Compile the frontend.
-    runCommand("cd frontend && yarn && yarn run build");
+    runCommand("cd frontend && npm ci && npm run build");
 
     if (process.platform === "darwin") {
         // Due to universal binaries, we need to compile differently on macOS.
