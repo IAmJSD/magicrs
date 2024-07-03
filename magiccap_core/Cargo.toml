@@ -23,7 +23,6 @@ rand = "0.8.5"
 emojis = "0.6.1"
 regex = "1.10.3"
 uriparse = "0.6.4"
-include_dir = "0.7.3"
 ureq = { version = "2.9.4", features = ["json"] }
 axohtml = { git = "https://github.com/IAmJSD/axohtml", commit = "bfba7" }
 open = "5.0.1"
@@ -41,6 +40,8 @@ mime-sniffer = "^0.1.2"
 ureq_multipart = "^1.1.0"
 dark-light = "^1.1.1"
 rusttype = "^0.9.3"
+tar = "^0.4.41"
+flate2 = "1.0"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cacao = { version = "0.3.2", features = ["webview"] }

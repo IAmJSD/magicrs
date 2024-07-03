@@ -7,6 +7,9 @@ pub fn application_reload() {
     // Pre-load the textures in a thread.
     run_thread(|| crate::region_selector::preload_textures());
 
+    // Pre-unpack the frontend in a thread.
+    run_thread(|| crate::config::pre_unpack_frontend());
+
     // Load the tray.
     load_tray();
 }

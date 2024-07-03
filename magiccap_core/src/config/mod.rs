@@ -1,5 +1,7 @@
+use std::{collections::HashMap, io::Read};
 use base64::Engine;
-use include_dir::{include_dir, Dir};
+use once_cell::sync::Lazy;
+use tar::Archive;
 use uriparse::URI;
 #[cfg(target_os = "macos")]
 use cacao::{
@@ -15,7 +17,37 @@ use crate::macos_delegate::app;
 use crate::statics::run_thread;
 
 // The folder which contains the frontend distribution.
-static FRONTEND_DIST: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../frontend/dist");
+static FRONTEND_DIST: Lazy<HashMap<String, Vec<u8>>> = Lazy::new(|| {
+    // Get the tgz file from the filesystem at compile time.
+    let dist_tgz = include_bytes!("../../../frontend/dist/dist.tgz");
+
+    // Get the reader for the dist folder.
+    let mut dist_archive = Archive::new(flate2::read::GzDecoder::new(dist_tgz.as_slice()));
+
+    // Build a hashmap with the contents.
+    let entries = dist_archive.entries().unwrap();
+    let mut map = HashMap::new();
+    for mut entry in entries.map(|x| x.unwrap()) {
+        // Get the path.
+        let path = entry.path().unwrap();
+        let path = path.to_str().unwrap().to_owned();
+
+        // Get the data.
+        let mut data = Vec::new();
+        entry.read_to_end(&mut data).unwrap();
+
+        // Insert the data.
+        map.insert(path, data);
+    }
+
+    // Return the map.
+    map
+});
+
+// Defines a function to unpack the frontend in preparation for it being opened.
+pub fn pre_unpack_frontend() {
+    let _ = &*FRONTEND_DIST;
+}
 
 // Defines sub-modules which are used to handle the config API.
 mod api;
@@ -24,9 +56,14 @@ pub mod captures_html;
 
 // Handles the frontend virtual host.
 fn frontend_get(path: String) -> Option<Vec<u8>> {
-    FRONTEND_DIST.
-        get_file(path.trim_start_matches("/")).
-        map(|f| f.contents().to_vec())
+    // Edit the path string to remove the leading slash.
+    let path = path.trim_start_matches("/");
+
+    // Get the data from the hashmap.
+    match FRONTEND_DIST.get(path) {
+        Some(v) => Some(v.clone()),
+        None => return None,
+    }
 }
 
 // Defines the function to handle message payloads.
