@@ -100,7 +100,10 @@ function Uploader({ uploader, uploaderId }: UploaderProps) {
     const testCb = useCallback(() => {
         setAlert(null);
         testUploader(uploaderId).catch(e => {
-            setAlert(e.message);
+            setAlert({
+                type: "error",
+                message: e.message,
+            });
         }).then(() => {
             setAlert({
                 type: "success",
@@ -115,6 +118,11 @@ function Uploader({ uploader, uploaderId }: UploaderProps) {
             setAlert({
                 type: "error",
                 message: e.message,
+            });
+        }).then(() => {
+            setAlert({
+                type: "success",
+                message: "The uploader has been set as the default!",
             });
         });
     }, [uploaderId]);
