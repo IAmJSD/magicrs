@@ -1,3 +1,4 @@
+mod blur;
 mod pixelate;
 
 use once_cell::unsync::Lazy;
@@ -37,6 +38,7 @@ pub trait Editor {
 // Creates the editor vector. The vector should be in the order that the editors are set.
 pub fn create_editor_vec() -> Vec<Lazy<Box<dyn EditorFactory>>> {
     vec![
+        Lazy::new(|| Box::new(blur::BlurFactory::new())),
         Lazy::new(|| Box::new(pixelate::PixelateFactory::new())),
     ]
 }
@@ -56,6 +58,7 @@ pub fn create_editor_icons() -> Vec<&'static [u8]> {
         include_texture!("cursor.png"),
 
         // Defines the editor icons.
+        include_texture!("blur.png"),
         include_texture!("pixelate.png"),
     ]
 }
