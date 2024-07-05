@@ -52,7 +52,7 @@ impl Editor for Pixelate {
             texture_w, texture_h, pixels).unwrap();
 
         // Pixelate the underlying image.
-        let pixelation_size = 10;
+        let pixelation_size = 20;
         for y in (0..texture_h).step_by(pixelation_size) {
             for x in (0..texture_w).step_by(pixelation_size) {
                 let mut r_total = 0u32;
