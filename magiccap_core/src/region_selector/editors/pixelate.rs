@@ -2,18 +2,37 @@ use image::RgbaImage;
 use crate::region_selector::gl_abstractions::GLTexture;
 use super::{Editor, EditorFactory, EditorRegion};
 
-// The divisor for the pixelate effect.
-const PIXELATE_DIVISOR: usize = 20;
-
 // Defines the pixelate editor.
-struct Pixelate {}
+struct Pixelate {
+    cache: Option<(u32, u32, i32, i32, GLTexture)>,
+}
 impl Editor for Pixelate {
     fn click(&mut self, _: i32, _: i32) -> Option<EditorRegion> { None }
 
     fn render(
-        &self, screenshot: &GLTexture, _: u32, screen_h: u32,
+        &mut self, screenshot: &GLTexture, _: u32, screen_h: u32,
         texture_w: u32, texture_h: u32, texture_x: i32, texture_y: i32,
     ) {
+        // Handle if the cache is a hit.
+        if let Some((a, b, c, d, gl_tex)) = &self.cache {
+            if *a == texture_w && *b == texture_h && *c == texture_x && *d == texture_y {
+                // Since this was a hit, we can just blit the texture and then return.
+                unsafe {
+                    gl::FramebufferTexture2D(
+                        gl::READ_FRAMEBUFFER, gl::COLOR_ATTACHMENT0,
+                        gl::TEXTURE_2D, gl_tex.texture, 0
+                    );
+                    gl::BlitFramebuffer(
+                        0, 0, texture_w as i32, texture_h as i32,
+                        texture_x, screen_h as i32 - texture_y, texture_x + texture_w as i32,
+                        (screen_h as i32 - (texture_y + texture_h as i32)) as i32,
+                        gl::COLOR_BUFFER_BIT, gl::NEAREST
+                    );
+                }
+                return;
+            }
+        }
+
         // Load in the chunk of the texture that we want to pixelate.
         let mut pixels = vec![0; (texture_w * texture_h * 4) as usize];
         unsafe {
@@ -28,16 +47,44 @@ impl Editor for Pixelate {
             );
         }
 
-        // Iterate through the image data.
+        // Get as a RGBA image.
         let mut image = RgbaImage::from_raw(
             texture_w, texture_h, pixels).unwrap();
-        let mut pixel = *image.get_pixel(0, 0);
-        let pixel_iter = image.pixels_mut();
-        for (i, pixel_ptr) in pixel_iter.enumerate() {
-            if i % PIXELATE_DIVISOR == 0 {
-                pixel = *pixel_ptr;
+
+        // Pixelate the underlying image.
+        let pixelation_size = 10;
+        for y in (0..texture_h).step_by(pixelation_size) {
+            for x in (0..texture_w).step_by(pixelation_size) {
+                let mut r_total = 0u32;
+                let mut g_total = 0u32;
+                let mut b_total = 0u32;
+                let mut a_total = 0u32;
+                let mut count = 0;
+
+                for yy in y..(y + pixelation_size as u32).min(texture_h) {
+                    for xx in x..(x + pixelation_size as u32).min(texture_w) {
+                        let pixel = image.get_pixel(xx, yy).0;
+                        r_total += pixel[0] as u32;
+                        g_total += pixel[1] as u32;
+                        b_total += pixel[2] as u32;
+                        a_total += pixel[3] as u32;
+                        count += 1;
+                    }
+                }
+
+                let avg_pixel = image::Rgba([
+                    (r_total / count) as u8,
+                    (g_total / count) as u8,
+                    (b_total / count) as u8,
+                    (a_total / count) as u8,
+                ]);
+
+                for yy in y..(y + pixelation_size as u32).min(texture_h) {
+                    for xx in x..(x + pixelation_size as u32).min(texture_w) {
+                        image.put_pixel(xx, yy, avg_pixel);
+                    }
+                }
             }
-            *pixel_ptr = pixel;
         }
 
         // Make a new texture from the pixelated image.
@@ -61,8 +108,8 @@ impl Editor for Pixelate {
             );
         }
 
-        // Free the pixelated texture.
-        drop(texture);
+        // Save the cache.
+        self.cache = Some((texture_w, texture_h, texture_x, texture_y, texture));
     }
 }
 
@@ -78,6 +125,6 @@ impl EditorFactory for PixelateFactory {
     }
 
     fn create_editor(&mut self) -> Box<dyn Editor> {
-        Box::new(Pixelate {})
+        Box::new(Pixelate {cache: None})
     }
 }

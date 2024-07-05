@@ -29,7 +29,7 @@ pub trait Editor {
 
     // Renders the editor.
     fn render(
-        &self, screenshot: &GLTexture, window_w: u32, window_h: u32,
+        &mut self, screenshot: &GLTexture, window_w: u32, window_h: u32,
         texture_w: u32, texture_h: u32, texture_x: i32, texture_y: i32,
     );
 }
