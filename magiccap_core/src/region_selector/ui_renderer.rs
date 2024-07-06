@@ -57,7 +57,7 @@ unsafe fn render_active_selection(
 
     // Render the editor lines.
     if ctx.editor_index.is_some() {
-        render_editor_resize_lines(ctx, index);
+        render_editor_resize_lines(ctx, index, screen_height);
     }
 
     // Load the striped line height texture into the framebuffer.
@@ -157,7 +157,7 @@ unsafe fn render_decorations(
                 // If we aren't actively in a selection, render the editors and then the line.
                 render_editors();
                 if ctx.editor_index.is_some() {
-                    render_editor_resize_lines(ctx, index);
+                    render_editor_resize_lines(ctx, index, height);
                 }
                 render_window_line(ctx, index, cursor_x, cursor_y);
             },
