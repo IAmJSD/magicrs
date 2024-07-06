@@ -120,7 +120,6 @@ pub fn handle_active_editor_drag_start(
 // Flushes any updates to editors.
 pub fn flush_editor_updates(
     ctx: &mut RegionSelectorContext, index: usize, cursor_x: f64, cursor_y: f64,
-    width: i32, height: i32,
 ) {
     // Get the editor index and element.
     let (editor_index, element) = match ctx.editor_dragged {

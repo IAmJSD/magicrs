@@ -1,6 +1,6 @@
 use glfw::Context;
 use super::{
-    editor_resizers::{flush_editor_updates, render_editor_resize_lines},
+    editor_resizers::render_editor_resize_lines,
     engine::{iter_windows_or_jump, RegionSelectorContext},
     gl_abstractions::GLTexture, magnifier::render_magnifier,
     menu_bar::draw_menu_bar, window_line::render_window_line,
@@ -228,9 +228,6 @@ pub unsafe fn region_selector_render_ui(
 
         // Get the width and height of the window.
         let (width, height) = window.get_size();
-
-        // Flush any editor changes.
-        flush_editor_updates(ctx2, i, cursor_x, cursor_y, width, height);
 
         // Render the editors. This is a function because it has to be in a specific order.
         let mut render_editors = || {

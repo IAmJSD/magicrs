@@ -309,6 +309,16 @@ fn setup_region_selector(
             // Handle the event.
             region_selector_io_event_sent(ctx2, event, current_index as i32, window);
         });
+
+        // Handle the cursor being moved.
+        let ctx2 = unsafe { &mut *(&mut *ctx as *mut RegionSelectorContext) };
+        window.set_cursor_pos_callback(move |window, x, y| {
+            // Wrap it in a glfw::WindowEvent::CursorPos.
+            let event = glfw::WindowEvent::CursorPos(x, y);
+
+            // Handle the event.
+            region_selector_io_event_sent(ctx2, event, current_index as i32, window);
+        });
     });
 
     // Return the context.

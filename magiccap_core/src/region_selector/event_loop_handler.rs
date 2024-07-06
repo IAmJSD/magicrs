@@ -1,6 +1,6 @@
 use glfw::{Action, Key, Window};
 use super::{
-    editor_resizers::handle_active_editor_drag_start,
+    editor_resizers::{flush_editor_updates, handle_active_editor_drag_start},
     engine::{EditorUsage, RegionSelectorContext, SendSyncBypass},
     menu_bar::{menu_bar_click, within_menu_bar}, region_selected::region_capture,
     ui_renderer::region_selector_render_ui, window_find::get_nearest_window, Region, RegionCapture,
@@ -253,6 +253,12 @@ pub fn region_selector_io_event_sent(
                     window.set_should_close(true);
                 }
             }
+        },
+
+        // Handle the mouse moving.
+        glfw::WindowEvent::CursorPos(x, y) => {
+            // Update the editors that may require it.
+            flush_editor_updates(ctx, current_index as usize, x, y);
         },
 
         // Handle the scroll wheel.
