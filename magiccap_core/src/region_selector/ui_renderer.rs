@@ -27,7 +27,7 @@ unsafe fn draw_background(
 // Render the active selection.
 unsafe fn render_active_selection(
     ctx: &mut RegionSelectorContext, index: usize, x1: i32, y1: i32, x2: i32, y2: i32,
-    screen_height: i32,
+    screen_height: i32, mut render_editors: impl FnMut(),
 ) {
     // Get the min/max X/Y.
     let (min_x, max_x) = (x1.min(x2), x1.max(x2));
@@ -50,6 +50,9 @@ unsafe fn render_active_selection(
         gl::COLOR_BUFFER_BIT,
         gl::NEAREST
     );
+
+    // Render the editors.
+    render_editors();
 
     // Load the striped line height texture into the framebuffer.
     gl::FramebufferTexture2D(
@@ -134,7 +137,7 @@ unsafe fn render_crosshair(
 
 // Renders the decorations.
 unsafe fn render_decorations(
-    ctx: &mut RegionSelectorContext, window: &mut Window, index: usize,
+    ctx: &mut RegionSelectorContext, window: &mut Window, index: usize, mut render_editors: impl FnMut(),
 ) {
     // Get the width and height of the window.
     let (width, height) = window.get_size();
@@ -150,13 +153,16 @@ unsafe fn render_decorations(
 
         match ctx.active_selection {
             None => {
-                // If we aren't actively in a selection, render the line around the window we will capture if we just click.
+                // If we aren't actively in a selection, render the editors and then the line.
+                render_editors();
                 render_window_line(ctx, index, cursor_x, cursor_y);
             },
             Some((display, (x, y))) => {
                 if display == index {
                     // Render the selection on this display.
-                    render_active_selection(ctx, index, x, y, cursor_x, cursor_y, height);
+                    render_active_selection(
+                        ctx, index, x, y, cursor_x, cursor_y, height, render_editors,
+                    );
                 }
             }
         }
@@ -171,6 +177,9 @@ unsafe fn render_decorations(
 
         // Render the menu bar.
         draw_menu_bar(ctx, cursor_x, cursor_y, width, height);
+    } else {
+        // Just render the editors.
+        render_editors();
     }
 }
 
@@ -195,6 +204,10 @@ pub unsafe fn region_selector_render_ui(
         gl::GenFramebuffers(1, &mut framebuffer);
         gl::BindFramebuffer(gl::READ_FRAMEBUFFER, framebuffer);
 
+        // Copy the reference in a unsafe way. This is okay because we know the origin ctx will live
+        // for the duration of this function.
+        let ctx2 = unsafe { &mut *(ctx as *mut _) };
+
         // Render the background.
         let screenshot_non_darkened = &ctx.gl_screenshots[i];
         let screenshot = if with_decorations {
@@ -207,21 +220,29 @@ pub unsafe fn region_selector_render_ui(
         );
 
         // Render the editors.
-        for editor in ctx.active_editors.iter_mut() {
-            if editor.display_index == i {
-                editor.editor.render(
-                    screenshot_non_darkened, width as u32, height as u32,
-                    editor.width, editor.height,
-                    editor.x, editor.y
-                );
+        let mut render_editors = || {
+            // Render each applied editor for this display.
+            for editor in ctx.active_editors.iter_mut() {
+                if editor.display_index == i {
+                    editor.editor.render(
+                        screenshot_non_darkened, width as u32, height as u32,
+                        editor.width, editor.height,
+                        editor.x, editor.y
+                    );
+                }
             }
+
+            // Re-bind the framebuffer.
+            gl::BindFramebuffer(gl::READ_FRAMEBUFFER, framebuffer);
+        };
+
+        if with_decorations {  
+            // If decorations should be rendered, render them and pass through the editors handler.
+            render_decorations(ctx2, window, i, render_editors);
+        } else {
+            // Just render the editors.
+            render_editors();
         }
-
-        // Re-bind the framebuffer.
-        gl::BindFramebuffer(gl::READ_FRAMEBUFFER, framebuffer);
-
-        // If decorations should be rendered, render them.
-        if with_decorations { render_decorations(ctx, window, i) }
 
         // Delete the framebuffer.
         gl::DeleteFramebuffers(1, &framebuffer);
