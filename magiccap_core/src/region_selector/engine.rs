@@ -48,6 +48,19 @@ pub struct EditorUsage {
     pub display_index: usize,
 }
 
+// Defines the editor resizer element that is being dragged.
+pub enum EditorResizerElement {
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
+    Top,
+    Bottom,
+    Left,
+    Right,
+    Centre,
+}
+
 // Defines the context passed around internally.
 pub struct RegionSelectorContext {
     // Defines everything created during initialization.
@@ -70,6 +83,7 @@ pub struct RegionSelectorContext {
     pub active_editors: Vec<EditorUsage>,
     pub editor_index: Option<usize>,
     pub result: Option<RegionCapture>,
+    pub editor_dragged: Option<(usize, EditorResizerElement)>,
 }
 
 // Get the line textures used within the UI.
@@ -248,6 +262,7 @@ fn setup_region_selector(
         active_editors: Vec::new(),
         editor_index: None,
         result: None,
+        editor_dragged: None,
     };
 
     // Render the UI.

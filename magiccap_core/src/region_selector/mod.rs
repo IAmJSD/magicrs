@@ -1,3 +1,4 @@
+mod editor_resizers;
 mod engine;
 mod event_loop_handler;
 mod gl_abstractions;

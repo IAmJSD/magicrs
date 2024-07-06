@@ -1,8 +1,9 @@
-use glfw::{Context, Window};
+use glfw::Context;
 use super::{
+    editor_resizers::{flush_editor_updates, render_editor_resize_lines},
     engine::{iter_windows_or_jump, RegionSelectorContext},
-    gl_abstractions::GLTexture, magnifier::render_magnifier, menu_bar::draw_menu_bar,
-    window_line::render_window_line,
+    gl_abstractions::GLTexture, magnifier::render_magnifier,
+    menu_bar::draw_menu_bar, window_line::render_window_line,
 };
 
 // Draw the background.
@@ -53,6 +54,11 @@ unsafe fn render_active_selection(
 
     // Render the editors.
     render_editors();
+
+    // Render the editor lines.
+    if ctx.editor_index.is_some() {
+        render_editor_resize_lines(ctx, index);
+    }
 
     // Load the striped line height texture into the framebuffer.
     gl::FramebufferTexture2D(
@@ -137,14 +143,9 @@ unsafe fn render_crosshair(
 
 // Renders the decorations.
 unsafe fn render_decorations(
-    ctx: &mut RegionSelectorContext, window: &mut Window, index: usize, mut render_editors: impl FnMut(),
+    ctx: &mut RegionSelectorContext, index: usize, mut render_editors: impl FnMut(),
+    cursor_x: f64, cursor_y: f64, width: i32, height: i32,
 ) {
-    // Get the width and height of the window.
-    let (width, height) = window.get_size();
-
-    // Get the cursor X and Y.
-    let (cursor_x, cursor_y) = window.get_cursor_pos();
-
     // If the cursor is within the window, handle rendering most of the in window decorations.
     let within = cursor_x >= 0.0 && cursor_x < width as f64 && cursor_y >= 0.0 && cursor_y < height as f64;
     if within {
@@ -155,6 +156,9 @@ unsafe fn render_decorations(
             None => {
                 // If we aren't actively in a selection, render the editors and then the line.
                 render_editors();
+                if ctx.editor_index.is_some() {
+                    render_editor_resize_lines(ctx, index);
+                }
                 render_window_line(ctx, index, cursor_x, cursor_y);
             },
             Some((display, (x, y))) => {
@@ -219,7 +223,16 @@ pub unsafe fn region_selector_render_ui(
             width, height
         );
 
-        // Render the editors.
+        // Get the cursor X/Y.
+        let (cursor_x, cursor_y) = window.get_cursor_pos();
+
+        // Get the width and height of the window.
+        let (width, height) = window.get_size();
+
+        // Flush any editor changes.
+        flush_editor_updates(ctx2, i, cursor_x, cursor_y, width, height);
+
+        // Render the editors. This is a function because it has to be in a specific order.
         let mut render_editors = || {
             // Render each applied editor for this display.
             for editor in ctx.active_editors.iter_mut() {
@@ -238,7 +251,7 @@ pub unsafe fn region_selector_render_ui(
 
         if with_decorations {  
             // If decorations should be rendered, render them and pass through the editors handler.
-            render_decorations(ctx2, window, i, render_editors);
+            render_decorations(ctx2, i, render_editors, cursor_x, cursor_y, width, height);
         } else {
             // Just render the editors.
             render_editors();

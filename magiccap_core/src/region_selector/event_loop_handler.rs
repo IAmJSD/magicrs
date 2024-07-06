@@ -1,5 +1,6 @@
 use glfw::{Action, Key, Window};
 use super::{
+    editor_resizers::handle_active_editor_drag_start,
     engine::{EditorUsage, RegionSelectorContext, SendSyncBypass},
     menu_bar::{menu_bar_click, within_menu_bar}, region_selected::region_capture,
     ui_renderer::region_selector_render_ui, window_find::get_nearest_window, Region, RegionCapture,
@@ -76,6 +77,11 @@ fn mouse_left_push(
 ) {
     let (screen_w, _) = window.get_size();
     if !within_menu_bar(ctx, rel_x, rel_y, screen_w) {
+        // Check if it is a editor drag start.
+        if handle_active_editor_drag_start(ctx, i, rel_x, rel_y) {
+            return;
+        }
+
         // If there is an active editor, check if the click function returns anything.
         if let Some(i) = ctx.editor_index {
             // Create a instance of the editor.
@@ -109,6 +115,12 @@ fn mouse_left_release(
     ctx: &mut RegionSelectorContext, i: usize, rel_x: i32, rel_y: i32,
     gl_window: &mut Window,
 ) -> Option<RegionCapture> {
+    // Handle if the editor is being dragged.
+    if ctx.editor_dragged.is_some() {
+        ctx.editor_dragged = None;
+        return None;
+    }
+
     if ctx.active_selection.is_none() {
         // Handle if this is in the menu bar.
         let (screen_w, _) = gl_window.get_size();
