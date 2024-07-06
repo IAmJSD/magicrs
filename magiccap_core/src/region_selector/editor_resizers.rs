@@ -117,6 +117,10 @@ pub fn handle_active_editor_drag_start(
     false
 }
 
+// Defines the minimum width and height of an editor.
+const MIN_WIDTH: i32 = 20;
+const MIN_HEIGHT: i32 = 20;
+
 // Flushes any updates to editors.
 pub fn flush_editor_updates(
     ctx: &mut RegionSelectorContext, index: usize, cursor_x: f64, cursor_y: f64,
@@ -149,79 +153,53 @@ pub fn flush_editor_updates(
     // Match the element.
     match element {
         EditorResizerElement::Centre => {
-            // Get the editor X/Y/W/H.
-            let w = editor.width as i32;
-            let h = editor.height as i32;
-
             // Calculate the new X/Y.
-            let new_x = cursor_x - w / 2;
-            let new_y = cursor_y - h / 2;
+            let new_x = cursor_x - editor.width as i32 / 2;
+            let new_y = cursor_y - editor.height as i32 / 2;
 
             // Update the editor.
             editor.x = new_x;
             editor.y = new_y;
         },
-
-        // This is all copilot, requires extensive testing.
         EditorResizerElement::TopLeft => {
-            // Get the editor X/Y/W/H.
-            let w = editor.width as i32;
-            let h = editor.height as i32;
+            // Calculate the new width and height.
+            let new_width = (editor.x + editor.width as i32 - cursor_x).max(MIN_WIDTH) as u32;
+            let new_height = (editor.y + editor.height as i32 - cursor_y).max(MIN_HEIGHT) as u32;
 
-            // Calculate the new X/Y.
-            let new_x = cursor_x;
-            let new_y = cursor_y;
-
-            // Update the editor.
-            editor.x = new_x;
-            editor.y = new_y;
-            editor.width = (editor.x + w - new_x) as u32;
-            editor.height = (editor.y + h - new_y) as u32;
-        },
-        EditorResizerElement::TopRight => {
-            // Get the editor X/Y/W/H.
-            let w = editor.width as i32;
-            let h = editor.height as i32;
-
-            // Calculate the new X/Y.
-            let new_x = cursor_x - w;
-            let new_y = cursor_y;
-
-            // Update the editor.
-            editor.x = new_x;
-            editor.y = new_y;
-            editor.width = (cursor_x - new_x) as u32;
-            editor.height = (editor.y + h - new_y) as u32;
+            // Update the editor position and size.
+            editor.x = cursor_x;
+            editor.y = cursor_y;
+            editor.width = new_width;
+            editor.height = new_height;
         },
         EditorResizerElement::BottomLeft => {
-            // Get the editor X/Y/W/H.
-            let w = editor.width as i32;
-            let h = editor.height as i32;
+            // Calculate the new width and height.
+            let new_width = (editor.x + editor.width as i32 - cursor_x).max(MIN_WIDTH) as u32;
+            let new_height = (cursor_y - editor.y).max(MIN_HEIGHT) as u32;
 
-            // Calculate the new X/Y.
-            let new_x = cursor_x;
-            let new_y = cursor_y - h;
+            // Update the editor position and size.
+            editor.x = cursor_x;
+            editor.width = new_width;
+            editor.height = new_height;
+        },
+        EditorResizerElement::TopRight => {
+            // Calculate the new width and height.
+            let new_width = (cursor_x - editor.x).max(MIN_WIDTH) as u32;
+            let new_height = (editor.y + editor.height as i32 - cursor_y).max(MIN_HEIGHT) as u32;
 
-            // Update the editor.
-            editor.x = new_x;
-            editor.y = new_y;
-            editor.width = (editor.x + w - new_x) as u32;
-            editor.height = (cursor_y - new_y) as u32;
+            // Update the editor position and size.
+            editor.y = cursor_y;
+            editor.width = new_width;
+            editor.height = new_height;
         },
         EditorResizerElement::BottomRight => {
-            // Get the editor X/Y/W/H.
-            let w = editor.width as i32;
-            let h = editor.height as i32;
+            // Calculate the new width and height.
+            let new_width = (cursor_x - editor.x).max(MIN_WIDTH) as u32;
+            let new_height = (cursor_y - editor.y).max(MIN_HEIGHT) as u32;
 
-            // Calculate the new X/Y.
-            let new_x = cursor_x - w;
-            let new_y = cursor_y - h;
-
-            // Update the editor.
-            editor.x = new_x;
-            editor.y = new_y;
-            editor.width = (cursor_x - new_x) as u32;
-            editor.height = (cursor_y - new_y) as u32;
+            // Update the editor size.
+            editor.width = new_width;
+            editor.height = new_height;
         },
     }
 }
