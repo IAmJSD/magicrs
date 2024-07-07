@@ -6,6 +6,10 @@ mod rectangle;
 use once_cell::unsync::Lazy;
 use super::{engine::RegionSelectorContext, gl_abstractions::GLTexture};
 
+// TODO: Add color picker
+// TODO: Add stickers
+// TODO: Add text
+
 // Defines the editor factory.
 pub trait EditorFactory {
     // Creates a new instance of the editor factory.
