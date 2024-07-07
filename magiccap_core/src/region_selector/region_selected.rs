@@ -54,6 +54,7 @@ pub fn region_capture(
     let res = RegionCapture {
         image: image::RgbaImage::from_raw(w as u32, h as u32, buffer).unwrap(),
         monitor: ctx.setup.monitors[i].clone(),
+        windows: ctx.setup.windows.clone(),
         relative_region: Region {
             x,
             y,

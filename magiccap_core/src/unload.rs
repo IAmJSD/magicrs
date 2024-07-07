@@ -1,4 +1,4 @@
-use crate::{database, statics};
+use crate::{database, search_indexing, statics};
 
 pub fn application_unload() {
     // Activate the kill switch.
@@ -9,4 +9,7 @@ pub fn application_unload() {
 
     // Destroy the thread pool.
     statics::kill_thread_pool();
+
+    // Disconnect the search index.
+    search_indexing::disconnect_index();
 }

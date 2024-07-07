@@ -55,6 +55,9 @@ function buildNoAutoupdate() {
     // Compile the frontend.
     runCommand("cd frontend && npm ci && npm run build");
 
+    // Download the models.
+    runCommand("cd build/download-models && npm ci && node .");
+
     // Handle macOS compilation.
     if (process.platform === "darwin") {
         return macOSNoAutoupdateCompilation();
@@ -144,6 +147,9 @@ function buildWithAutoupdate(privateKeyPath) {
 
     // Compile the frontend.
     runCommand("cd frontend && npm ci && npm run build");
+
+    // Download the models.
+    runCommand("cd build/download-models && npm ci && node .");
 
     if (process.platform === "darwin") {
         // Due to universal binaries, we need to compile differently on macOS.

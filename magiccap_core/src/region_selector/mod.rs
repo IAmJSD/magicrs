@@ -37,6 +37,7 @@ pub struct Region {
 // Defines the result of a region capture.
 pub struct RegionCapture {
     pub monitor: Monitor,
+    pub windows: Vec<Window>,
     pub relative_region: Region,
     pub image: image::RgbaImage,
 }

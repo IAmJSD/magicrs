@@ -65,6 +65,7 @@ fn fullscreen_key(ctx: &mut RegionSelectorContext, shift_held: bool) -> Option<R
     // Return the region capture.
     Some(RegionCapture {
         monitor: ctx.setup.monitors[active_index].clone(),
+        windows: ctx.setup.windows.clone(),
         relative_region: Region {
             x: 0,
             y: 0,
