@@ -1,4 +1,3 @@
-use image::{imageops, RgbaImage};
 use crate::region_selector::{engine::RegionSelectorContext, gl_abstractions::GLTexture};
 use super::{Editor, EditorFactory, EditorRegion};
 
@@ -34,7 +33,7 @@ impl Editor for Blur {
         }
 
         // Load in the chunk of the texture that we want to blur.
-        let mut pixels = vec![0; (texture_w * texture_h * 4) as usize];
+        let mut pixels = vec![[0, 0, 0] as [u8; 3]; (texture_w * texture_h) as usize];
         unsafe {
             let texture = screenshot.texture;
             gl::FramebufferTexture2D(
@@ -43,19 +42,21 @@ impl Editor for Blur {
             );
             gl::ReadPixels(
                 texture_x, texture_y, texture_w as i32, texture_h as i32,
-                gl::RGBA, gl::UNSIGNED_BYTE, pixels.as_mut_ptr() as *mut _
+                gl::RGB, gl::UNSIGNED_BYTE, pixels.as_mut_ptr() as *mut _
             );
         }
 
-        // Get as a RGBA image.
-        let image = RgbaImage::from_raw(
-            texture_w, texture_h, pixels).unwrap();
-
         // Blur the underlying image.
-        let image = imageops::blur(&image, 10.0);
+        fastblur::gaussian_blur(
+            &mut pixels, texture_w as usize, texture_h as usize, 10.0,
+        );
 
         // Make a new texture from the blurred image.
-        let texture = GLTexture::from_rgba(&image);
+        let texture = GLTexture::from_raw(
+            texture_w, texture_h, pixels.as_ptr() as *const u8, gl::RGB as i32);
+
+        // We are done with the pixels since they are loaded into VRAM. Drop here.
+        drop(pixels);
 
         // Bind the blurred texture.
         unsafe {
