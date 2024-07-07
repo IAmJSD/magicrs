@@ -2083,6 +2083,7 @@ dependencies = [
  "emojis",
  "fastblur",
  "flate2",
+ "gdk",
  "gio",
  "gl",
  "glfw",

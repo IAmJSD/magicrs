@@ -345,14 +345,17 @@ pub fn invoke(setup: Box<RegionSelectorSetup>, screenshots: &mut Vec<RgbaImage>)
     };
 
     // Call the event loop handler in the main thread. Pull the result into the worker thread.
-    let res = main_thread_sync(|| loop {
-        match region_selector_event_loop_handler(&mut ctx) {
-            Some(v) => {
-                return v;
-            },
-            None => {},
-        };
-    });
+    let res = loop {
+        // Run the event loop handler.
+        let res = main_thread_sync(
+            || region_selector_event_loop_handler(&mut ctx));
+        if let Some(res) = res {
+            break res;
+        }
+
+        // Sleep for a couple of milliseconds so we don't hog the event loop.
+        std::thread::sleep(std::time::Duration::from_millis(2));
+    };
 
     // Clean up by making sure the context is dropped on the main thread.
     main_thread_drop(ctx);

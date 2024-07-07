@@ -1,3 +1,4 @@
+mod color_picker;
 mod editor_resizers;
 mod engine;
 mod event_loop_handler;
