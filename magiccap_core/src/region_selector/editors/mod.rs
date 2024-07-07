@@ -1,8 +1,10 @@
 mod blur;
 mod pixelate;
+mod hollow_rectangle;
+mod rectangle;
 
 use once_cell::unsync::Lazy;
-use super::gl_abstractions::GLTexture;
+use super::{engine::RegionSelectorContext, gl_abstractions::GLTexture};
 
 // Defines the editor factory.
 pub trait EditorFactory {
@@ -13,7 +15,7 @@ pub trait EditorFactory {
     fn description(&self) -> &'static str;
 
     // Creates a new instance of the editor.
-    fn create_editor(&mut self) -> Box<dyn Editor>;
+    fn create_editor(&mut self, ctx: &mut RegionSelectorContext) -> Box<dyn Editor>;
 }
 
 // Defines the editor region.
@@ -40,6 +42,8 @@ pub fn create_editor_vec() -> Vec<Lazy<Box<dyn EditorFactory>>> {
     vec![
         Lazy::new(|| Box::new(blur::BlurFactory::new())),
         Lazy::new(|| Box::new(pixelate::PixelateFactory::new())),
+        Lazy::new(|| Box::new(hollow_rectangle::HollowRectangleFactory::new())),
+        Lazy::new(|| Box::new(rectangle::RectangleFactory::new())),
     ]
 }
 
@@ -60,5 +64,7 @@ pub fn create_editor_icons() -> Vec<&'static [u8]> {
         // Defines the editor icons.
         include_texture!("blur.png"),
         include_texture!("pixelate.png"),
+        include_texture!("hollow_rectangle.png"),
+        include_texture!("rectangle.png"),
     ]
 }

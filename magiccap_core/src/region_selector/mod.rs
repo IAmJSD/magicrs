@@ -104,6 +104,24 @@ pub fn open_region_selector(show_editors: bool) -> Option<RegionCapture> {
     let show_magnifier = get_config_option("show_magnifier").
         unwrap_or(serde_json::Value::Bool(true)).as_bool().unwrap();
 
+    // Figure out the default color for the editors. Do it here since the other threads can work while we are doing this.
+    let mut default_color: (u8, u8, u8) = (u8::MAX, 0, 0);
+    if let Some(color_result) = get_config_option("default_editor_color") {
+        // Check this is an array.
+        if let Some(color_array) = color_result.as_array() {
+            // Check the length of the array.
+            if color_array.len() == 3 {
+                // Check the values of the array.
+                if let (Some(r), Some(g), Some(b)) = (color_array[0].as_u64(), color_array[1].as_u64(), color_array[2].as_u64()) {
+                    // Check the values are in the correct range.
+                    if r <= u8::MAX as u64 && g <= u8::MAX as u64 && b <= u8::MAX as u64 {
+                        default_color = (r as u8, g as u8, b as u8);
+                    }
+                }
+            }
+        }
+    }
+
     // Wait for all the threads to finish.
     let mut screenshots = Vec::with_capacity(threads.len() + 1);
     for thread in threads {
@@ -119,7 +137,7 @@ pub fn open_region_selector(show_editors: bool) -> Option<RegionCapture> {
 
     // Call the engine.
     let result = engine::invoke(Box::new(RegionSelectorSetup {
-        monitors, windows, show_editors, show_magnifier,
+        monitors, windows, show_editors, show_magnifier, default_color,
     }), &mut screenshots);
 
     // Make sure to set the selector opened to false.

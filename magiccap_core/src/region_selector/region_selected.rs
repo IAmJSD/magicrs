@@ -18,8 +18,9 @@ pub fn region_capture(
     }
 
     // Handle if a editor is selected.
+    let ctx2 = unsafe { &mut *(&mut *ctx as *mut _) };
     if let Some(editor_index) = ctx.editor_index {
-        let editor = ctx.editors[editor_index].create_editor();
+        let editor = ctx.editors[editor_index].create_editor(ctx2);
         let active_editor = EditorUsage {
             x,
             y,

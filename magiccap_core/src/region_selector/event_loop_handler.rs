@@ -8,6 +8,9 @@ use super::{
 
 // Handles the fullscreen key being pressed.
 fn fullscreen_key(ctx: &mut RegionSelectorContext, shift_held: bool) -> Option<RegionCapture> {
+    // Get another reference to the context.
+    let ctx2 = unsafe { &mut *(&mut *ctx as *mut _) };
+
     // Find the window the mouse is on.
     let mut active_window = &ctx.glfw_windows[0];
     let mut active_index = 0;
@@ -26,7 +29,7 @@ fn fullscreen_key(ctx: &mut RegionSelectorContext, shift_held: bool) -> Option<R
     if ctx.editor_index.is_some() && shift_held {
         let index = ctx.editor_index.unwrap();
         let (width, height) = active_window.get_size();
-        let editor = ctx.editors[index].create_editor();
+        let editor = ctx.editors[index].create_editor(ctx2);
         let active_editor = EditorUsage {
             x: 0,
             y: 0,
@@ -83,10 +86,11 @@ fn mouse_left_push(
         }
 
         // If there is an active editor, check if the click function returns anything.
+        let ctx2 = unsafe { &mut *(&mut *ctx as *mut _) };
         if let Some(i) = ctx.editor_index {
             // Create a instance of the editor.
             let editor_factory = &mut ctx.editors[i];
-            let mut editor_instance = editor_factory.create_editor();
+            let mut editor_instance = editor_factory.create_editor(ctx2);
 
             // Check if clicking the editor returns anything.
             let region = editor_instance.click(rel_x, rel_y);

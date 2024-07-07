@@ -1,5 +1,5 @@
 use image::{imageops, RgbaImage};
-use crate::region_selector::gl_abstractions::GLTexture;
+use crate::region_selector::{engine::RegionSelectorContext, gl_abstractions::GLTexture};
 use super::{Editor, EditorFactory, EditorRegion};
 
 // Defines the blur editor.
@@ -91,7 +91,7 @@ impl EditorFactory for BlurFactory {
         "Blurs the region specified."
     }
 
-    fn create_editor(&mut self) -> Box<dyn Editor> {
+    fn create_editor(&mut self, _: &mut RegionSelectorContext) -> Box<dyn Editor> {
         Box::new(Blur {cache: None})
     }
 }
