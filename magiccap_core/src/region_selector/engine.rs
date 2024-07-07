@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use super::{
     editors::{create_editor_vec, Editor, EditorFactory},
     event_loop_handler::{region_selector_event_loop_handler, region_selector_io_event_sent},
@@ -78,7 +77,7 @@ pub struct RegionSelectorContext {
     pub texture_pack: TexturePack,
 
     // Defines event driven items.
-    pub color_selection: Arc<(u8, u8, u8)>,
+    pub color_selection: (u8, u8, u8),
     pub active_selection: Option<(usize, (i32, i32))>,
     pub active_editors: Vec<EditorUsage>,
     pub editor_index: Option<usize>,
@@ -259,7 +258,7 @@ fn setup_region_selector(
         striped_tex_w, striped_tex_h,
         texture_pack: TexturePack::new(),
 
-        color_selection: Arc::new(default_color),
+        color_selection: default_color,
         active_selection: None,
         active_editors: Vec::new(),
         editor_index: None,

@@ -1,10 +1,9 @@
-use std::sync::Arc;
 use crate::region_selector::{engine::RegionSelectorContext, gl_abstractions::GLTexture};
 use super::{Editor, EditorFactory, EditorRegion};
 
 // Defines a hollow rectangle editor.
 pub struct HollowRectangle {
-    color: Arc<(u8, u8, u8)>,
+    color: (u8, u8, u8),
 }
 impl Editor for HollowRectangle {
     fn click(&mut self, _: i32, _: i32) -> Option<EditorRegion> { None }
@@ -14,10 +13,9 @@ impl Editor for HollowRectangle {
         texture_w: u32, texture_h: u32, texture_x: i32, texture_y: i32,
     ) {
         // Turn the color into a float where 1 is u8::MAX.
-        let (r, g, b) = self.color.as_ref();
-        let r = *r as f32 / u8::MAX as f32;
-        let g = *g as f32 / u8::MAX as f32;
-        let b = *b as f32 / u8::MAX as f32;
+        let r = self.color.0 as f32 / u8::MAX as f32;
+        let g = self.color.1 as f32 / u8::MAX as f32;
+        let b = self.color.2 as f32 / u8::MAX as f32;
 
         // Defines the scizzor regions.
         let scizzors = [
@@ -57,6 +55,6 @@ impl EditorFactory for HollowRectangleFactory {
     }
 
     fn create_editor(&mut self, ctx: &mut RegionSelectorContext) -> Box<dyn Editor> {
-        Box::new(HollowRectangle {color: ctx.color_selection.clone()})
+        Box::new(HollowRectangle {color: ctx.color_selection})
     }
 }
