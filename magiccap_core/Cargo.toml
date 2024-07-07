@@ -24,7 +24,7 @@ emojis = "0.6.1"
 regex = "1.10.3"
 uriparse = "0.6.4"
 ureq = { version = "2.9.4", features = ["json"] }
-axohtml = { git = "https://github.com/IAmJSD/axohtml", commit = "bfba7" }
+axohtml = { git = "https://github.com/IAmJSD/axohtml" }
 open = "5.0.1"
 base64 = "0.22.1"
 urlencoding = "2.1.3"
