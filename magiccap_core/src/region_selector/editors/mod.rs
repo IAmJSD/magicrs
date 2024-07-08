@@ -6,7 +6,7 @@ mod rectangle;
 use once_cell::unsync::Lazy;
 use super::{engine::RegionSelectorContext, gl_abstractions::GLTexture};
 
-// TODO: Add color picker
+// TODO: Add color picker to frontend
 // TODO: Add stickers
 // TODO: Add text
 
