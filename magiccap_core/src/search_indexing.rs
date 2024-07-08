@@ -58,8 +58,8 @@ pub fn insert_capture(capture_id: i64, text: String, window_names: Vec<String>) 
     let mut doc = TantivyDocument::new();
     doc.add_i64(SCHEMA.get_field("capture_id").unwrap(), capture_id);
     doc.add_text(SCHEMA.get_field("text").unwrap(), text);
-    // TODO: This crashes the program for some reason?
-    doc.add_field_value(SCHEMA.get_field("window_names").unwrap(), serde_json::to_vec(&window_names).unwrap());
+    doc.add_field_value(
+        SCHEMA.get_field("window_names").unwrap(), &serde_json::to_value(window_names).unwrap());
     writer_ref.add_document(doc).unwrap();
     writer_ref.commit().unwrap();
 }

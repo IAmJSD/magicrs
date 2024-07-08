@@ -45,7 +45,7 @@ flate2 = "1.0"
 fastblur = { git = "https://github.com/fschutt/fastblur" }
 ocrs = "0.8.0"
 rten = "0.10.0"
-tantivy = "0.22.0"
+tantivy = { git = "https://github.com/quickwit-oss/tantivy" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cacao = { version = "0.3.2", features = ["webview"] }
