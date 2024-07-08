@@ -1,9 +1,11 @@
 use glfw::{Action, Key, Window};
 use super::{
+    color_box::{handle_color_box_click, render_texture}, color_picker::open_color_picker,
     editor_resizers::{flush_editor_updates, handle_active_editor_drag_start},
     engine::{EditorUsage, RegionSelectorContext, SendSyncBypass},
     menu_bar::{menu_bar_click, within_menu_bar}, region_selected::region_capture,
-    ui_renderer::region_selector_render_ui, window_find::get_nearest_window, Region, RegionCapture,
+    ui_renderer::region_selector_render_ui, window_find::get_nearest_window,
+    Region, RegionCapture,
 };
 
 // Handles the fullscreen key being pressed.
@@ -82,6 +84,11 @@ fn mouse_left_push(
     if !within_menu_bar(ctx, rel_x, rel_y, screen_w) {
         // Check if it is a editor drag start.
         if handle_active_editor_drag_start(ctx, i, rel_x, rel_y) {
+            return;
+        }
+
+        // Handle if this is a color box click.
+        if handle_color_box_click(ctx, rel_x, rel_y, screen_w) {
             return;
         }
 
@@ -198,6 +205,19 @@ pub fn region_selector_io_event_sent(
     gl_window: &mut Window,
 ){
     match event {
+        // Open the color palette if the C key is hit.
+        glfw::WindowEvent::Key(Key::C, _, Action::Release, _) => {
+            // Get a Arc reference to the color and texture.
+            let color_selection_arc = ctx.color_selection.clone();
+
+            // Open the color picker.
+            open_color_picker(move |(r, g, b)| {
+                // Write the color to the color selection.
+                let mut color_selection_guard = color_selection_arc.write().unwrap();
+                *color_selection_guard = (r, g, b, render_texture(r, g, b));
+            });
+        },
+
         // Handle either aborting the selection or closing the window when esc is hit.
         glfw::WindowEvent::Key(Key::Escape, _, Action::Release, _) => {
             if ctx.active_selection.is_some() {

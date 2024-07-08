@@ -55,6 +55,9 @@ impl EditorFactory for HollowRectangleFactory {
     }
 
     fn create_editor(&mut self, ctx: &mut RegionSelectorContext) -> Box<dyn Editor> {
-        Box::new(HollowRectangle {color: ctx.color_selection})
+        let read_guard = ctx.color_selection.read().unwrap();
+        Box::new(HollowRectangle {color: (
+            read_guard.0, read_guard.1, read_guard.2,
+        )})
     }
 }

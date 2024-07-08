@@ -1,9 +1,6 @@
 use glfw::Context;
 use super::{
-    editor_resizers::render_editor_resize_lines,
-    engine::{iter_windows_or_jump, RegionSelectorContext},
-    gl_abstractions::GLTexture, magnifier::render_magnifier,
-    menu_bar::draw_menu_bar, window_line::render_window_line,
+    color_box, editor_resizers::render_editor_resize_lines, engine::{iter_windows_or_jump, RegionSelectorContext}, gl_abstractions::GLTexture, magnifier::render_magnifier, menu_bar::draw_menu_bar, window_line::render_window_line
 };
 
 // Draw the background.
@@ -151,6 +148,9 @@ unsafe fn render_decorations(
     if within {
         // Get the cursor position relative to the window.
         let (cursor_x, cursor_y) = (cursor_x.floor() as i32, cursor_y.floor() as i32);
+
+        // Render the color box.
+        color_box::draw_color_box(ctx, width, height);
 
         match ctx.active_selection {
             None => {

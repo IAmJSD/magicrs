@@ -1,3 +1,4 @@
+mod color_box;
 mod color_picker;
 mod editor_resizers;
 mod engine;

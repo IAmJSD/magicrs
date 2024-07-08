@@ -43,6 +43,9 @@ impl EditorFactory for RectangleFactory {
     }
 
     fn create_editor(&mut self, ctx: &mut RegionSelectorContext) -> Box<dyn Editor> {
-        Box::new(Rectangle {color: ctx.color_selection})
+        let read_guard = ctx.color_selection.read().unwrap();
+        Box::new(Rectangle {color: (
+            read_guard.0, read_guard.1, read_guard.2,
+        )})
     }
 }

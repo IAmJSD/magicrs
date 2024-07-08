@@ -19,7 +19,7 @@ static WHITE_NO_HOVER: &[u8] = include_bytes!("textures/white_no_hover.png");
 static HIGHLIGHTED: &[u8] = include_bytes!("textures/highlighted.png");
 
 // Defines the loaded font.
-static LOADED_FONT: Lazy<rusttype::Font<'static>> = Lazy::new(|| {
+pub static LOADED_FONT: Lazy<rusttype::Font<'static>> = Lazy::new(|| {
     rusttype::Font::try_from_bytes(ROBOTO_REGULAR).unwrap()
 });
 
