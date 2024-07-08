@@ -8,7 +8,6 @@ mod stickers;
 use once_cell::unsync::Lazy;
 use super::{engine::RegionSelectorContext, gl_abstractions::GLTexture};
 
-// TODO: Add color picker to frontend
 // TODO: Add text
 
 // Defines the editor factory.
