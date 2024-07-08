@@ -1,14 +1,18 @@
 use std::{io::Cursor, path::PathBuf};
 use crate::{
-    clipboard_actions::{self, CaptureFile},
-    database, notification, uploaders, utils::get_filename,
-    region_selector::open_region_selector,
+    clipboard_actions::{self, CaptureFile}, database, notification, ocr,
+    region_selector::open_region_selector, search_indexing, statics::run_thread,
+    uploaders, utils::get_filename,
 };
-use xcap::Monitor;
+use image::{DynamicImage, RgbaImage};
+use xcap::{Monitor, Window};
 
 // Handles writing captures to the filesystem, uploading them to the internet, and injecting them into the clipboard.
 // Also handles any errors within the process.
-fn post_capture_flow(ext: &str, notification_content: &str, data: Vec<u8>) {
+fn post_capture_flow(
+    ext: &str, notification_content: &str, data: Vec<u8>,
+    thread_callback: Option<Box<dyn FnOnce(i64) + Send>>,
+) {
     // Generate a file name.
     let filename = match get_filename(match database::get_config_option("filename_format") {
         Some(format) => match format.as_str() {
@@ -145,7 +149,10 @@ fn post_capture_flow(ext: &str, notification_content: &str, data: Vec<u8>) {
     // If this capture was successful, push a notification and write to the database.
     if capture_success {
         // The order here matters. The notification can block forever on some systems.
-        database::insert_successful_capture(filename.as_str(), Some(&fp_result), url_str);
+        let capture_id = database::insert_successful_capture(filename.as_str(), Some(&fp_result), url_str);
+        if let Some(thread_callback) = thread_callback {
+            run_thread(move || thread_callback(capture_id));
+        }
         notification::send_notification(notification_content, url_str, match save_capture {
             true => Some(&fp_result),
             false => None,
@@ -153,19 +160,36 @@ fn post_capture_flow(ext: &str, notification_content: &str, data: Vec<u8>) {
     }
 }
 
+// Handles search indexing a RGBA region.
+fn search_indexing_rgba(image: RgbaImage, windows: Vec<Window>, capture_id: i64) {
+    // Convert the image to a RGB image.
+    let image = DynamicImage::ImageRgba8(image).to_rgb8();
+    let text = ocr::scan_text(image);
+
+    // Insert the capture into the index.
+    search_indexing::insert_capture(capture_id, text, windows.iter().map(
+        |w| w.title().to_string()).collect());
+}
+macro_rules! search_indexing_rgba_callback {
+    ($rgba:ident, $windows:ident) => {
+        Some(Box::new(move |id| search_indexing_rgba($rgba, $windows, id)))
+    };
+}
+
 // Handle doing region captures.
 pub fn region_capture() {
-    let result = match open_region_selector(true) {
-        Some(result) => result.image,
+    let (image, windows) = match open_region_selector(true) {
+        Some(result) => (result.image, result.windows),
         None => return,
     };
 
     // Convert the result to a PNG.
     let mut data: Vec<u8> = Vec::new();
-    result.write_to(&mut Cursor::new(&mut data), image::ImageFormat::Png).unwrap();
+    image.write_to(&mut Cursor::new(&mut data), image::ImageFormat::Png).unwrap();
 
     post_capture_flow(
-        "png", "Region capture successful.", data
+        "png", "Region capture successful.", data,
+        search_indexing_rgba_callback!(image, windows),
     )
 }
 
@@ -233,5 +257,9 @@ pub fn fullscreen_capture() {
     canvas.write_to(&mut Cursor::new(&mut vec), image::ImageFormat::Png).unwrap();
 
     // Handle the post capture flow.
-    post_capture_flow("png", "Fullscreen capture successful.", vec);
+    let windows = Window::all().unwrap();
+    post_capture_flow(
+        "png", "Fullscreen capture successful.", vec,
+        search_indexing_rgba_callback!(canvas, windows),
+    );
 }

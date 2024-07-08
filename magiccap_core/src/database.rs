@@ -1,6 +1,6 @@
 use std::{borrow::Borrow, collections::HashMap, sync::RwLock};
 use sqlite::{ConnectionThreadSafe, State};
-use crate::{config, statics::CONFIG_FOLDER};
+use crate::{config, search_indexing, statics::CONFIG_FOLDER};
 
 // Defines the database connection.
 static DATABASE: RwLock<Option<ConnectionThreadSafe>> = RwLock::new(None);
@@ -225,7 +225,7 @@ pub fn insert_failed_capture(filename: &str, file_path: Option<&str>) {
 }
 
 // Inserts a successful capture into the database.
-pub fn insert_successful_capture(filename: &str, file_path: Option<&str>, url: Option<&str>) {
+pub fn insert_successful_capture(filename: &str, file_path: Option<&str>, url: Option<&str>) -> i64 {
     // Acquire the database lock.
     let database_opt = DATABASE.read().unwrap();
     let database = database_opt.borrow().as_ref().unwrap();
@@ -244,11 +244,17 @@ pub fn insert_successful_capture(filename: &str, file_path: Option<&str>, url: O
     if let Ok(State::Row) = stmt.next() {
         let id: i64 = stmt.read(0).unwrap();
         config::update_webview_with_capture(id);
+        return id;
+    } else {
+        panic!("Failed to insert successful capture into the database")
     }
 }
 
 // Deletes a capture from the database. Returns true if a capture was deleted or false if it never existed.
 pub fn delete_capture(id: i64) -> bool {
+    // Drop from the search index.
+    search_indexing::remove_capture(id);
+
     // Acquire the database lock.
     let database_opt = DATABASE.read().unwrap();
     let database = database_opt.borrow().as_ref().unwrap();

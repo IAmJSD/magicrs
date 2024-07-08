@@ -5,6 +5,7 @@ generate-license-file:
 dev-preinit:
 	make generate-license-file
 	cd frontend && npm ci && npm run build
+	cd build/download-nodels && npm ci && node .
 
 linux-dev:
 	# Generate the Rust license file.
