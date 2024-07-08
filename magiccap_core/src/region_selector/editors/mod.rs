@@ -1,4 +1,5 @@
 mod blur;
+mod fastblur_rgba;
 mod pixelate;
 mod hollow_rectangle;
 mod rectangle;
