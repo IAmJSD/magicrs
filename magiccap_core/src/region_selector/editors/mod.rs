@@ -3,12 +3,12 @@ mod fastblur_rgba;
 mod pixelate;
 mod hollow_rectangle;
 mod rectangle;
+mod stickers;
 
 use once_cell::unsync::Lazy;
 use super::{engine::RegionSelectorContext, gl_abstractions::GLTexture};
 
 // TODO: Add color picker to frontend
-// TODO: Add stickers
 // TODO: Add text
 
 // Defines the editor factory.
@@ -33,7 +33,7 @@ pub struct EditorRegion {
 pub trait Editor {
     // If this returns a value, turns this editor from a draggable one to a
     // click controlled one.
-    fn click(&mut self, x: i32, y: i32) -> Option<EditorRegion>;
+    fn click(&mut self, x: i32, y: i32) -> Option<Option<EditorRegion>>;
 
     // Renders the editor.
     fn render(
@@ -49,6 +49,7 @@ pub fn create_editor_vec() -> Vec<Lazy<Box<dyn EditorFactory>>> {
         Lazy::new(|| Box::new(pixelate::PixelateFactory::new())),
         Lazy::new(|| Box::new(hollow_rectangle::HollowRectangleFactory::new())),
         Lazy::new(|| Box::new(rectangle::RectangleFactory::new())),
+        Lazy::new(|| Box::new(stickers::StickerFactory::new())),
     ]
 }
 
@@ -71,5 +72,6 @@ pub fn create_editor_icons() -> Vec<&'static [u8]> {
         include_texture!("pixelate.png"),
         include_texture!("hollow_rectangle.png"),
         include_texture!("rectangle.png"),
+        include_texture!("sticker.png"),
     ]
 }

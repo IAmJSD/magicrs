@@ -6,7 +6,7 @@ pub struct HollowRectangle {
     color: (u8, u8, u8),
 }
 impl Editor for HollowRectangle {
-    fn click(&mut self, _: i32, _: i32) -> Option<EditorRegion> { None }
+    fn click(&mut self, _: i32, _: i32) -> Option<Option<EditorRegion>> { None }
 
     fn render(
         &mut self, _: &GLTexture, _: u32, screen_h: u32,

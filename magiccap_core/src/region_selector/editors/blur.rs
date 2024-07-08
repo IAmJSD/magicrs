@@ -6,7 +6,7 @@ struct Blur {
     cache: Option<(u32, u32, i32, i32, GLTexture)>,
 }
 impl Editor for Blur {
-    fn click(&mut self, _: i32, _: i32) -> Option<EditorRegion> { None }
+    fn click(&mut self, _: i32, _: i32) -> Option<Option<EditorRegion>> { None }
 
     fn render(
         &mut self, screenshot: &GLTexture, _: u32, screen_h: u32,

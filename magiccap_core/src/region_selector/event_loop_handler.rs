@@ -95,24 +95,28 @@ fn mouse_left_push(
 
         // If there is an active editor, check if the click function returns anything.
         let ctx2 = unsafe { &mut *(&mut *ctx as *mut _) };
-        if let Some(i) = ctx.editor_index {
+        if let Some(editor_index) = ctx.editor_index {
             // Create a instance of the editor.
-            let editor_factory = &mut ctx.editors[i];
+            let editor_factory = &mut ctx.editors[editor_index];
             let mut editor_instance = editor_factory.create_editor(ctx2);
 
             // Check if clicking the editor returns anything.
             let region = editor_instance.click(rel_x, rel_y);
             if let Some(region) = region {
-                // Create the active editor and return.
-                let active_editor = EditorUsage {
-                    editor: editor_instance,
-                    display_index: i,
-                    x: rel_x,
-                    y: rel_y,
-                    width: region.width,
-                    height: region.height,
-                };
-                ctx.active_editors.push(active_editor);
+                if let Some(region) = region {
+                    // Create the active editor.
+                    let active_editor = EditorUsage {
+                        editor: editor_instance,
+                        display_index: i,
+                        x: rel_x,
+                        y: rel_y,
+                        width: region.width,
+                        height: region.height,
+                    };
+                    ctx.active_editors.push(active_editor);
+                }
+
+                // Return if this is a handled click event.
                 return;
             }
         }

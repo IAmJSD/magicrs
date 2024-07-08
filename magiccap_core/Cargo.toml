@@ -45,6 +45,7 @@ flate2 = "1.0"
 ocrs = "0.8.0"
 rten = "0.10.0"
 tantivy = { git = "https://github.com/quickwit-oss/tantivy" }
+native-dialog = "0.7.0"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cacao = { version = "0.3.2", features = ["webview"] }
@@ -53,7 +54,6 @@ objc_id = "0.1.1"
 dispatch = "0.2.0"
 
 [target.'cfg(target_os = "linux")'.dependencies]
-native-dialog = "0.7.0"
 notify-rust = "4.10.0"
 webkit2gtk = { version = "2.0.1", features = ["v2_22"] }
 gdk = "0.18.0"
