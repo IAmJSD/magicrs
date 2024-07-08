@@ -48,9 +48,11 @@ impl Editor for Blur {
         }
 
         // Blur the underlying image.
-        fastblur_rgba::gaussian_blur(
-            &mut pixels, texture_w as usize, texture_h as usize, 10.0,
-        );
+        unsafe {
+            fastblur_rgba::gaussian_blur(
+                &mut pixels, texture_w as usize, texture_h as usize, 10.0,
+            );
+        }
 
         // Make a new texture from the blurred image.
         let rgba_img = image::RgbaImage::from_raw(texture_w, texture_h, pixels).unwrap();

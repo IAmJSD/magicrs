@@ -6,7 +6,7 @@
 
 use std::cmp::min;
 
-pub fn gaussian_blur(data: &mut Vec<u8>, width: usize, height: usize, blur_radius: f32)
+pub unsafe fn gaussian_blur(data: &mut Vec<u8>, width: usize, height: usize, blur_radius: f32)
 {
     let boxes = create_box_gauss(blur_radius, 3);
     let mut backbuf = data.clone();
@@ -76,6 +76,16 @@ unsafe fn get_rgba_block(index: usize, data: &[u8]) -> [u8; 4]
 }
 
 #[inline]
+unsafe fn store_rgb(index: usize, data: &mut [u8], rgb: [u8; 3])
+{
+    let start = index * 4;
+    let ptr = data.as_mut_ptr().add(start);
+    ptr.write(unsafe { *rgb.get_unchecked(0) });
+    ptr.add(1).write(unsafe { *rgb.get_unchecked(1) });
+    ptr.add(2).write(unsafe { *rgb.get_unchecked(2) });
+}
+
+#[inline]
 fn box_blur_vert(backbuf: &[u8], frontbuf: &mut [u8], width: usize, height: usize, blur_radius: usize)
 {
     if blur_radius == 0 {
@@ -96,9 +106,9 @@ fn box_blur_vert(backbuf: &[u8], frontbuf: &mut [u8], width: usize, height: usiz
         let fv = unsafe { get_rgba_block(col_start, backbuf) };
         let lv = unsafe { get_rgba_block(col_end, backbuf) };
 
-        let mut val_r: isize = (blur_radius as isize + 1) * isize::from(fv[0]);
-        let mut val_g: isize = (blur_radius as isize + 1) * isize::from(fv[1]);
-        let mut val_b: isize = (blur_radius as isize + 1) * isize::from(fv[2]);
+        let mut val_r: isize = (blur_radius as isize + 1) * isize::from(unsafe { *fv.get_unchecked(0) });
+        let mut val_g: isize = (blur_radius as isize + 1) * isize::from(unsafe { *fv.get_unchecked(1) });
+        let mut val_b: isize = (blur_radius as isize + 1) * isize::from(unsafe { *fv.get_unchecked(2) });
 
         // Get the pixel at the specified index, or the first pixel of the column
         // if the index is beyond the top edge of the image
@@ -122,26 +132,29 @@ fn box_blur_vert(backbuf: &[u8], frontbuf: &mut [u8], width: usize, height: usiz
 
         for j in 0..min(blur_radius, height) {
             let bb = unsafe { get_rgba_block(ti + j * width, backbuf) };
-            val_r += isize::from(bb[0]);
-            val_g += isize::from(bb[1]);
-            val_b += isize::from(bb[2]);
+            val_r += isize::from(unsafe { *bb.get_unchecked(0) });
+            val_g += isize::from(unsafe { *bb.get_unchecked(1) });
+            val_b += isize::from(unsafe { *bb.get_unchecked(2) });
         }
         if blur_radius > height {
-            val_r += (blur_radius - height) as isize * isize::from(lv[0]);
-            val_g += (blur_radius - height) as isize * isize::from(lv[1]);
-            val_b += (blur_radius - height) as isize * isize::from(lv[2]);
+            val_r += (blur_radius - height) as isize * isize::from(unsafe { *lv.get_unchecked(0) });
+            val_g += (blur_radius - height) as isize * isize::from(unsafe { *lv.get_unchecked(1) });
+            val_b += (blur_radius - height) as isize * isize::from(unsafe { *lv.get_unchecked(2) });
         }
 
         for _ in 0..min(height, blur_radius + 1) {
             let bb = get_bottom(ri); ri += width;
-            val_r += isize::from(bb[0]) - isize::from(fv[0]);
-            val_g += isize::from(bb[1]) - isize::from(fv[1]);
-            val_b += isize::from(bb[2]) - isize::from(fv[2]);
+            val_r += isize::from(unsafe { *bb.get_unchecked(0) }) - isize::from(unsafe { *fv.get_unchecked(0) });
+            val_g += isize::from(unsafe { *bb.get_unchecked(1) }) - isize::from(unsafe { *fv.get_unchecked(1) });
+            val_b += isize::from(unsafe { *bb.get_unchecked(2) }) - isize::from(unsafe { *fv.get_unchecked(2) });
 
-            let pos = ti * 4;
-            frontbuf[pos] = round(val_r as f32 * iarr) as u8;
-            frontbuf[pos + 1] = round(val_g as f32 * iarr) as u8;
-            frontbuf[pos + 2] = round(val_b as f32 * iarr) as u8;
+            unsafe {
+                store_rgb(ti, frontbuf, [
+                    round(val_r as f32 * iarr) as u8,
+                    round(val_g as f32 * iarr) as u8,
+                    round(val_b as f32 * iarr) as u8
+                ])
+            };
             ti += width;
         }
 
@@ -151,28 +164,34 @@ fn box_blur_vert(backbuf: &[u8], frontbuf: &mut [u8], width: usize, height: usiz
                 let bb1 = unsafe { get_rgba_block(ri, backbuf) }; ri += width;
                 let bb2 = unsafe { get_rgba_block(li, backbuf) }; li += width;
 
-                val_r += isize::from(bb1[0]) - isize::from(bb2[0]);
-                val_g += isize::from(bb1[1]) - isize::from(bb2[1]);
-                val_b += isize::from(bb1[2]) - isize::from(bb2[2]);
+                val_r += isize::from(unsafe { *bb1.get_unchecked(0) }) - isize::from(unsafe { *bb2.get_unchecked(0) });
+                val_g += isize::from(unsafe { *bb1.get_unchecked(1) }) - isize::from(unsafe { *bb2.get_unchecked(1) });
+                val_b += isize::from(unsafe { *bb1.get_unchecked(2) }) - isize::from(unsafe { *bb2.get_unchecked(2) });
 
-                let pos = ti * 4;
-                frontbuf[pos] = round(val_r as f32 * iarr) as u8;
-                frontbuf[pos + 1] = round(val_g as f32 * iarr) as u8;
-                frontbuf[pos + 2] = round(val_b as f32 * iarr) as u8;
+                unsafe {
+                    store_rgb(ti, frontbuf, [
+                        round(val_r as f32 * iarr) as u8,
+                        round(val_g as f32 * iarr) as u8,
+                        round(val_b as f32 * iarr) as u8
+                    ])
+                };
                 ti += width;
             }
 
             for _ in 0..min(height - blur_radius - 1, blur_radius) {
                 let bb = get_top(li); li += width;
 
-                val_r += isize::from(lv[0]) - isize::from(bb[0]);
-                val_g += isize::from(lv[1]) - isize::from(bb[1]);
-                val_b += isize::from(lv[2]) - isize::from(bb[2]);
+                val_r += isize::from(unsafe { *lv.get_unchecked(0) }) - isize::from(unsafe { *bb.get_unchecked(0) });
+                val_g += isize::from(unsafe { *lv.get_unchecked(1) }) - isize::from(unsafe { *bb.get_unchecked(1) });
+                val_b += isize::from(unsafe { *lv.get_unchecked(2) }) - isize::from(unsafe { *bb.get_unchecked(2) });
 
-                let pos = ti * 4;
-                frontbuf[pos] = round(val_r as f32 * iarr) as u8;
-                frontbuf[pos + 1] = round(val_g as f32 * iarr) as u8;
-                frontbuf[pos + 2] = round(val_b as f32 * iarr) as u8;
+                unsafe {
+                    store_rgb(ti, frontbuf, [
+                        round(val_r as f32 * iarr) as u8,
+                        round(val_g as f32 * iarr) as u8,
+                        round(val_b as f32 * iarr) as u8
+                    ])
+                };
                 ti += width;
             }
         }
@@ -200,9 +219,9 @@ fn box_blur_horz(backbuf: &[u8], frontbuf: &mut [u8], width: usize, height: usiz
         let fv = unsafe { get_rgba_block(row_start, backbuf) };
         let lv = unsafe { get_rgba_block(row_end, backbuf) }; // VERTICAL: $backbuf[ti + $width - 1];
 
-        let mut val_r: isize = (blur_radius as isize + 1) * isize::from(fv[0]);
-        let mut val_g: isize = (blur_radius as isize + 1) * isize::from(fv[1]);
-        let mut val_b: isize = (blur_radius as isize + 1) * isize::from(fv[2]);
+        let mut val_r: isize = (blur_radius as isize + 1) * isize::from(unsafe { *fv.get_unchecked(0) });
+        let mut val_g: isize = (blur_radius as isize + 1) * isize::from(unsafe { *fv.get_unchecked(1) });
+        let mut val_b: isize = (blur_radius as isize + 1) * isize::from(unsafe { *fv.get_unchecked(2) });
 
         // Get the pixel at the specified index, or the first pixel of the row
         // if the index is beyond the left edge of the image
@@ -226,28 +245,31 @@ fn box_blur_horz(backbuf: &[u8], frontbuf: &mut [u8], width: usize, height: usiz
 
         for j in 0..min(blur_radius, width) {
             let bb = unsafe { get_rgba_block(ti + j, backbuf) }; // VERTICAL: ti + j * width
-            val_r += isize::from(bb[0]);
-            val_g += isize::from(bb[1]);
-            val_b += isize::from(bb[2]);
+            val_r += isize::from(unsafe { *bb.get_unchecked(0) });
+            val_g += isize::from(unsafe { *bb.get_unchecked(1) });
+            val_b += isize::from(unsafe { *bb.get_unchecked(2) });
         }
         if blur_radius > width {
-            val_r += (blur_radius - height) as isize * isize::from(lv[0]);
-            val_g += (blur_radius - height) as isize * isize::from(lv[1]);
-            val_b += (blur_radius - height) as isize * isize::from(lv[2]);
+            val_r += (blur_radius - height) as isize * isize::from(unsafe { *lv.get_unchecked(0) });
+            val_g += (blur_radius - height) as isize * isize::from(unsafe { *lv.get_unchecked(1) });
+            val_b += (blur_radius - height) as isize * isize::from(unsafe { *lv.get_unchecked(2) });
         }
 
 
         // Process the left side where we need pixels from beyond the left edge
         for _ in 0..min(width, blur_radius + 1) {
             let bb = get_right(ri); ri += 1;
-            val_r += isize::from(bb[0]) - isize::from(fv[0]);
-            val_g += isize::from(bb[1]) - isize::from(fv[1]);
-            val_b += isize::from(bb[2]) - isize::from(fv[2]);
+            val_r += isize::from(unsafe { *bb.get_unchecked(0) }) - isize::from(unsafe { *fv.get_unchecked(0) });
+            val_g += isize::from(unsafe { *bb.get_unchecked(1) }) - isize::from(unsafe { *fv.get_unchecked(1) });
+            val_b += isize::from(unsafe { *bb.get_unchecked(2) }) - isize::from(unsafe { *fv.get_unchecked(2) });
 
-            let pos = ti * 4;
-            frontbuf[pos] = round(val_r as f32 * iarr) as u8;
-            frontbuf[pos + 1] = round(val_g as f32 * iarr) as u8;
-            frontbuf[pos + 2] = round(val_b as f32 * iarr) as u8;
+            unsafe {
+                store_rgb(ti, frontbuf, [
+                    round(val_r as f32 * iarr) as u8,
+                    round(val_g as f32 * iarr) as u8,
+                    round(val_b as f32 * iarr) as u8
+                ])
+            };
             ti += 1; // VERTICAL : ti += width, same with the other areas
         }
 
@@ -258,14 +280,17 @@ fn box_blur_horz(backbuf: &[u8], frontbuf: &mut [u8], width: usize, height: usiz
                 let bb1 = unsafe { get_rgba_block(ri, backbuf) }; ri += 1;
                 let bb2 = unsafe { get_rgba_block(li, backbuf) }; li += 1;
 
-                val_r += isize::from(bb1[0]) - isize::from(bb2[0]);
-                val_g += isize::from(bb1[1]) - isize::from(bb2[1]);
-                val_b += isize::from(bb1[2]) - isize::from(bb2[2]);
+                val_r += isize::from(unsafe { *bb1.get_unchecked(0) }) - isize::from(unsafe { *bb2.get_unchecked(0) });
+                val_g += isize::from(unsafe { *bb1.get_unchecked(1) }) - isize::from(unsafe { *bb2.get_unchecked(1) });
+                val_b += isize::from(unsafe { *bb1.get_unchecked(2) }) - isize::from(unsafe { *bb2.get_unchecked(2) });
 
-                let pos = ti * 4;
-                frontbuf[pos] = round(val_r as f32 * iarr) as u8;
-                frontbuf[pos + 1] = round(val_g as f32 * iarr) as u8;
-                frontbuf[pos + 2] = round(val_b as f32 * iarr) as u8;
+                unsafe {
+                    store_rgb(ti, frontbuf, [
+                        round(val_r as f32 * iarr) as u8,
+                        round(val_g as f32 * iarr) as u8,
+                        round(val_b as f32 * iarr) as u8
+                    ])
+                };
                 ti += 1;
             }
 
@@ -273,14 +298,17 @@ fn box_blur_horz(backbuf: &[u8], frontbuf: &mut [u8], width: usize, height: usiz
             for _ in 0..min(width - blur_radius - 1, blur_radius) {
                 let bb = get_left(li); li += 1;
 
-                val_r += isize::from(lv[0]) - isize::from(bb[0]);
-                val_g += isize::from(lv[1]) - isize::from(bb[1]);
-                val_b += isize::from(lv[2]) - isize::from(bb[2]);
+                val_r += isize::from(unsafe { *lv.get_unchecked(0) }) - isize::from(unsafe { *bb.get_unchecked(0) });
+                val_g += isize::from(unsafe { *lv.get_unchecked(1) }) - isize::from(unsafe { *bb.get_unchecked(1) });
+                val_b += isize::from(unsafe { *lv.get_unchecked(2) }) - isize::from(unsafe { *bb.get_unchecked(2) });
 
-                let pos = ti * 4;
-                frontbuf[pos] = round(val_r as f32 * iarr) as u8;
-                frontbuf[pos + 1] = round(val_g as f32 * iarr) as u8;
-                frontbuf[pos + 2] = round(val_b as f32 * iarr) as u8;
+                unsafe {
+                    store_rgb(ti, frontbuf, [
+                        round(val_r as f32 * iarr) as u8,
+                        round(val_g as f32 * iarr) as u8,
+                        round(val_b as f32 * iarr) as u8
+                    ])
+                };
                 ti += 1;
             }
         }
