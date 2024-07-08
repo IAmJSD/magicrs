@@ -1,6 +1,7 @@
 use glfw::Context;
 use super::{
-    color_box, editor_resizers::render_editor_resize_lines, engine::{iter_windows_or_jump, RegionSelectorContext}, gl_abstractions::GLTexture, magnifier::render_magnifier, menu_bar::draw_menu_bar, window_line::render_window_line
+    color_box, editor_resizers::render_editor_resize_lines, engine::{iter_windows_or_jump, RegionSelectorContext},
+    gl_abstractions::GLTexture, magnifier::render_magnifier, menu_bar::draw_menu_bar, window_line::render_window_line,
 };
 
 // Draw the background.
