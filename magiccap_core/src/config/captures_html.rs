@@ -123,7 +123,10 @@ pub fn generate_dom_node(capture: Capture) -> Box<div<String>> {
     )
 }
 
-pub fn captures_html() -> Vec<u8> {
+pub fn captures_html(query: String) -> Vec<u8> {
+    if query != "" {
+        
+    }
     html!(
         <div class="flex flex-wrap justify-center">
             {get_captures().into_iter().map(|c| generate_dom_node(c))}

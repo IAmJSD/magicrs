@@ -116,7 +116,7 @@ fn message_sent(cpy: String) {
                 },
             }
         },
-        "captures_html" => captures_html::captures_html(),
+        "captures_html" => captures_html::captures_html(parts.next().unwrap().to_string()),
         _ => return,
     };
 

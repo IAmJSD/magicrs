@@ -1,8 +1,8 @@
 import callBridge from "./implementation";
 
 // Get the HTML for all the captures.
-export async function getCapturesHtml() {
-    return new TextDecoder().decode(await callBridge("captures_html", ""));
+export async function getCapturesHtml(query: string) {
+    return new TextDecoder().decode(await callBridge("captures_html", query));
 }
 
 // Defines a API error.
