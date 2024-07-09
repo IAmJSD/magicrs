@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use super::{mime::guess_mime_type, ConfigOption, Uploader};
 use ureq_multipart::MultipartBuilder;
+use uriparse::URI;
 
 fn elixire_support_upload(
     filename: &str, config: HashMap<String, serde_json::Value>,
@@ -28,8 +29,40 @@ fn elixire_support_upload(
         Err(err) => return Err(err.to_string()),
     };
 
+    // Add the required values to the URL.
+    let mut url = URI::try_from("https://elixi.re/api/upload").unwrap();
+    let mut query: String;
+    if let Some(domain_config_json) = config.get("domain_config") {
+        // Ensure it is an array if it exists and is 3 values in length.
+        let arr = domain_config_json.as_array().unwrap();
+        if arr.len() != 3 {
+            return Err("The domain configuration must be an array of 3 values.".to_string());
+        }
+
+        // Get the subdomain (string | null), domain (string), and if it should allow subdomains (bool).
+        let subdomain = match arr[0].as_str() {
+            Some(s) => s,
+            None => "",
+        };
+        let domain = arr[1].as_str().unwrap();
+        let allow_subdomains = arr[2].as_bool().unwrap();
+
+        // Add the domain to the URL params in all cases.
+        query = "domain=".to_string() + &urlencoding::encode(domain);
+
+        // If allow subdomains is set and it is not empty, add the subdomain to the URL params.
+        if allow_subdomains && !subdomain.is_empty() {
+            query += "&subdomain=";
+            query += &urlencoding::encode(subdomain);
+        }
+
+        // Add the query to the URL.
+        let s = query.as_str();
+        url.set_query(Some(s)).unwrap();
+    }
+
     // Send the request to the server.
-    let resp = ureq::post("https://elixi.re/api/upload")
+    let resp = ureq::post(url.to_string().as_str())
         .set("Authorization", &config["token"].as_str().unwrap())
         .set("Content-Type", &content_type)
         .send_bytes(&multipart);
