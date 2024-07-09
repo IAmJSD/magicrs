@@ -147,6 +147,12 @@ export type ConfigOption = ({
     name: string;
     description: string;
     frame_html: string;
+} | {
+    option_type: "embedded";
+    name: string;
+    description: string;
+    component_name: string;
+    required: boolean;
 };
 
 // Defines how a uploader is structured.

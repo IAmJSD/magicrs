@@ -41,6 +41,12 @@ pub enum ConfigOption {
         default: Option<bool>,
         required: bool,
     },
+    Embedded {
+        name: String,
+        description: String,
+        component_name: String,
+        required: bool,
+    },
     Custom {
         name: String,
         description: String,
@@ -56,6 +62,7 @@ impl ConfigOption {
             ConfigOption::LongString { required, .. } => *required,
             ConfigOption::Number { required, .. } => *required,
             ConfigOption::Boolean { required, .. } => *required,
+            ConfigOption::Embedded { required, .. } => *required,
             ConfigOption::Custom { required, .. } => *required,
         }
     }

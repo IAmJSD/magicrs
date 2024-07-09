@@ -15,6 +15,7 @@ import LongText from "../../atoms/config/LongText";
 import NumberInput from "../../atoms/config/NumberInput";
 import Custom from "../../atoms/config/Custom";
 import { CustomPanelSelector, handleCustomPanels } from "./customUploaders";
+import Embedded from "../../atoms/config/Embedded";
 
 type UploaderProps = {
     uploader: Uploader;
@@ -73,6 +74,14 @@ function optionSwitch(
                 label={option.name}
                 description={option.description}
                 frameHtml={option.frame_html}
+                uploader={{ id: uploaderId, items: config }}
+            />;
+        case "embedded":
+            return <Embedded
+                dbKey={key}
+                label={option.name}
+                description={option.description}
+                componentName={option.component_name as any}
                 uploader={{ id: uploaderId, items: config }}
             />;
     }
