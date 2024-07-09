@@ -60,18 +60,14 @@ function DomainSelector({ initValue, domainsResult, setConfig }: {
 
     // Defines the callback for the domain select event.
     const domainSelectCb = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-        // Check if it starts with *., if so, trim it.
-        let domain = e.target.value;
-        let allowSubdomain = false;
-        if (domain.startsWith("*.")) {
-            domain = domain.slice(2);
-            allowSubdomain = true;
-        }
+        // Handle the value that was selected.
+        const domainId = e.target.value;
+        const allowSubdomain = e.target.selectedOptions[0].dataset.allowsSubdomain === "true";
 
         // Build the new value.
         const subdomain = (value || [null])[0];
-        setValue([subdomain, domain, allowSubdomain]);
-        setConfig([subdomain, domain, allowSubdomain]);
+        setValue([subdomain, domainId, allowSubdomain]);
+        setConfig([subdomain, domainId, allowSubdomain]);
     }, [value]);
 
     // Handle if the domain result is still loading.
@@ -84,10 +80,8 @@ function DomainSelector({ initValue, domainsResult, setConfig }: {
         Error loading domain information from elixi.re:<code className="ml-1">{domainsResult.message}</code>
     </p>;
 
-    // The domains object is a map of numbers -> domain names. Sort them by the number then get the domain names.
-    const domains = Object.entries(domainsResult.domains)
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([_, domain]) => domain as string);
+    // The domains object is a map of numbers -> domain names. Sort them by the number which is the key.
+    const domains = Object.entries(domainsResult.domains).sort((a, b) => a[0].localeCompare(b[0])) as [string, string][];
 
     // Return a form with flexbox to show the domain selector.
     return <form onSubmit={e => e.preventDefault()} className="flex mt-2 align-middle items-center">
@@ -103,15 +97,16 @@ function DomainSelector({ initValue, domainsResult, setConfig }: {
             className="flex-col w-40 dark:text-black"
         >
             <option value="Select a domain..." disabled>Select a domain...</option>
-            {domains.map(domain => {
-                // If it starts with *., remove it but keep it in the value.
-                const optVal = domain;
+            {domains.map(([id, domain]) => {
+                // Check if the domain starts with *., if so, trim it but store it in data.
+                let allowsSubdomain = false;
                 if (domain.startsWith("*.")) {
                     domain = domain.slice(2);
+                    allowsSubdomain = true;
                 }
 
                 // Return the option.
-                return <option key={optVal} value={optVal}>
+                return <option key={id} value={id} data-allows-subdomain={allowsSubdomain}>
                     {domain}
                 </option>;
             })}
