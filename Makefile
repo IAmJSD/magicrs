@@ -5,12 +5,9 @@ generate-license-file:
 dev-preinit:
 	make generate-license-file
 	cd frontend && npm ci && npm run build
-	cd build/download-nodels && npm ci && node .
+	cd build/download-models && npm ci && node .
 
 linux-dev:
-	# Generate the Rust license file.
-	make generate-license-file
-
 	# Ensure the frontend/dist directory exists.
 	mkdir -p frontend/dist
 
@@ -21,9 +18,6 @@ linux-dev:
 	foreman start -f Procfile.linux-dev
 
 macos-dev:
-	# Generate the Rust license file.
-	make generate-license-file
-
 	# Ensure the frontend/dist directory exists.
 	mkdir -p frontend/dist
 
