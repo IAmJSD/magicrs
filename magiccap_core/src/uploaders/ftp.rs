@@ -119,7 +119,7 @@ pub fn ftp_support() -> Uploader {
     Uploader {
         name: "FTP".to_string(),
         description: "Uploads the screenshot using FTP.".to_string(),
-        icon_path: "/icons/ftp.svg".to_string(),
+        icon_path: "/icons/ftp.png".to_string(),
         options: vec![
             (
                 "hostname".to_string(),
