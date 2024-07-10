@@ -78,7 +78,7 @@ fn elixire_support_upload(
                 Some(link) => Ok(link.to_string()),
                 None => Err("The response did not contain a link.".to_string()),
             }
-        }
+        },
         Err(err) => Err(err.to_string()),
     }
 }
