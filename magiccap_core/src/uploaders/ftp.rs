@@ -1,11 +1,106 @@
 use std::collections::HashMap;
+use suppaftp::{native_tls::TlsConnector, types::FileType, NativeTlsConnector, NativeTlsFtpStream};
 use super::{ConfigOption, Uploader};
 
+// Defines the function to upload a screenshot using FTP.
 fn ftp_support_upload(
     filename: &str, config: HashMap<String, serde_json::Value>,
-    reader: Box<dyn std::io::Read + Send + Sync>,
+    mut reader: Box<dyn std::io::Read + Send + Sync>,
 ) -> Result<String, String> {
-    return Err("fucky wucky uwu".to_string())
+    // Handle the hostname.
+    let mut hostname = config.get("hostname").unwrap().to_string();
+    if let Some(port) = config.get("port") {
+        hostname += ":";
+        hostname += &port.to_string();
+    }
+
+    // Create the FTP stream.
+    let use_ssl = match config.get("ssl_enabled") {
+        Some(ssl_enabled) => ssl_enabled.as_bool().unwrap(),
+        None => false,
+    };
+    let mut ftp_stream = match NativeTlsFtpStream::connect(&hostname) {
+        Ok(c) => c,
+        Err(err) => {
+            return Err(format!("Failed to connect to the FTP server: {}", err));
+        },
+    };
+    if use_ssl {
+        let ctx = match TlsConnector::new()
+        {
+            Ok(tls) => tls,
+            Err(err) => {
+                return Err(format!("Failed to setup TLS stream: {}", err));
+            }
+        };
+        ftp_stream = match ftp_stream.into_secure(NativeTlsConnector::from(ctx), &hostname) {
+            Ok(s) => s,
+            Err(err) => {
+                return Err(format!("Failed to setup TLS stream: {}", err));
+            }
+        };
+    }
+
+    // Handle the login.
+    let username = match config.get("username") {
+        Some(username) => username.as_str().unwrap(),
+        None => "anonymous",
+    };
+    let password = match config.get("password") {
+        Some(password) => password.as_str().unwrap(),
+        None => "anonymous",
+    };
+    if let Err(err) = ftp_stream.login(username, password) {
+        return Err(format!("Failed to login to the FTP server: {}", err));
+    }
+
+    // Set to a binary transfer.
+    if let Err(err) = ftp_stream.transfer_type(FileType::Binary) {
+        return Err(format!("Failed to set the transfer type to binary: {}", err));
+    }
+
+    // If path is set, change the directory.
+    let path_var: String;
+    if let Some(path) = config.get("path") {
+        // Add a slash to the path if it does not exist.
+        let path = if path.as_str().unwrap().ends_with("/") {
+            path_var = path.to_string();
+            path.to_string()
+        } else {
+            path_var = path.to_string();
+            path_var.clone() + "/"
+        };
+
+        // Change the directory.
+        if let Err(err) = ftp_stream.cwd(&path) {
+            return Err(format!("Failed to change the directory to {}: {}", path, err));
+        }
+    } else {
+        path_var = "".to_string();
+    }
+
+    // Put the file.
+    if let Err(err) = ftp_stream.put_file(filename, &mut reader) {
+        return Err(format!("Failed to upload the file to the FTP server: {}", err));
+    }
+
+    // Close the connection.
+    if let Err(err) = ftp_stream.quit() {
+        return Err(format!("Failed to close the connection to the FTP server: {}", err));
+    }
+
+    // Process the URL rewrite.
+    let url_rewrite = match config.get("url_rewrite") {
+        Some(url_rewrite) => url_rewrite.as_str().unwrap(),
+        None => "https://$hostname$folder_path/$filename",
+    };
+    let url = url_rewrite
+        .replace("$hostname", &hostname)
+        .replace("$folder_path", &path_var)
+        .replace("$filename", filename);
+
+    // Return the URL.
+    Ok(url)
 }
 
 // Defines a regex for RFC 1123 compliant domain names or IP addresses.
@@ -18,6 +113,7 @@ const URL_REWRITE_DESCRIPTION: &str = concat!(
     "is `https://$hostname$folder_path/$filename`.",
 );
 
+// Defines the config structure for FTP.
 pub fn ftp_support() -> Uploader {
     Uploader {
         name: "FTP".to_string(),
@@ -25,7 +121,7 @@ pub fn ftp_support() -> Uploader {
         icon_path: "/icons/ftp.svg".to_string(),
         options: vec![
             (
-                "Hostname".to_string(),
+                "hostname".to_string(),
                 ConfigOption::String {
                     name: "Hostname".to_string(),
                     description: "The hostname of the FTP server.".to_string(),
@@ -37,7 +133,7 @@ pub fn ftp_support() -> Uploader {
                 },
             ),
             (
-                "Port".to_string(),
+                "port".to_string(),
                 ConfigOption::Number {
                     name: "Port".to_string(),
                     description: "The port of the FTP server. Defaults to 21.".to_string(),
@@ -48,7 +144,7 @@ pub fn ftp_support() -> Uploader {
                 },
             ),
             (
-                "SSL Enabled".to_string(),
+                "ssl_enabled".to_string(),
                 ConfigOption::Boolean {
                     name: "SSL Enabled".to_string(),
                     description: "Whether to use SSL for the connection.".to_string(),
@@ -57,31 +153,31 @@ pub fn ftp_support() -> Uploader {
                 },
             ),
             (
-                "Username".to_string(),
+                "username".to_string(),
                 ConfigOption::String {
                     name: "Username".to_string(),
                     description: "The username to use for the FTP server.".to_string(),
                     default: None,
-                    required: true,
+                    required: false,
                     password: false,
                     regex: None,
                     validation_error_message: None,
                 },
             ),
             (
-                "Password".to_string(),
+                "password".to_string(),
                 ConfigOption::String {
                     name: "Password".to_string(),
                     description: "The password to use for the FTP server.".to_string(),
                     default: None,
-                    required: true,
+                    required: false,
                     password: true,
                     regex: None,
                     validation_error_message: None,
                 },
             ),
             (
-                "Path".to_string(),
+                "path".to_string(),
                 ConfigOption::String {
                     name: "Folder Path".to_string(),
                     description: "The folder path to upload the screenshot to within the FTP server.".to_string(),
@@ -93,7 +189,7 @@ pub fn ftp_support() -> Uploader {
                 },
             ),
             (
-                "URL Rewrite".to_string(),
+                "url_rewrite".to_string(),
                 ConfigOption::String {
                     name: "URL Rewrite".to_string(),
                     description: URL_REWRITE_DESCRIPTION.to_string(),
