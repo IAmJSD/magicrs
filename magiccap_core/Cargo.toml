@@ -47,6 +47,8 @@ rten = "0.10.0"
 tantivy = { git = "https://github.com/quickwit-oss/tantivy" }
 native-dialog = "0.7.0"
 suppaftp = { version = "^6", features = ["native-tls"] }
+aws-sigv4 = "1.2.3"
+aws-credential-types = "1.2.0"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cacao = { version = "0.3.2", features = ["webview"] }

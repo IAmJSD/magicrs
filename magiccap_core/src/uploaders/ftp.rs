@@ -98,7 +98,7 @@ fn ftp_support_upload(
     let url = url_rewrite
         .replace("$hostname", hostname_pre_port)
         .replace("$folder_path", &path_var)
-        .replace("$filename", filename);
+        .replace("$filename", &urlencoding::encode(filename));
 
     // Return the URL.
     Ok(url)

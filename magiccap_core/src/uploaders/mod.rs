@@ -3,6 +3,7 @@ mod imgur;
 mod mime;
 mod shell;
 mod ftp;
+mod s3;
 
 use std::{collections::HashMap, sync::atomic::Ordering};
 use once_cell::sync::Lazy;
@@ -92,6 +93,7 @@ pub static UPLOADERS: Lazy<HashMap<String, Uploader>> = Lazy::new(|| {
     uploaders.insert("imgur".to_string(), imgur::imgur_support());
     uploaders.insert("shell".to_string(), shell::shell_support());
     uploaders.insert("ftp".to_string(), ftp::ftp_support());
+    uploaders.insert("s3".to_string(), s3::s3_support());
 
     uploaders
 });
