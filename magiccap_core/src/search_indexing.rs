@@ -9,8 +9,7 @@ static SCHEMA: Lazy<schema::Schema> = Lazy::new(|| {
     schema.add_i64_field("capture_id", schema::STORED | schema::INDEXED);
     schema.add_text_field("filename", schema::TEXT);
     schema.add_text_field("text", schema::TEXT);
-    schema.add_json_field("window_names", schema::JsonObjectOptions::default().
-        set_indexing_options(schema::TextFieldIndexing::default().set_tokenizer("default")));
+    schema.add_text_field("window_names_space_joined", schema::TEXT);
     schema.build()
 });
 
@@ -60,8 +59,10 @@ pub fn insert_capture(capture_id: i64, filename: &str, text: String, window_name
     doc.add_i64(SCHEMA.get_field("capture_id").unwrap(), capture_id);
     doc.add_text(SCHEMA.get_field("filename").unwrap(), filename);
     doc.add_text(SCHEMA.get_field("text").unwrap(), text);
-    doc.add_field_value(
-        SCHEMA.get_field("window_names").unwrap(), &serde_json::to_value(window_names).unwrap());
+    doc.add_text(
+        SCHEMA.get_field("window_names_space_joined").unwrap(),
+        window_names.join(" "),
+    );
     writer_ref.add_document(doc).unwrap();
     writer_ref.commit().unwrap();
 }
@@ -88,7 +89,8 @@ pub fn search_index(query: &str) -> Vec<i64> {
     let reader = index.reader().unwrap();
     let searcher = reader.searcher();
     let query_parser = tantivy::query::QueryParser::for_index(&index, vec![
-        SCHEMA.get_field("filename").unwrap(), SCHEMA.get_field("text").unwrap(), SCHEMA.get_field("window_names").unwrap(),
+        SCHEMA.get_field("filename").unwrap(), SCHEMA.get_field("text").unwrap(),
+        SCHEMA.get_field("window_names_space_joined").unwrap(),
     ]);
     let query = match query_parser.parse_query(query) {
         Ok(query) => query,
