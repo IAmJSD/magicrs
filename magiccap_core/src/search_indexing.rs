@@ -7,9 +7,10 @@ use crate::statics::CONFIG_FOLDER;
 static SCHEMA: Lazy<schema::Schema> = Lazy::new(|| {
     let mut schema = schema::Schema::builder();
     schema.add_i64_field("capture_id", schema::STORED | schema::INDEXED);
-    schema.add_text_field("text", schema::STRING);
+    schema.add_text_field("filename", schema::TEXT);
+    schema.add_text_field("text", schema::TEXT);
     schema.add_json_field("window_names", schema::JsonObjectOptions::default().
-        set_indexing_options(schema::TextFieldIndexing::default()));
+        set_indexing_options(schema::TextFieldIndexing::default().set_tokenizer("default")));
     schema.build()
 });
 
@@ -49,7 +50,7 @@ pub fn disconnect_index() {
 }
 
 // Write a capture into the index.
-pub fn insert_capture(capture_id: i64, text: String, window_names: Vec<String>) {
+pub fn insert_capture(capture_id: i64, filename: &str, text: String, window_names: Vec<String>) {
     let mut guard = INDEX_WRITER.lock().unwrap();
     let writer_ref = match guard.as_mut() {
         Some(writer) => writer,
@@ -57,6 +58,7 @@ pub fn insert_capture(capture_id: i64, text: String, window_names: Vec<String>) 
     };
     let mut doc = TantivyDocument::new();
     doc.add_i64(SCHEMA.get_field("capture_id").unwrap(), capture_id);
+    doc.add_text(SCHEMA.get_field("filename").unwrap(), filename);
     doc.add_text(SCHEMA.get_field("text").unwrap(), text);
     doc.add_field_value(
         SCHEMA.get_field("window_names").unwrap(), &serde_json::to_value(window_names).unwrap());
@@ -86,7 +88,7 @@ pub fn search_index(query: &str) -> Vec<i64> {
     let reader = index.reader().unwrap();
     let searcher = reader.searcher();
     let query_parser = tantivy::query::QueryParser::for_index(&index, vec![
-        SCHEMA.get_field("text").unwrap(), SCHEMA.get_field("window_names").unwrap(),
+        SCHEMA.get_field("filename").unwrap(), SCHEMA.get_field("text").unwrap(), SCHEMA.get_field("window_names").unwrap(),
     ]);
     let query = match query_parser.parse_query(query) {
         Ok(query) => query,

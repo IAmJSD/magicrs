@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import tippy from "tippy.js";
 import { ClipLoader } from "react-spinners";
 import {
@@ -117,14 +117,10 @@ function handleNewElements(element: HTMLElement) {
     return () => removeCaptureWatcher(id);
 }
 
-// This component should render exactly once after the HTML is set. The HTML generated from the
-// Rust takes over inside the function.
-export default function Captures() {
-    // Defines a ref to the div.
-    const ref = useRef<HTMLDivElement>(null);
-
-    // Get the HTML.
-    const [htmlOrError, state] = usePromise(getCapturesHtml, []);
+// Defines the renderer and hooks for the captures HTML component.
+function CapturesHTML({ html }: { html: string }) {
+    // Defines a ref to the span.
+    const ref = useRef<HTMLSpanElement>(null);
 
     // Handle the capture forms.
     useEffect(() => {
@@ -136,14 +132,43 @@ export default function Captures() {
 
         // Handle a event stream of new elements.
         return handleNewElements(ref.current.firstChild! as HTMLElement);
-    }, [ref, htmlOrError]);
-
-    // If we are loading, show a loading message.
-    if (state === "loading") return <CapturesLoading />;
-
-    // If we have a error, render that component.
-    if (state === "rejected") return <ErrorPage title="Failed to load captures" error={htmlOrError.error} />;
+    }, [ref, html]);
 
     // Render the HTML.
-    return <span dangerouslySetInnerHTML={{ __html: htmlOrError }} ref={ref} />;
+    return <span dangerouslySetInnerHTML={{ __html: html }} ref={ref} />;
+}
+
+// This component should render exactly once after the HTML is set. The HTML generated from the
+// Rust takes over inside the function.
+export default function Captures() {
+    // Defines the query string for the captures.
+    const [query, setQuery] = useState("");
+
+    // Get the HTML.
+    const [htmlOrError, state] = usePromise(() => getCapturesHtml(query), [query]);
+
+    // Defines the captures state.
+    const capturesState = (() => {
+        // If we are loading, show a loading message.
+        if (state === "loading") return <CapturesLoading />;
+
+        // If we have a error, render that component.
+        if (state === "rejected") return <ErrorPage title="Failed to load captures" error={htmlOrError.error} />;
+
+        // Render the captures HTML.
+        return <CapturesHTML html={htmlOrError} />;
+    })();
+
+    // Return the captures and a search bar.
+    return <>
+        <form onSubmit={e => e.preventDefault()} className="flex justify-center">
+            <input
+                type="search"
+                placeholder="Search captures..."
+                className="w-5/6 max-w-xl mt-3 mb-2 dark:bg-zinc-800 bg-slate-50 p-2 rounded-lg"
+                onChange={e => setQuery(e.target.value)}
+            />
+        </form>
+        {capturesState}
+    </>;
 }

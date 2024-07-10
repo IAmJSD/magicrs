@@ -11,7 +11,7 @@ use xcap::{Monitor, Window};
 // Also handles any errors within the process.
 fn post_capture_flow(
     ext: &str, notification_content: &str, data: Vec<u8>,
-    thread_callback: Option<Box<dyn FnOnce(i64) + Send>>,
+    thread_callback: Option<Box<dyn FnOnce(&str, i64) + Send>>,
 ) {
     // Generate a file name.
     let filename = match get_filename(match database::get_config_option("filename_format") {
@@ -149,9 +149,10 @@ fn post_capture_flow(
     // If this capture was successful, push a notification and write to the database.
     if capture_success {
         // The order here matters. The notification can block forever on some systems.
-        let capture_id = database::insert_successful_capture(filename.as_str(), Some(&fp_result), url_str);
+        let capture_id = database::insert_successful_capture(&filename, Some(&fp_result), url_str);
+        let filename_clone = filename.clone();
         if let Some(thread_callback) = thread_callback {
-            run_thread(move || thread_callback(capture_id));
+            run_thread(move || thread_callback(&filename_clone, capture_id));
         }
         notification::send_notification(notification_content, url_str, match save_capture {
             true => Some(&fp_result),
@@ -161,18 +162,18 @@ fn post_capture_flow(
 }
 
 // Handles search indexing a RGBA region.
-fn search_indexing_rgba(image: RgbaImage, windows: Vec<Window>, capture_id: i64) {
+fn search_indexing_rgba(image: RgbaImage, windows: Vec<Window>, filename: &str, capture_id: i64) {
     // Convert the image to a RGB image.
     let image = DynamicImage::ImageRgba8(image).to_rgb8();
     let text = ocr::scan_text(image);
 
     // Insert the capture into the index.
-    search_indexing::insert_capture(capture_id, text, windows.iter().map(
+    search_indexing::insert_capture(capture_id, filename, text, windows.iter().map(
         |w| w.title().to_string()).collect());
 }
 macro_rules! search_indexing_rgba_callback {
     ($rgba:ident, $windows:ident) => {
-        Some(Box::new(move |id| search_indexing_rgba($rgba, $windows, id)))
+        Some(Box::new(move |filename, id| search_indexing_rgba($rgba, $windows, filename, id)))
     };
 }
 
