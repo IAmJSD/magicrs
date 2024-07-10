@@ -94,8 +94,9 @@ fn ftp_support_upload(
         Some(url_rewrite) => url_rewrite.as_str().unwrap(),
         None => "https://$hostname$folder_path/$filename",
     };
+    let hostname_pre_port = hostname.split(":").next().unwrap();
     let url = url_rewrite
-        .replace("$hostname", &hostname)
+        .replace("$hostname", hostname_pre_port)
         .replace("$folder_path", &path_var)
         .replace("$filename", filename);
 
