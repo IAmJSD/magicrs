@@ -161,12 +161,14 @@ export default function Captures() {
 
     // Return the captures and a search bar.
     return <>
-        <input
-            type="search"
-            placeholder="Search captures..."
-            className="w-full p-2 border-b border-gray-300 dark:border-gray-700"
-            onChange={e => setQuery(e.target.value)}
-        />
+        <form onSubmit={e => e.preventDefault()} className="flex justify-center">
+            <input
+                type="search"
+                placeholder="Search captures..."
+                className="w-5/6 max-w-xl mt-3 mb-2 dark:bg-zinc-800 bg-slate-50 p-2 rounded-lg"
+                onChange={e => setQuery(e.target.value)}
+            />
+        </form>
         {capturesState}
     </>;
 }

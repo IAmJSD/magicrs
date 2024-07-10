@@ -1,5 +1,5 @@
 use axohtml::{elements::div, html, text};
-use crate::database::{Capture, get_captures};
+use crate::{database::{get_captures, get_many_captures, Capture}, search_indexing};
 
 fn generate_info(capture: &Capture) -> Box<div<String>> {
     let cap_id_str = capture.id.to_string();
@@ -124,12 +124,18 @@ pub fn generate_dom_node(capture: Capture) -> Box<div<String>> {
 }
 
 pub fn captures_html(query: String) -> Vec<u8> {
-    if query != "" {
-        
+    let captures: Vec<Capture>;
+    if query == "" {
+        // Just get all of them.
+        captures = get_captures();
+    } else {
+        // Do a search.
+        let ids = search_indexing::search_index(&query);
+        captures = get_many_captures(ids);
     }
     html!(
         <div class="flex flex-wrap justify-center">
-            {get_captures().into_iter().map(|c| generate_dom_node(c))}
+            {captures.into_iter().map(|c| generate_dom_node(c))}
         </div>
     ).to_string().into_bytes()
 }

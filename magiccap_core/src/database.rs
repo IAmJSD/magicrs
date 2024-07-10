@@ -181,6 +181,32 @@ pub fn get_capture(id: i64) -> Option<Capture> {
     None
 }
 
+// Get a vector of captures from the database. Returns all of the ones found.
+pub fn get_many_captures(capture_ids: Vec<i64>) -> Vec<Capture> {
+    // If the vector is empty, return an empty vector.
+    if capture_ids.is_empty() {
+        return Vec::new();
+    }
+
+    // Acquire the database lock.
+    let database_opt = DATABASE.read().unwrap();
+    let database = database_opt.borrow().as_ref().unwrap();
+
+    // Defines the query. This is safe because the ID's are all numbers.
+    let ids = capture_ids.iter().map(|id| id.to_string()).collect::<Vec<String>>().join(", ");
+    let query = format!("SELECT id, created_at, success, filename, file_path, url FROM captures WHERE id IN ({})", ids);
+
+    // Execute the statement.
+    let mut stmt = database.prepare(query).unwrap();
+    let mut captures = Vec::new();
+    while let Ok(State::Row) = stmt.next() {
+        captures.push(read_capture(&stmt));
+    }
+
+    // Return the captures.
+    captures
+}
+
 // Gets the captures from the database.
 pub fn get_captures() -> Vec<Capture> {
     // Acquire the database lock.
