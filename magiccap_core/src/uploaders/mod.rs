@@ -2,6 +2,7 @@ mod elixire;
 mod imgur;
 mod mime;
 mod shell;
+mod ftp;
 
 use std::{collections::HashMap, sync::atomic::Ordering};
 use once_cell::sync::Lazy;
@@ -74,7 +75,7 @@ pub struct Uploader {
     pub name: String,
     pub description: String,
     pub icon_path: String,
-    pub options: HashMap<String, ConfigOption>,
+    pub options: Vec<(String, ConfigOption)>,
 
     #[serde(skip)]
     pub upload: fn(
@@ -90,6 +91,7 @@ pub static UPLOADERS: Lazy<HashMap<String, Uploader>> = Lazy::new(|| {
     uploaders.insert("elixire".to_string(), elixire::elixire_support());
     uploaders.insert("imgur".to_string(), imgur::imgur_support());
     uploaders.insert("shell".to_string(), shell::shell_support());
+    uploaders.insert("ftp".to_string(), ftp::ftp_support());
 
     uploaders
 });

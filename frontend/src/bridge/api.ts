@@ -160,7 +160,7 @@ export type Uploader = {
     name: string;
     description: string;
     icon_path: string;
-    options: {[id: string]: ConfigOption};
+    options: [string, ConfigOption][];
 };
 
 // Gets the uploaders.

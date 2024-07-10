@@ -88,7 +88,13 @@ pub fn elixire_support() -> Uploader {
         name: "elixi.re".to_string(),
         description: "elixire is the future".to_string(),
         icon_path: "/icons/elixire.svg".to_string(),
-        options: HashMap::from([
+        options: vec![
+            ("domain_config".to_string(), ConfigOption::Embedded {
+                name: "Domain Configuration".to_string(),
+                description: "The configuration for the domain to use.".to_string(),
+                component_name: "elixire.domain_config".to_string(),
+                required: false,
+            }),
             ("token".to_string(), ConfigOption::String {
                 name: "Token".to_string(),
                 description: "The token to use for the elixi.re API.".to_string(),
@@ -98,13 +104,7 @@ pub fn elixire_support() -> Uploader {
                 regex: None,
                 validation_error_message: None,
             }),
-            ("domain_config".to_string(), ConfigOption::Embedded {
-                name: "Domain Configuration".to_string(),
-                description: "The configuration for the domain to use.".to_string(),
-                component_name: "elixire.domain_config".to_string(),
-                required: false,
-            })
-        ]),
+        ],
         upload: elixire_support_upload,
     }
 }

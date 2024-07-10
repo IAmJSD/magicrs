@@ -16,6 +16,7 @@ import NumberInput from "../../atoms/config/NumberInput";
 import Custom from "../../atoms/config/Custom";
 import { CustomPanelSelector, handleCustomPanels } from "./customUploaders";
 import Embedded from "../../atoms/config/Embedded";
+import Description from "../../atoms/Description";
 
 type UploaderProps = {
     uploader: Uploader;
@@ -23,21 +24,31 @@ type UploaderProps = {
 };
 
 type UploaderOptionsProps = UploaderProps & {
-    config: { [key: string]: ConfigOption };
+    config: { [key: string]: any };
 };
 
 function optionSwitch(
     uploaderId: string, key: string, option: ConfigOption,
-    config: { [key: string]: ConfigOption },
+    config: { [key: string]: any },
 ) {
     switch (option.option_type) {
         case "boolean":
-            return <Checkbox
-                dbKey={key}
-                defaultValue={option.default || false}
-                label={option.name}
-                uploader={{ id: uploaderId, items: config }}
-            />;
+            return <>
+                <p className="mb-1 font-semibold">
+                    {option.name}
+                </p>
+
+                {
+                    option.description && <Description description={option.description} />
+                }
+
+                <Checkbox
+                    dbKey={key}
+                    defaultValue={option.default || false}
+                    label={option.name}
+                    uploader={{ id: uploaderId, items: config }}
+                />
+            </>;
         case "string":
             return <Textbox
                 dbKey={key}
@@ -88,17 +99,15 @@ function optionSwitch(
 }
 
 function UploaderOptions({ uploader, uploaderId, config }: UploaderOptionsProps) {
-    const orderedOptions = Object.entries(uploader.options).sort((a, b) => a[1].name.localeCompare(b[1].name));
-
     // Handle the case where the uploader has no options.
-    if (orderedOptions.length === 0) return <>
+    if (uploader.options.length === 0) return <>
         <p className="mt-2">
             This uploader has no configuration options.
         </p>
         <Divider />
     </>;
 
-    return orderedOptions.map(([key, option]) => {
+    return uploader.options.map(([key, option]) => {
         return <Fragment key={key}>
             {optionSwitch(uploaderId, key, option, config)}
             <Divider />

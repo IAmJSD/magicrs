@@ -72,7 +72,7 @@ pub fn shell_support() -> Uploader {
         name: "Shell".to_string(),
         description: DESCRIPTION.to_string(),
         icon_path: "/icons/shell.png".to_string(),
-        options: HashMap::from([
+        options: vec![
             (
                 "command".to_string(),
                 ConfigOption::String {
@@ -84,8 +84,8 @@ pub fn shell_support() -> Uploader {
                     regex: None,
                     validation_error_message: None,
                 },
-            )
-        ]),
+            ),
+        ],
         upload: shell_support_upload,
     }
 }

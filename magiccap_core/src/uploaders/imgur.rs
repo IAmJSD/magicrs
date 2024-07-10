@@ -29,7 +29,7 @@ pub fn imgur_support() -> Uploader {
         name: "imgur".to_string(),
         description: "Uploads the image to imgur.".to_string(),
         icon_path: "/icons/imgur.svg".to_string(),
-        options: HashMap::new(),
+        options: vec![],
         upload: imgur_support_upload,
     }
 }
