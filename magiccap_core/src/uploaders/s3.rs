@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use hmac::{Hmac, Mac};
 use ureq::Middleware;
 use super::{mime, ConfigOption, Uploader};
 
@@ -25,17 +26,26 @@ fn s3_url_encode(content: &str) -> String {
     encoded
 }
 
+const SIGNED_HEADERS: [&str; 4] = [
+    "content-type", "x-amz-acl", "x-amz-date", "x-amz-expires",
+];
+
 impl Middleware for S3Signing {
-    fn handle(&self, request: ureq::Request, next: ureq::MiddlewareNext) -> Result<ureq::Response, ureq::Error> {
+    fn handle(&self, mut request: ureq::Request, next: ureq::MiddlewareNext) -> Result<ureq::Response, ureq::Error> {
+        // Add the X-Amz-Date.
+        let iso_time = chrono::Utc::now().format("%Y%m%dT%H%M%SZ").to_string();
+        request = request.set("X-Amz-Date", &iso_time);
+
         // Add the start method/URI.
         let url = request.request_url().unwrap();
         let canonical_uri = url.path();
         let mut string_pointers = Vec::new();
         string_pointers.push(request.method());
-        string_pointers.push(&s3_url_encode(canonical_uri));
+        let path_s3e = s3_url_encode(canonical_uri);
+        string_pointers.push(&path_s3e);
 
         // Add the query parameters.
-        let q = url.query_pairs();
+        let mut q = url.query_pairs();
         q.sort_by(|a, b| a.0.cmp(&b.0));
         let query = q.into_iter().map(|(k, v)| {
             s3_url_encode(k) + "=" + &s3_url_encode(v)
@@ -47,12 +57,23 @@ impl Middleware for S3Signing {
         // Add the headers.
         let mut header_names = request.header_names().into_iter().map(|h| {
             h.to_lowercase()
+        }).filter(|a| {
+            SIGNED_HEADERS.contains(&a.as_str())
         }).collect::<Vec<_>>();
+        header_names.push("host".to_string());
         header_names.sort();
-        for header_name in header_names {
-            let header_value = request.header(&header_name).unwrap();
-            let header = header_name + ":" + header_value;
-            string_pointers.push(&header);
+        let mut headers = "".to_string();
+        for header_name in &header_names {
+            let header = if header_name == "host" {
+                "host:".to_string() + url.host()
+            } else {
+                let header_value = request.header(&header_name).unwrap();
+                header_name.to_string() + ":" + header_value
+            };
+            if !headers.is_empty() {
+                headers.push('\n');
+            }
+            headers.push_str(&header);
         }
         let signed_headers = header_names.join(";");
         string_pointers.push(&signed_headers);
@@ -65,14 +86,46 @@ impl Middleware for S3Signing {
         let canonical_request = sha256::digest(everything_nl_joined.as_bytes());
 
         // Create the string to sign.
-        let iso_time = chrono::Utc::now().format("%Y%m%dT%H%M%SZ").to_string();
         let string_to_sign = "AWS4-HMAC-SHA256\n".to_string() +
             &iso_time + "\n" +
             &iso_time[0..8] + &format!("/{}/s3/aws4_request\n", s3_url_encode(&self.region)) +
             &canonical_request;
 
         // Create the signing key.
-        // TODO
+        let hmac_sha256 = |a, b| {
+            let mut mac = Hmac::<sha2::Sha256>::new_from_slice(a).unwrap();
+            mac.update(b);
+            mac.finalize().into_bytes()
+        };
+        let aws4_headed_key = format!("AWS4{}", self.secret_access_key);
+        let date_key = hmac_sha256(
+            aws4_headed_key.as_bytes(),
+            iso_time[0..8].as_bytes(),
+        ).to_vec();
+        let date_region_key = hmac_sha256(&date_key, &self.region.as_bytes());
+        let date_region_service_key = hmac_sha256(
+            &date_region_key, "s3".as_bytes());
+        let signing_key = hmac_sha256(
+            &date_region_service_key, "aws4_request".as_bytes());
+
+        // Use the signature to create the authorization header.
+        let auth_header = format!(
+            "AWS4-HMAC-SHA256 Credential={},SignedHeaders={},Signature={:x}",
+            format!("{}/{}/{}/s3/aws4_request", self.access_key_id, &iso_time[0..8], self.region),
+            signed_headers,
+            hmac_sha256(&signing_key, string_to_sign.as_bytes()),
+        );
+        request = request.set("Authorization", &auth_header);
+
+        // Log out all the headers.
+        let header_names = request.header_names();
+        for header_name in header_names {
+            let header_value = request.header(&header_name).unwrap();
+            println!("{}: {}", header_name, header_value);
+        }
+
+        // Continue the request.
+        next.handle(request)
     }
 }
 
@@ -130,18 +183,22 @@ fn s3_support_upload(
         return Err(format!("Failed to read the body: {}", e));
     }
 
+    let mut region = config.get("region").unwrap_or(
+        &serde_json::Value::String("us-east-1".to_string())).as_str().unwrap().to_string();
+    if region == "" {
+        region = "us-east-1".to_string();
+    }
     let agent = ureq::builder().middleware(S3Signing {
-        access_key_id: config.get("access_key_id").unwrap().to_string(),
-        secret_access_key: config.get("secret_access_key").unwrap().to_string(),
+        access_key_id: config.get("access_key_id").unwrap().as_str().unwrap().to_string(),
+        secret_access_key: config.get("secret_access_key").unwrap().as_str().unwrap().to_string(),
         body_hash: sha256::digest(&body),
-        region: config.get("region").unwrap_or(
-            &serde_json::Value::String("us-east-1".to_string())).as_str().unwrap().to_string(),
+        region,
     }).build();
     let req = agent.put(url.to_string().as_str()).
         set("Content-Type", &mime.to_string()).
         set("x-amz-acl", config.get("acl").unwrap_or(
             &serde_json::Value::String("public-read".to_string())).as_str().unwrap()).
-        set("User-Agent", "MagicCap");
+        set("User-Agent", "MagicCap/3 (magiccap.org)");
 
     // Perform the request.
     if let Err(e) = req.send_bytes(&body) {
