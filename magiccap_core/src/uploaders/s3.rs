@@ -1,229 +1,141 @@
 use std::collections::HashMap;
-use hmac::{Hmac, Mac};
-use ureq::Middleware;
+use aws_config::{meta::region::RegionProviderChain, BehaviorVersion};
+use aws_sdk_s3::{primitives::ByteStream, types::ObjectCannedAcl, Client};
+use aws_credential_types::Credentials;
+
 use super::{mime, ConfigOption, Uploader};
 
-struct S3Signing {
-    access_key_id: String,
-    secret_access_key: String,
-    body_hash: String,
-    region: String,
-}
+async fn s3_async_task(
+    filename: &str, config: HashMap<String, serde_json::Value>,
+    reader: Box<dyn std::io::Read + Send + Sync>,
+) -> Result<String, String> {
+    // Get the MIME type of the file.
+    let (mime, mut reader) = match mime::guess_mime_type(filename, reader) {
+        Ok((mime, reader)) => (mime, reader),
+        Err(err) => return Err(err.to_string()),
+    };
 
-fn s3_url_encode(content: &str) -> String {
-    let mut encoded = String::new();
-    for c in content.chars() {
-        match c {
-            'A'..='Z' | 'a'..='z' | '0'..='9' | '_' | '-' | '~' | '.' | '/' => {
-                encoded.push(c);
-            },
-            _ => {
-                encoded.push('%');
-                encoded.push_str(&format!("{:02X}", c as u8));
-            },
-        }
+    // Get the endpoint, access key ID, and secret access key.
+    let endpoint = match config.get("endpoint") {
+        Some(endpoint) => match endpoint.as_str() {
+            Some(endpoint) => endpoint,
+            None => return Err("The endpoint is not a string.".to_string()),
+        },
+        None => return Err("The endpoint is missing.".to_string()),
+    };
+    let access_key_id = match config.get("access_key_id") {
+        Some(access_key_id) => match access_key_id.as_str() {
+            Some(access_key_id) => access_key_id,
+            None => return Err("The access key ID is not a string.".to_string()),
+        },
+        None => return Err("The access key ID is missing.".to_string()),
+    };
+    let secret_access_key = match config.get("secret_access_key") {
+        Some(secret_access_key) => match secret_access_key.as_str() {
+            Some(secret_access_key) => secret_access_key,
+            None => return Err("The secret access key is not a string.".to_string()),
+        },
+        None => return Err("The secret access key is missing.".to_string()),
+    };
+
+    // Get the bucket.
+    let bucket = match config.get("bucket") {
+        Some(bucket) => match bucket.as_str() {
+            Some(bucket) => bucket,
+            None => return Err("The bucket is not a string.".to_string()),
+        },
+        None => return Err("The bucket is missing.".to_string()),
+    };
+
+    // Get the region.
+    let mut region = match config.get("region") {
+        Some(region) => match region.as_str() {
+            Some(region) => region,
+            None => return Err("The region is not a string.".to_string()),
+        },
+        None => "us-east-1",
+    };
+    if region.is_empty() {
+        region = "us-east-1";
     }
-    encoded
-}
 
-const SIGNED_HEADERS: [&str; 4] = [
-    "content-type", "x-amz-acl", "x-amz-date", "x-amz-expires",
-];
+    // Leak the region to avoid the lifetime issue. This doesn't really matter because it is tiny.
+    let region = Box::leak(Box::new(region.to_string()));
 
-impl Middleware for S3Signing {
-    fn handle(&self, mut request: ureq::Request, next: ureq::MiddlewareNext) -> Result<ureq::Response, ureq::Error> {
-        // Add the X-Amz-Date.
-        let iso_time = chrono::Utc::now().format("%Y%m%dT%H%M%SZ").to_string();
-        request = request.set("X-Amz-Date", &iso_time);
+    // Read the file into a buffer.
+    let mut data = Vec::new();
+    reader.read_to_end(&mut data).map_err(|err| format!("Failed to read the file: {}.", err))?;
 
-        // Add the start method/URI.
-        let url = request.request_url().unwrap();
-        let canonical_uri = url.path();
-        let mut string_pointers = Vec::new();
-        string_pointers.push(request.method());
-        let path_s3e = s3_url_encode(canonical_uri);
-        string_pointers.push(&path_s3e);
+    // Setup the S3 client.
+    let region_provider = RegionProviderChain::first_try(region.as_str()).or_default_provider();
+    let sdk_config = aws_config::defaults(BehaviorVersion::latest())
+        .region(region_provider)
+        .credentials_provider(Credentials::new(
+            access_key_id.to_string(),
+            secret_access_key.to_string(),
+            None, None, "magiccap",
+        ))
+        .endpoint_url("https://".to_string() + endpoint)
+        .load()
+        .await;
+    let client = Client::new(&sdk_config);
 
-        // Add the query parameters.
-        let mut q = url.query_pairs();
-        q.sort_by(|a, b| a.0.cmp(&b.0));
-        let query = q.into_iter().map(|(k, v)| {
-            s3_url_encode(k) + "=" + &s3_url_encode(v)
-        }).collect::<Vec<_>>().join("&");
-        if !query.is_empty() {
-            string_pointers.push(&query);
-        }
+    // Run PutObject.
+    let mut folder = match config.get("folder") {
+        Some(folder) => match folder.as_str() {
+            Some(folder) => folder,
+            None => return Err("The folder is not a string.".to_string()),
+        },
+        None => "",
+    };
+    folder = folder.trim_matches('/');
+    let acl = match config.get("acl") {
+        Some(acl) => match acl.as_str() {
+            Some(acl) => acl,
+            None => return Err("The ACL is not a string.".to_string()),
+        },
+        None => "public-read",
+    };
+    let folder_plus_slash = if folder.is_empty() {
+        "".to_string()
+    } else {
+        format!("{}/", folder)
+    };
+    client.put_object()
+        .bucket(bucket)
+        .key(format!("{}{}", folder_plus_slash, filename))
+        .acl(ObjectCannedAcl::from(acl))
+        .body(ByteStream::from(data))
+        .content_type(mime.to_string())
+        .send()
+        .await
+        .map_err(|err| format!("Failed to upload the file: {}.", err))?;
 
-        // Add the headers.
-        let mut header_names = request.header_names().into_iter().map(|h| {
-            h.to_lowercase()
-        }).filter(|a| {
-            SIGNED_HEADERS.contains(&a.as_str())
-        }).collect::<Vec<_>>();
-        header_names.push("host".to_string());
-        header_names.sort();
-        let mut headers = "".to_string();
-        for header_name in &header_names {
-            let header = if header_name == "host" {
-                "host:".to_string() + url.host()
-            } else {
-                let header_value = request.header(&header_name).unwrap();
-                header_name.to_string() + ":" + header_value
-            };
-            if !headers.is_empty() {
-                headers.push('\n');
-            }
-            headers.push_str(&header);
-        }
-        let signed_headers = header_names.join(";");
-        string_pointers.push(&signed_headers);
+    // Get the URL rewrite.
+    let url_rewrite = match config.get("url_rewrite") {
+        Some(url_rewrite) => match url_rewrite.as_str() {
+            Some(url_rewrite) => url_rewrite,
+            None => return Err("The URL rewrite is not a string.".to_string()),
+        },
+        None => "https://$bucket/$folder_path$filename",
+    };
 
-        // Add the body to the string pointers.
-        string_pointers.push(&self.body_hash);
-
-        // Create the canonical request.
-        let everything_nl_joined = string_pointers.join("\n");
-        let canonical_request = sha256::digest(everything_nl_joined.as_bytes());
-
-        // Create the string to sign.
-        let string_to_sign = "AWS4-HMAC-SHA256\n".to_string() +
-            &iso_time + "\n" +
-            &iso_time[0..8] + &format!("/{}/s3/aws4_request\n", s3_url_encode(&self.region)) +
-            &canonical_request;
-
-        // Create the signing key.
-        let hmac_sha256 = |a, b| {
-            let mut mac = Hmac::<sha2::Sha256>::new_from_slice(a).unwrap();
-            mac.update(b);
-            mac.finalize().into_bytes()
-        };
-        let aws4_headed_key = format!("AWS4{}", self.secret_access_key);
-        let date_key = hmac_sha256(
-            aws4_headed_key.as_bytes(),
-            iso_time[0..8].as_bytes(),
-        ).to_vec();
-        let date_region_key = hmac_sha256(&date_key, &self.region.as_bytes());
-        let date_region_service_key = hmac_sha256(
-            &date_region_key, "s3".as_bytes());
-        let signing_key = hmac_sha256(
-            &date_region_service_key, "aws4_request".as_bytes());
-
-        // Use the signature to create the authorization header.
-        let auth_header = format!(
-            "AWS4-HMAC-SHA256 Credential={},SignedHeaders={},Signature={:x}",
-            format!("{}/{}/{}/s3/aws4_request", self.access_key_id, &iso_time[0..8], self.region),
-            signed_headers,
-            hmac_sha256(&signing_key, string_to_sign.as_bytes()),
-        );
-        request = request.set("Authorization", &auth_header);
-
-        // Log out all the headers.
-        let header_names = request.header_names();
-        for header_name in header_names {
-            let header_value = request.header(&header_name).unwrap();
-            println!("{}: {}", header_name, header_value);
-        }
-
-        // Continue the request.
-        next.handle(request)
-    }
+    // Return the URL.
+    Ok(url_rewrite
+        .replace("$bucket", bucket)
+        .replace("$folder_path", folder)
+        .replace("$filename", filename))
 }
 
 fn s3_support_upload(
     filename: &str, config: HashMap<String, serde_json::Value>,
     reader: Box<dyn std::io::Read + Send + Sync>,
 ) -> Result<String, String> {
-    // Get the mime type of the file.
-    let (mime, mut reader) = match mime::guess_mime_type(filename, reader) {
-        Ok(v) => v,
-        Err(e) => return Err(e.to_string()),
-    };
-
-    // Get the folder path.
-    let folder = match config.get("folder") {
-        Some(folder) => {
-            let v = folder.as_str().unwrap();
-            let v = if v.starts_with('/') {
-                // Remove the leading slash.
-                &v[1..]
-            } else {
-                v
-            };
-            if v.ends_with('/') {
-                // Remove the trailing slash.
-                &v[..v.len() - 1]
-            } else {
-                v
-            }
-        },
-        None => "",
-    };
-
-    // Get the bucket.
-    let bucket = config.get("bucket").unwrap().as_str().unwrap();
-
-    // Get the endpoint of the S3 bucket.
-    let mut endpoint = config.get("endpoint").unwrap().as_str().unwrap();
-    if endpoint.starts_with('.') {
-        // Remove the leading period.
-        endpoint = &endpoint[1..];
-    }
-    let endpoint = "https://".to_string() + bucket + "." + endpoint;
-    let mut url = uriparse::URI::try_from(endpoint.as_str()).unwrap();
-
-    // Get the URL path.
-    let slash_or_not = if folder.is_empty() { "" } else { "/" };
-    let filename = urlencoding::encode(filename);
-    let url_path = folder.to_string() + slash_or_not + &filename;
-    url.set_path(url_path.as_str()).unwrap();
-
-    // Read out the entire body.
-    let mut body = Vec::new();
-    if let Err(e) = reader.read_to_end(&mut body) {
-        return Err(format!("Failed to read the body: {}", e));
-    }
-
-    let mut region = config.get("region").unwrap_or(
-        &serde_json::Value::String("us-east-1".to_string())).as_str().unwrap().to_string();
-    if region == "" {
-        region = "us-east-1".to_string();
-    }
-    let agent = ureq::builder().middleware(S3Signing {
-        access_key_id: config.get("access_key_id").unwrap().as_str().unwrap().to_string(),
-        secret_access_key: config.get("secret_access_key").unwrap().as_str().unwrap().to_string(),
-        body_hash: sha256::digest(&body),
-        region,
-    }).build();
-    let req = agent.put(url.to_string().as_str()).
-        set("Content-Type", &mime.to_string()).
-        set("x-amz-acl", config.get("acl").unwrap_or(
-            &serde_json::Value::String("public-read".to_string())).as_str().unwrap()).
-        set("User-Agent", "MagicCap/3 (magiccap.org)");
-
-    // Perform the request.
-    if let Err(e) = req.send_bytes(&body) {
-        match e {
-            ureq::Error::Status(code, response) => {
-                return Err(format!("Failed to upload the file to the S3 bucket: {}: {}", code, response.into_string().unwrap()));
-            },
-            _ => {
-                return Err(format!("Failed to upload the file to the S3 bucket: {}", e));
-            },
-        }
-    }
-
-    // Get the URL rewrite.
-    let url_rewrite = match config.get("url_rewrite") {
-        Some(url_rewrite) => url_rewrite.as_str().unwrap(),
-        None => "https://$bucket/$folder_path/$filename",
-    };
-
-    // Perform the URL rewrite.
-    Ok(
-        url_rewrite.replace("$bucket", bucket)
-            .replace("$folder_path", folder)
-            .replace("$filename", &filename),
-    )
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(s3_async_task(filename, config, reader))
 }
 
 // Make sure this is a valid domain.
@@ -233,7 +145,7 @@ const DOMAIN_REGEX: &str = r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.
 const URL_REWRITE_DESCRIPTION: &str = concat!(
     "The string to rewrite the URL to. In this URL, you can use `$bucket` to represent the bucket, ",
     "`$folder_path` to represent the folder path, and `$filename` to represent the filename. The default ",
-    "is `https://$bucket/$folder_path/$filename`.",
+    "is `https://$bucket/$folder_path$filename`.",
 );
 
 pub fn s3_support() -> Uploader {
