@@ -1,6 +1,9 @@
-use std::collections::HashMap;
-use aws_config::{meta::region::RegionProviderChain, BehaviorVersion};
-use aws_sdk_s3::{primitives::ByteStream, types::ObjectCannedAcl, Client};
+use std::{collections::HashMap, sync::Arc};
+use aws_config::{BehaviorVersion, Region};
+use aws_sdk_s3::{
+    config::{IdentityCache, ProvideCredentials, SharedCredentialsProvider},
+    primitives::ByteStream, types::ObjectCannedAcl, Client,
+};
 use aws_credential_types::Credentials;
 
 use super::{mime, ConfigOption, Uploader};
@@ -50,35 +53,34 @@ async fn s3_async_task(
     // Get the region.
     let mut region = match config.get("region") {
         Some(region) => match region.as_str() {
-            Some(region) => region,
+            Some(region) => region.to_string(),
             None => return Err("The region is not a string.".to_string()),
         },
-        None => "us-east-1",
+        None => "us-east-1".to_string(),
     };
     if region.is_empty() {
-        region = "us-east-1";
+        region = "us-east-1".to_string();
     }
-
-    // Leak the region to avoid the lifetime issue. This doesn't really matter because it is tiny.
-    let region = Box::leak(Box::new(region.to_string()));
 
     // Read the file into a buffer.
     let mut data = Vec::new();
     reader.read_to_end(&mut data).map_err(|err| format!("Failed to read the file: {}.", err))?;
 
-    // Setup the S3 client.
-    let region_provider = RegionProviderChain::first_try(region.as_str()).or_default_provider();
-    let sdk_config = aws_config::defaults(BehaviorVersion::latest())
-        .region(region_provider)
-        .credentials_provider(Credentials::new(
-            access_key_id.to_string(),
-            secret_access_key.to_string(),
-            None, None, "magiccap",
-        ))
-        .endpoint_url("https://".to_string() + endpoint)
-        .load()
-        .await;
-    let client = Client::new(&sdk_config);
+    // Setup the SDK.
+    let credentials_provider: Arc<dyn ProvideCredentials> = Arc::new(Credentials::new(
+        access_key_id.to_string(),
+        secret_access_key.to_string(),
+        None, None, "magiccap",
+    ));
+    let mut builder = aws_config::SdkConfig::builder();
+    builder
+        .set_behavior_version(Some(BehaviorVersion::latest()))
+        .set_region(Region::new(region))
+        .set_identity_cache(Some(IdentityCache::no_cache()))
+        .set_credentials_provider(Some(SharedCredentialsProvider::new(credentials_provider)))
+        .set_endpoint_url(Some("https://".to_string() + endpoint));
+    let sdk_config_built = builder.build();
+    let client = Client::new(&sdk_config_built);
 
     // Run PutObject.
     let mut folder = match config.get("folder") {
