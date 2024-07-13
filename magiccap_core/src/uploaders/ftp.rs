@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use suppaftp::{native_tls::TlsConnector, types::FileType, NativeTlsConnector, NativeTlsFtpStream};
-use super::{ConfigOption, Uploader};
+use super::{
+    utils::{DOMAIN_OR_IP_REGEX, URL_FTP_REWRITE_DESCRIPTION}, ConfigOption, Uploader,
+};
 
 // Defines the function to upload a screenshot using FTP.
 fn ftp_support_upload(
@@ -104,16 +106,6 @@ fn ftp_support_upload(
     Ok(url)
 }
 
-// Defines a regex for RFC 1123 compliant domain names or IP addresses.
-const DOMAIN_OR_IP_REGEX: &str = "^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\\-]*[A-Za-z0-9])$";
-
-// Defines the description for URL rewrites since it is fairly long.
-const URL_REWRITE_DESCRIPTION: &str = concat!(
-    "The string to rewrite the URL to. In this URL, you can use `$hostname` to represent the hostname, ",
-    "`$folder_path` to represent the folder path, and `$filename` to represent the filename. The default ",
-    "is `https://$hostname$folder_path/$filename`.",
-);
-
 // Defines the config structure for FTP.
 pub fn ftp_support() -> Uploader {
     Uploader {
@@ -193,7 +185,7 @@ pub fn ftp_support() -> Uploader {
                 "url_rewrite".to_string(),
                 ConfigOption::String {
                     name: "URL Rewrite".to_string(),
-                    description: URL_REWRITE_DESCRIPTION.to_string(),
+                    description: URL_FTP_REWRITE_DESCRIPTION.to_string(),
                     default: None,
                     required: false,
                     password: false,
