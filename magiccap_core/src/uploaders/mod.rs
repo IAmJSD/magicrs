@@ -1,3 +1,4 @@
+pub mod custom;
 mod utils;
 mod elixire;
 mod imgur;
