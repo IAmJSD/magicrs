@@ -359,8 +359,8 @@ fn select_folder() -> Result<serde_json::Value, APIError> {
     Ok(serde_json::Value::String(path.to_str().unwrap().to_string()))
 }
 
-// Selects a folder on Linux.
-#[cfg(target_os = "linux")]
+// Selects a folder on Linux and Windows.
+#[cfg(not(target_os = "macos"))]
 fn select_folder() -> Result<serde_json::Value, APIError> {
     use native_dialog::FileDialog;
 
@@ -404,8 +404,8 @@ fn select_file() -> Result<serde_json::Value, APIError> {
     Ok(serde_json::Value::String(data))
 }
 
-// Select a file in Linux.
-#[cfg(target_os = "linux")]
+// Select a file in Linux and Windows.
+#[cfg(not(target_os = "macos"))]
 fn select_file() -> Result<serde_json::Value, APIError> {
     use native_dialog::FileDialog;
 

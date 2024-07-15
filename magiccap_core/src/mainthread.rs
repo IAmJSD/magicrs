@@ -31,8 +31,71 @@ where
     idle_add_once(handler);
 }
 
-// Handles the main thread synchronously on Linux.
-#[cfg(target_os = "linux")]
+// Create the main event loop on Windows.
+#[cfg(target_os = "windows")]
+pub fn main_event_loop() {
+    use windows::Win32::UI::WindowsAndMessaging::{
+        DispatchMessageA, GetMessageA, TranslateMessage, MSG, WM_USER
+    };
+
+    loop {
+        let mut msg = MSG::default();
+        let msg_mut_ptr = &mut msg as *mut MSG;
+        let got_message = unsafe {
+            GetMessageA(msg_mut_ptr, None, 0, 0)
+        };
+        if !got_message.as_bool() {
+            return;
+        }
+        if msg.message == WM_USER {
+            // Get the memory address of the function.
+            let mem_address = msg.wParam.0;
+            let (handler, addr) = *unsafe {
+                Box::from_raw(
+                    mem_address as *mut (extern fn(usize), usize)
+                )
+            };
+            handler(addr);
+        } else {
+            // Let Windows handle this.
+            let msg_ptr = &msg as *const MSG;
+            unsafe {
+                let _ = TranslateMessage(msg_ptr);
+                DispatchMessageA(msg_ptr);
+            }
+        }
+    }
+}
+
+// Handles a main thread push on Windows.
+#[cfg(target_os = "windows")]
+pub fn main_thread_async<F>(handler: F)
+where
+    F: FnOnce() + Send + 'static,
+{
+    use crate::windows_shared::app;
+    use windows::Win32::{Foundation::WPARAM, UI::WindowsAndMessaging::{
+        PostThreadMessageA, WM_USER,
+    }};
+
+    extern fn caller<F>(func: usize) where F: FnOnce() + Send + 'static {
+        let func = unsafe {
+            Box::from_raw(func as *mut F)
+        };
+        func();
+    }
+    let mem_addr = Box::into_raw(Box::new((
+        caller::<F>, Box::into_raw(Box::new(handler)),
+    )));
+    unsafe {
+        PostThreadMessageA(
+            app().main_thread_id, WM_USER, WPARAM(mem_addr as usize), None,
+        ).unwrap();
+    }
+}
+
+// Handles the main thread synchronously on platforms that do not natively handle it.
+#[cfg(not(target_os = "macos"))]
 pub fn main_thread_sync<F, T>(handler: F) -> T
 where
     F: Send + FnOnce() -> T, T: Send

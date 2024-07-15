@@ -19,12 +19,12 @@ fn agent_socket() -> Result<(String, Child), String> {
         "magiccap-ssh-agent-{}.sock",
         SFTP_UPLOAD_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst),
     );
-    let tmp_socket = std::env::temp_dir().join(&sock_filename).to_str().unwrap();
+    let tmp_socket = std::env::temp_dir().join(&sock_filename).to_str().unwrap().to_string();
 
     // Call pageant to get a socket.
     let child = match Command::new("pageant")
         .arg("--unix")
-        .arg(tmp_socket)
+        .arg(&tmp_socket)
         .spawn()
     {
         Ok(child) => child,
@@ -147,7 +147,7 @@ fn sftp_support_upload(
     };
 
     // Start the SSH agent.
-    let (socket, pid_or_child) = match agent_socket() {
+    let (socket, mut pid_or_child) = match agent_socket() {
         Ok((socket, pid_or_child)) => (socket, pid_or_child),
         Err(err) => return Err(err),
     };

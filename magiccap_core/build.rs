@@ -27,6 +27,9 @@ fn os_specific_compilation() {
         .compile("linux_x11");
 }
 
+#[cfg(target_os = "windows")]
+fn os_specific_compilation() {}
+
 fn main() {
     // Handle OS-specific compilation.
     os_specific_compilation();

@@ -43,7 +43,7 @@ pub fn send_notification(message: &str, url: Option<&str>, file_path: Option<&st
 }
 
 // Send a dialog message to the user.
-#[cfg(target_os = "linux")]
+#[cfg(not(target_os = "macos"))]
 pub fn send_dialog_message(message: &str) {
     use native_dialog::{MessageDialog, MessageType};
 
@@ -56,7 +56,7 @@ pub fn send_dialog_message(message: &str) {
 }
 
 // Send a notification to the user.
-#[cfg(target_os = "linux")]
+#[cfg(not(target_os = "macos"))]
 pub fn send_notification(message: &str, url: Option<&str>, file_path: Option<&str>) {
     use notify_rust::Notification;
 
@@ -71,7 +71,10 @@ pub fn send_notification(message: &str, url: Option<&str>, file_path: Option<&st
         notif.action("open_fp", "Open File");
     }
 
-    notif.show().unwrap().wait_for_action(|e| {
+    #[allow(unused_variables)]
+    let res = notif.show().unwrap();
+    #[cfg(not(target_os = "windows"))]
+    res.wait_for_action(|e| {
         match e {
             "open_url" => open::that(url.unwrap()).unwrap(),
             "open_fp" => open::that(file_path.unwrap()).unwrap(),

@@ -160,6 +160,20 @@ fn message_sent(cpy: String) {
             }
         })
     }
+
+    // Send the response on Windows.
+    #[cfg(target_os = "windows")]
+    {
+        use crate::windows_shared::app;
+
+        let wv = match app().wv_controller.as_mut() {
+            Some(c) => c.get_webview().unwrap(),
+            None => return,
+        };
+        wv.execute_script(&format!(
+            "window.bridgeResponse({}, '{}');", id, b64
+        ), |_| Ok(()));
+    }
 }
 
 // The delegate for the webview on macOS.
@@ -308,6 +322,118 @@ pub fn update_webview_with_capture(capture_id: i64) {
         },
         None => {},
     }
+}
+
+// Handles updating the webview with a capture on Windows.
+#[cfg(target_os = "windows")]
+pub fn update_webview_with_capture(capture_id: i64) {
+    use crate::windows_shared::app;
+
+    let capture = match database::get_capture(capture_id) {
+        Some(capture) => capture,
+        None => return,
+    };
+    let html = crate::config::captures_html::generate_dom_node(capture).to_string();
+
+    // Base64 the HTML.
+    let html_base64 = base64::engine::general_purpose::STANDARD.encode(&html);
+
+    match app().wv_controller.as_mut() {
+        Some(wv) => {
+            let wv = wv.get_webview().unwrap();
+            wv.execute_script(
+                &format!(
+                    "window.bridgeResponse(-1, '{}');", // see persistentHandlers in frontend/src/bridge/implementation.ts
+                    html_base64), |_| Ok(()),
+            );
+        },
+        None => {},
+    }
+}
+
+// Process the webview controller.
+#[cfg(target_os = "windows")]
+fn process_webview_controller(
+    controller: webview2::Controller, env: std::sync::Arc<webview2::Environment>,
+) -> Result<(), webview2::Error> {
+    use crate::windows_shared::app;
+
+    // Implement the magiccap-internal protocol.
+    let wv = controller.get_webview().unwrap();
+    wv.add_web_resource_requested_filter(
+        "magiccap-internal://*", webview2::WebResourceContext::All);
+    wv.add_web_resource_requested(move |_, args| {
+        let uri = args.get_request().unwrap().get_uri().unwrap();
+        let path = URI::try_from(uri.as_str()).unwrap().path().to_string();
+        let res = frontend_get(path);
+        if let Some(v) = res {
+            let s = webview2::Stream::from_bytes(v.as_slice());
+            return args.put_response(env.create_web_resource_response(
+                s, 200, "OK", "").unwrap());
+        }
+        Ok(())
+    }).unwrap();
+
+    // Handle if the webview closes.
+    wv.add_window_close_requested(|_| {
+        app().wv_controller = None;
+        Ok(())
+    });
+
+    // Handle the JS bridge.
+    wv.add_web_message_received(|_, message| {
+        let msg = message.try_get_web_message_as_string().unwrap();
+        run_thread(|| message_sent(msg));
+        Ok(())
+    });
+
+    // Load the webview.
+    let html_url = match std::env::var("MAGICCAP_DEV_FRONTEND_URL") {
+        Ok(v) => v,
+        Err(_) => "magiccap-internal://frontend-dist/index.html".to_owned(),
+    };
+    wv.navigate(&html_url).unwrap();
+
+    // Write to the app.
+    app().wv_controller = Some(controller);
+
+    // Return no errors.
+    Ok(())
+}
+
+// Handles creating the webview on Windows.
+// !! WARNING !!: This is assumed to be on the main thread. If it is not, it will cause a crash.
+#[cfg(target_os = "windows")]
+pub fn open_config() {
+    use std::sync::Arc;
+    use crate::windows_shared::app;
+
+    if let Some(controller) = app().wv_controller.as_mut() {
+        controller.move_focus(webview2::MoveFocusReason::Programmatic).unwrap();
+        return;
+    }
+
+    webview2::Environment::builder().build(|env| {
+        // Get the environment.
+        let env = match env {
+            Ok(env) => env,
+            Err(e) => return Err(e),
+        };
+
+        // Get the controller.
+        let env_arc = Arc::new(env);
+        let rcc = env_arc.clone();
+        env_arc.create_controller(
+            std::ptr::null_mut(), move |controller| {
+                let controller = match controller {
+                    Ok(controller) => controller,
+                    Err(e) => return Err(e),
+                };
+                process_webview_controller(controller, rcc)
+            },
+        ).unwrap();
+        Ok(())
+    }).unwrap();
 }
 
 // Handles creating the webview on Linux.

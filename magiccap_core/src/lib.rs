@@ -23,6 +23,9 @@ mod macos;
 #[cfg(target_os = "linux")]
 mod linux_shared;
 
+#[cfg(target_os = "windows")]
+mod windows_shared;
+
 #[cfg(target_os = "macos")]
 #[no_mangle]
 pub unsafe extern "C" fn application_init() { macos_delegate::application_init() }
@@ -30,6 +33,10 @@ pub unsafe extern "C" fn application_init() { macos_delegate::application_init()
 #[cfg(target_os = "linux")]
 #[no_mangle]
 pub unsafe extern "C" fn application_init() { linux_shared::application_init() }
+
+#[cfg(target_os = "windows")]
+#[no_mangle]
+pub unsafe extern "C" fn application_init() { windows_shared::application_init() }
 
 #[no_mangle]
 pub unsafe extern "C" fn application_reload() {

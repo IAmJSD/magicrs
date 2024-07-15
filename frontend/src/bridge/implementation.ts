@@ -30,13 +30,14 @@ window.bridgeResponse = function bridgeResponse(id: number, data: string) {
     promises.delete(id);
 };
 
+// @ts-expect-error: We know one of these has to be true.
+const messageHandler = window.webkit ? window.webkit.messageHandlers.bridge : window.chrome.webview;
+
 // The low level API to call the bridge.
 export default function callBridge(type: string, content: string) {
     const id = nextId++;
     return new Promise<Uint8Array>(res => {
         promises.set(id, res);
-
-        // @ts-expect-error: This is so shit, holy fuck
-        window.webkit.messageHandlers.bridge.postMessage(`${id}\n${type}\n${content}`);
+        messageHandler.postMessage(`${id}\n${type}\n${content}`);
     });
 }

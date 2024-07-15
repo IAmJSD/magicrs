@@ -38,3 +38,7 @@ pub fn open_color_picker(cb: impl FnOnce((u8, u8, u8)) + 'static) {
     // Show the dialog.
     dialog.show_all();
 }
+
+// Stub for now.
+#[cfg(target_os = "windows")]
+pub fn open_color_picker(cb: impl FnOnce((u8, u8, u8)) + 'static) {}

@@ -1,7 +1,7 @@
 use xcap::{Window, Monitor};
 use super::engine::RegionSelectorContext;
 
-#[cfg(target_os = "macos")]
+#[cfg(not(target_os = "linux"))]
 pub fn get_nearest_window(ctx: &mut RegionSelectorContext, rel_cursor_x: i32, rel_cursor_y: i32, index: usize) -> (
     &Monitor, Option<&Window>,
 ) {

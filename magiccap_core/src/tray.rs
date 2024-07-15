@@ -212,23 +212,23 @@ fn tray_main_thread() {
 }
 
 // Handles tray_icon imports which are used as types on Linux.
-#[cfg(target_os = "linux")]
+#[cfg(not(target_os = "macos"))]
 use tray_icon::menu::{Menu, MenuItem};
 
 // Handles a muda event on Linux.
-#[cfg(target_os = "linux")]
+#[cfg(not(target_os = "macos"))]
 use muda::MenuEvent;
 
 // We need HashMap's on Linux for the menu items.
-#[cfg(target_os = "linux")]
+#[cfg(not(target_os = "macos"))]
 use std::collections::HashMap;
 
 // Defines a map of menu items to handlers on Linux.
-#[cfg(target_os = "linux")]
+#[cfg(not(target_os = "macos"))]
 static mut MENU_ITEM_HANDLERS: Option<HashMap<String, Box<dyn Fn() + 'static>>> = None;
 
 // Handles the menu events on Linux.
-#[cfg(target_os = "linux")]
+#[cfg(not(target_os = "macos"))]
 fn menu_event(event: MenuEvent) {
     let m = unsafe { MENU_ITEM_HANDLERS.as_ref().unwrap() };
     if let Some(hn) = m.get(event.id.0.as_str()) {
@@ -237,7 +237,7 @@ fn menu_event(event: MenuEvent) {
 }
 
 // Create a individual menu item on Linux.
-#[cfg(target_os = "linux")]
+#[cfg(not(target_os = "macos"))]
 fn new_menu_item(name: &str, enabled: bool, hn: Box<dyn Fn() + 'static>) -> MenuItem {
     // Get the menu item handlers. We don't need to be thread safe since this is only called on the main thread.
     let menu_item_handlers = unsafe { MENU_ITEM_HANDLERS.as_mut().unwrap() };
@@ -254,7 +254,7 @@ fn new_menu_item(name: &str, enabled: bool, hn: Box<dyn Fn() + 'static>) -> Menu
 }
 
 // Defines a macro to make a reference to a menu item on Linux.
-#[cfg(target_os = "linux")]
+#[cfg(not(target_os = "macos"))]
 macro_rules! menu_item {
     ($name:expr, $enabled:expr, $hn:expr) => {
         &new_menu_item($name, $enabled, $hn)
@@ -262,7 +262,7 @@ macro_rules! menu_item {
 }
 
 // Defines a macro to make a separator on Linux.
-#[cfg(target_os = "linux")]
+#[cfg(not(target_os = "macos"))]
 macro_rules! separator {
     () => {
         &muda::PredefinedMenuItem::separator()
@@ -270,7 +270,7 @@ macro_rules! separator {
 }
 
 // Handle doing a file path upload on Linux.
-#[cfg(target_os = "linux")]
+#[cfg(not(target_os = "macos"))]
 fn do_upload_fp(uploader_id: &str) {
     // Open the file dialog.
     let file_path = match native_dialog::FileDialog::new().show_open_single_file() {
@@ -284,7 +284,7 @@ fn do_upload_fp(uploader_id: &str) {
 }
 
 // Creates the menu items on Linux.
-#[cfg(target_os = "linux")]
+#[cfg(not(target_os = "macos"))]
 fn create_or_update_menu(menu: &mut Box<Menu>) {
     use muda::Submenu;
 
@@ -351,18 +351,24 @@ fn create_or_update_menu(menu: &mut Box<Menu>) {
 }
 
 // Defines the tray menu dynamic handler on Linux. This allows it to be upgraded over time without restarting the application.
-#[cfg(target_os = "linux")]
+#[cfg(not(target_os = "macos"))]
 fn local_dynamic_menu_handler(event: MenuEvent) {
+    #[cfg(target_os = "linux")]
     use crate::linux_shared::app;
+    #[cfg(target_os = "windows")]
+    use crate::windows_shared::app;
 
     let current_hn = app().menu_event.read().unwrap().clone().unwrap();
     current_hn(event);
 }
 
 // Defines the function to create the tray on Linux.
-#[cfg(target_os = "linux")]
-fn tray_main_thread() {
+#[cfg(not(target_os = "macos"))]
+pub fn tray_main_thread() {
+    #[cfg(target_os = "linux")]
     use crate::linux_shared::app;
+    #[cfg(target_os = "windows")]
+    use crate::windows_shared::app;
     use tray_icon::{menu::MenuEvent, Icon, TrayIconBuilder, TrayIconEvent};
 
     // Defines the static taskbar icon.
