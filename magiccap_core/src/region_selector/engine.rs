@@ -152,6 +152,7 @@ fn setup_region_selector(
     let mut glfw_windows: Vec<PWindow> = Vec::with_capacity(setup.monitors.len());
     let mut largest_w_or_h = 0;
     if !glfw.with_connected_monitors(|glfw, glfw_monitors| {
+        #[allow(unused_variables)] // Only used on Linux.
         for (index, monitor) in setup.monitors.iter().enumerate() {
             // Find the matching glfw monitor.
             let glfw_monitor = glfw_monitors.iter().
@@ -166,14 +167,29 @@ fn setup_region_selector(
             glfw.window_hint(glfw::WindowHint::CenterCursor(false));
             glfw.window_hint(glfw::WindowHint::FocusOnShow(true));
 
+            // Handle borderless windows on Windows.
+            #[cfg(target_os = "windows")]
+            {
+                glfw.window_hint(glfw::WindowHint::Decorated(false));
+                glfw.window_hint(glfw::WindowHint::Floating(true));
+                glfw.window_hint(glfw::WindowHint::Maximized(true));
+                glfw.window_hint(glfw::WindowHint::Resizable(false));
+                glfw.window_hint(glfw::WindowHint::AutoIconify(false));
+            }
+
             // Create the window.
-            let window = match if glfw_windows.is_empty() {
+            let window_mode = if cfg!(target_os = "windows") {
+                glfw::WindowMode::Windowed
+            } else {
+                glfw::WindowMode::FullScreen(&glfw_monitor)
+            };
+            let mut window = match if glfw_windows.is_empty() {
                 glfw.create_window(
-                    monitor.width(), monitor.height(), "Region Selector", glfw::WindowMode::FullScreen(&glfw_monitor),
+                    monitor.width(), monitor.height(), "Region Selector", window_mode,
                 )
             } else {
                 glfw_windows[0].create_shared(
-                    monitor.width(), monitor.height(), "Region Selector", glfw::WindowMode::FullScreen(&glfw_monitor),
+                    monitor.width(), monitor.height(), "Region Selector", window_mode,
                 )
             } {
                 Some(t) => t.0,
@@ -184,6 +200,14 @@ fn setup_region_selector(
                     return false;
                 },
             };
+
+            // On Windows, set the position of the window to the monitor.
+            #[cfg(target_os = "windows")]
+            {
+                let refresh_rate = glfw_monitor.get_video_mode().unwrap().refresh_rate;
+                window.set_monitor(
+                    glfw::WindowMode::Windowed, monitor.x(), monitor.y(), monitor.width(), monitor.height(), Some(refresh_rate));
+            }
 
             // Handle window servers on Linux.
             #[cfg(target_os = "linux")]
