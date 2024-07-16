@@ -78,14 +78,12 @@ where
         PostThreadMessageA, WM_USER,
     }};
 
-    extern fn caller<F>(func: usize) where F: FnOnce() + Send + 'static {
-        let func = unsafe {
-            Box::from_raw(func as *mut F)
-        };
-        func();
+    extern fn caller<F>(func: Box<F>) where F: FnOnce() + Send + 'static {
+        (*func)();
     }
+    let func: extern fn(Box<F>) = caller::<F>;
     let mem_addr = Box::into_raw(Box::new((
-        caller::<F>, Box::into_raw(Box::new(handler)),
+        func, Box::into_raw(Box::new(handler)),
     )));
     unsafe {
         PostThreadMessageA(

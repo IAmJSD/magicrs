@@ -1,8 +1,8 @@
 use std::sync::RwLock;
 use once_cell::sync::OnceCell;
 use tray_icon::menu::{Menu, MenuEvent};
-use windows::Win32::UI::WindowsAndMessaging::{GetWindowThreadProcessId, PeekMessageW, MSG, PM_NOREMOVE, WM_USER};
-use crate::{mainthread::main_event_loop, reload, statics::run_thread, tray::tray_main_thread};
+use windows::Win32::System::Threading::GetCurrentThreadId;
+use crate::{mainthread::main_event_loop, reload, statics::run_thread};
 
 // Defines the structure for a shared application.
 pub struct SharedApplication {
@@ -24,7 +24,7 @@ pub fn app() -> &'static mut SharedApplication {
 pub fn application_init() {
     // Create the shared application box.
     let leaky_box = Box::leak(Box::new(SharedApplication {
-        main_thread_id: std::process::id(),
+        main_thread_id: unsafe { GetCurrentThreadId() },
         wv_controller: None,
         tray_menu: RwLock::new(None),
         menu_event: RwLock::new(None),
