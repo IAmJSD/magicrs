@@ -2,6 +2,10 @@
 
 const { join } = require("path");
 const { execSync } = require("child_process");
+const { sep } = require("path");
+
+const cleanDist = process.platform === "win32" ? '(rmdir /s /q dist || echo "Unable to delete dist folder - possibly just doesn\'t exist?")' : "rm -rf dist";
+const copy = process.platform === "win32" ? "copy" : "cp";
 
 // Run the specified command.
 function runCommand(command) {
@@ -105,30 +109,30 @@ function macOSAutoupdateCompilation(privateKeyPath) {
     runCommand("cargo build --release --package magiccap_core --features signature --target aarch64-apple-darwin");
 
     // Copy the Intel library and sign it.
-    runCommand(`cp target/x86_64-apple-darwin/release/libmagiccap_core.dylib "${corePath}"`);
+    runCommand(`${copy} target/x86_64-apple-darwin/release/libmagiccap_core.dylib "${corePath}"`);
     runCommand(`openssl dgst -sha256 -sign "${privateKeyPath}" -out "${sigPath}" "${corePath}"`);
 
     // Compile the bootloader for Intel.
     runCommand("cargo build --release --package bootloader --features signature --target x86_64-apple-darwin");
 
     // Copy the signature to dist/core_x86.sig.
-    runCommand(`rm -rf dist && mkdir dist && cp "${sigPath}" dist/core_x86.sig`);
+    runCommand(`${cleanDist} && mkdir dist && cp "${sigPath}" dist/core_x86.sig`);
 
     // Copy the library.
-    runCommand(`cp "${corePath}" dist/core_x86.dylib`);
+    runCommand(`${copy} "${corePath}" dist/core_x86.dylib`);
 
     // Copy the Apple Silicon library and sign it.
-    runCommand(`cp target/aarch64-apple-darwin/release/libmagiccap_core.dylib "${corePath}"`);
+    runCommand(`${copy} target/aarch64-apple-darwin/release/libmagiccap_core.dylib "${corePath}"`);
     runCommand(`openssl dgst -sha256 -sign "${privateKeyPath}" -out "${sigPath}" "${corePath}"`);
 
     // Compile the bootloader for Apple Silicon.
     runCommand("cargo build --release --package bootloader --features signature --target aarch64-apple-darwin");
 
     // Copy the signature to dist/core_arm.sig.
-    runCommand(`cp "${sigPath}" dist/core_arm.sig && rm "${sigPath}"`);
+    runCommand(`${copy} "${sigPath}" dist/core_arm.sig && rm "${sigPath}"`);
 
     // Copy the library.
-    runCommand(`cp "${corePath}" dist/core_arm.dylib && rm "${corePath}"`);
+    runCommand(`${copy} "${corePath}" dist/core_arm.dylib && rm "${corePath}"`);
 
     // Create a universal binary for the bootloader .
     runCommand("lipo -create -output target/release/bootloader target/release/bootloader-x86_64-apple-darwin target/release/bootloader-aarch64-apple-darwin");
@@ -166,8 +170,8 @@ function buildWithAutoupdate(privateKeyPath) {
     runCommand("cargo build --release --package bootloader --features signature");
 
     // Move the signature and library to the dist folder.
-    runCommand(`rm -rf dist && mkdir dist && mv "${sigPath}" dist/core.sig`);
-    runCommand(`mv "${corePath}" dist/core${process.platform === "win32" ? ".dll" : ".so"}`);
+    runCommand(`${cleanDist} && mkdir dist && mv "${sigPath}" dist${sep}core.sig`);
+    runCommand(`mv "${corePath}" dist${sep}core${process.platform === "win32" ? ".dll" : ".so"}`);
 
     // Return the path to the compiled binary.
     let bin = "bootloader";
@@ -185,11 +189,11 @@ if (process.env.MAGICCAP_AUTOUPDATE_PRIVATE_KEY) {
     binary = buildNoAutoupdate();
 
     // Clean the dist folder.
-    runCommand("rm -rf dist && mkdir dist");
+    runCommand(`${cleanDist} && mkdir dist`);
 }
 
 // Copy the compiled binary to the dist folder.
-runCommand(`cp "${binary}" dist/magiccap${process.platform === "win32" ? ".exe" : ""}`);
+runCommand(`${copy} "${binary}" dist${sep}magiccap${process.platform === "win32" ? ".exe" : ""}`);
 
 // Send a success message.
 const message = `\n\x1b[1mMagicCap has been successfully compiled!\x1b[0m The binary outputs for your platform are in the 'dist' folder.
