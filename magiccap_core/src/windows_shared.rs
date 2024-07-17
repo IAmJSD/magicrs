@@ -7,7 +7,7 @@ use crate::{mainthread::main_event_loop, reload, statics::run_thread};
 // Defines the structure for a shared application.
 pub struct SharedApplication {
     pub main_thread_id: u32,
-    pub wv_controller: Option<webview2::Controller>,
+    pub wv_controller: Option<(webview2::Controller, native_windows_gui::Window)>,
     pub tray_menu: RwLock<Option<&'static mut Box<Menu>>>,
     pub menu_event: RwLock<Option<&'static dyn Fn(MenuEvent)>>,
 }
@@ -22,6 +22,9 @@ pub fn app() -> &'static mut SharedApplication {
 
 // The main entrypoint for setting up the application.
 pub fn application_init() {
+    // Set up native windows gui.
+    native_windows_gui::init().unwrap();
+
     // Create the shared application box.
     let leaky_box = Box::leak(Box::new(SharedApplication {
         main_thread_id: unsafe { GetCurrentThreadId() },

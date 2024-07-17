@@ -77,12 +77,17 @@ muda = "0.13.5"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 webview2 = "0.1.4"
-windows = { version = "0.58.0", features = [
+webview2-sys = "0.1.1"
+windows = { version = "0.57", features = [
     "Win32_UI_WindowsAndMessaging",
     "Win32_System_Threading",
 ] }
 notify-rust = "4.10.0"
 muda = "0.13.5"
+native-windows-gui = "1.0.13"
+webview2-com = "0.31.0"
+webview2-com-sys = "0.31.0"
+com = "0.2.0"
 
 [features]
 signature = []

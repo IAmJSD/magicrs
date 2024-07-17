@@ -9,21 +9,21 @@
         "dev": "vite --port 5173"
     },
     "devDependencies": {
+        "@napi-rs/magic-string-win32-x64-msvc": "0.3.4",
         "@rspack/cli": "^0.7.5",
         "@rspack/core": "^0.7.5",
         "@types/react-dom": "^18.2.18",
         "autoprefixer": "^10.4.17",
+        "cross-env": "^7.0.3",
         "css-loader": "^7.1.2",
         "monaco-editor-webpack-plugin": "^7.1.0",
         "postcss": "^8.4.34",
+        "rimraf": "^5.0.7",
         "style-loader": "^4.0.0",
         "tailwindcss": "^3.4.1",
-        "vite": "^5.3.3",
-        "vite-plugin-plain-text": "^1.4.2",
         "tar": "^7.4.0",
-        "rimraf": "^5.0.7",
-        "cross-env": "^7.0.3",
-        "@napi-rs/magic-string-win32-x64-msvc": "0.3.4"
+        "vite": "^5.3.3",
+        "vite-plugin-plain-text": "^1.4.2"
     },
     "dependencies": {
         "@fortawesome/fontawesome-free": "^6.5.1",

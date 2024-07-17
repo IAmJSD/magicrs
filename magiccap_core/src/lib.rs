@@ -1,3 +1,6 @@
+#[cfg(target_os = "windows")]
+extern crate native_windows_gui as nwg;
+
 mod capture;
 mod clipboard_actions;
 mod config;

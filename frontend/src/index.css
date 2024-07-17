@@ -18,7 +18,7 @@ body {
 }
 
 .hide-first-when-hovered:hover .hide-first-when-hovered__first {
-    /* Always show the other element on screen readers */
+    /* Always show the other element on screen readers. */
     position: absolute;
     width: 1px;
     height: 1px;
@@ -31,12 +31,13 @@ body {
 }
 
 .hide-first-when-hovered:hover .hide-first-when-hovered__second {
+    /* Resets everything back to normal. We need this because not everything had a default. */
     display: block;
-    position: static; /* Reset the position to its default value */
-    width: auto; /* Reset the width to its default value */
-    height: auto; /* Reset the height to its default value */
-    clip: auto; /* Reset the clip property to its default value */
-    overflow: visible; /* Reset the overflow property to its default value */
+    position: static;
+    width: auto;
+    height: auto;
+    clip: auto;
+    overflow: visible;
 }
 
 .hide-first-when-hovered__first {
