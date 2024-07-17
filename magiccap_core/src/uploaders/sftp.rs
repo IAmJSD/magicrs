@@ -147,6 +147,7 @@ fn sftp_support_upload(
     };
 
     // Start the SSH agent.
+    #[allow(unused_mut)] // This is only used on Windows.
     let (socket, mut pid_or_child) = match agent_socket() {
         Ok((socket, pid_or_child)) => (socket, pid_or_child),
         Err(err) => return Err(err),

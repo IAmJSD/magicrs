@@ -182,6 +182,7 @@ fn setup_region_selector(
             } else {
                 glfw::WindowMode::FullScreen(&glfw_monitor)
             };
+            #[allow(unused_mut)] // Only used on Windows.
             let mut window = match if glfw_windows.is_empty() {
                 glfw.create_window(
                     monitor.width(), monitor.height(), "Region Selector", window_mode,
