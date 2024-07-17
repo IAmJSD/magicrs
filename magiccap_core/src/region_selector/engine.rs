@@ -174,7 +174,6 @@ fn setup_region_selector(
                 glfw.window_hint(glfw::WindowHint::Floating(true));
                 glfw.window_hint(glfw::WindowHint::Maximized(true));
                 glfw.window_hint(glfw::WindowHint::Resizable(false));
-                glfw.window_hint(glfw::WindowHint::AutoIconify(false));
             }
 
             // Create the window.
@@ -204,9 +203,8 @@ fn setup_region_selector(
             // On Windows, set the position of the window to the monitor.
             #[cfg(target_os = "windows")]
             {
-                let refresh_rate = glfw_monitor.get_video_mode().unwrap().refresh_rate;
                 window.set_monitor(
-                    glfw::WindowMode::Windowed, monitor.x(), monitor.y(), monitor.width(), monitor.height(), Some(refresh_rate));
+                    glfw::WindowMode::Windowed, monitor.x(), monitor.y(), monitor.width(), monitor.height(), None);
             }
 
             // Handle window servers on Linux.
