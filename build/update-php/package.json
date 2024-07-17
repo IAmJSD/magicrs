@@ -1,0 +1,8 @@
+{
+    "private": true,
+    "main": "index.js",
+    "dependencies": {
+        "adm-zip": "^0.5.14",
+        "axios": "^1.7.2"
+    }
+}

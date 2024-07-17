@@ -1,4 +1,8 @@
 
+## Upgrading the hashed pre-compiled PHP version
+
+By default, for PHP-based custom uploaders, MagicCap will only allow the version of PHP with the hash embedded into the application to be executed. This is done to prevent trust based attacks and means that if the version of PHP changes within the app, users will be prompted to update their version of PHP. It is worth noting that PHP is NOT bundled with MagicCap, rather the hash and direct download link for the latest in `WebScaleSoftwareLtd/magiccap-php-binaries` (or [from the official PHP mirror for Windows](https://windows.php.net/download/)).
+
 ## Developing MagicCap
 
 To develop MagicCap, you will want to install the following on your computer:

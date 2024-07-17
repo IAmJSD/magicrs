@@ -7,6 +7,9 @@ dev-preinit:
 	cd frontend && npm ci && npm run build
 	cd build/download-models && npm ci && node .
 
+update-php:
+	cd build/update-php && npm ci && node .
+
 linux-dev:
 	# Ensure the frontend/dist directory exists.
 	mkdir -p frontend/dist
@@ -51,4 +54,4 @@ all:
 	make package
 
 .DEFAULT_GOAL := build
-.PHONY: generate-license-file dev-preinit linux-dev macos-dev build package all
+.PHONY: generate-license-file dev-preinit update-php linux-dev macos-dev build package all
