@@ -1,9 +1,6 @@
 #[cfg(target_os = "windows")]
 extern crate native_windows_gui as nwg;
 
-#[global_allocator]
-static ALLOC: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
-
 mod capture;
 mod clipboard_actions;
 mod config;

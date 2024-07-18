@@ -59,7 +59,6 @@ libc = "0.2.155"
 evalexpr = "11.3.0"
 sxd-document = "0.3.2"
 sxd-xpath = "0.4.2"
-snmalloc-rs = "0.3.4"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cacao = { version = "0.3.2", features = ["webview"] }
