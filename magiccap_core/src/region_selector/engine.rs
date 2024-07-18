@@ -305,8 +305,12 @@ fn setup_region_selector(
         // Make this window the current context.
         window.make_current();
 
-        // Set the swap interval to adaptive vsync.
-        ctx.glfw.set_swap_interval(glfw::SwapInterval::Adaptive);
+        // Set the swap interval to adaptive vsync if this isn't Windows.
+        ctx.glfw.set_swap_interval(if cfg!(target_os = "windows") {
+            glfw::SwapInterval::None
+        } else {
+            glfw::SwapInterval::Adaptive
+        });
 
         // Handle the mouse button being pressed.
         let ctx2 = unsafe { &mut *(&mut *ctx as *mut RegionSelectorContext) };
