@@ -173,8 +173,8 @@ pub fn php(
     // Get the PHP binary path.
     let php_path = CONFIG_FOLDER.join("php");
     let php_path = match php_path.metadata() {
-        Ok(metadata) => {
-            match validate_php_metadata(php_path, metadata) {
+        Ok(_) => {
+            match validate_php_metadata(php_path) {
                 Ok(s) => s,
                 Err(e) => return Err(e),
             }
