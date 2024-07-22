@@ -58,7 +58,6 @@ pub trait IntoUploader {
 
 // Defines the HTTP method type.
 #[derive(Deserialize, Serialize)]
-#[serde(rename_all = "lowercase")]
 pub enum Method {
     GET,
     POST,

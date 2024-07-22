@@ -1,4 +1,5 @@
 import callBridge from "./implementation";
+import { CustomUploader, AllOptionsExceptEmbedded } from "./CustomUploader";
 
 // Get the HTML for all the captures.
 export async function getCapturesHtml(query: string) {
@@ -34,7 +35,7 @@ async function getJson(r: string) {
 }
 
 // Defines the base requestor.
-async function baseRequestor(type: string, params?: {[key: string]: string}) {
+async function baseRequestor(type: string, params?: {[key: string]: any}) {
     params = params || {};
     params["_t"] = type;
     return getJson(
@@ -112,42 +113,8 @@ export async function selectFile(): Promise<string | null> {
     return baseRequestor("select_file");
 }
 
-// Defines the base string options.
-type StringOptionBase = {
-    name: string;
-    description: string;
-    default: string | null;
-    required: boolean;
-};
-
 // Defines a config option.
-export type ConfigOption = ({
-    option_type: "string";
-    password: boolean;
-    regex: string | null;
-    validation_error_message: string | null;
-} & StringOptionBase) | ({
-    option_type: "long_string";
-} & StringOptionBase) | {
-    option_type: "number";
-    name: string;
-    description: string;
-    default: number | null;
-    min: number | null;
-    max: number | null;
-    required: boolean;
-} | {
-    option_type: "boolean";
-    name: string;
-    description: string;
-    default: boolean | null;
-    required: boolean;
-} | {
-    option_type: "custom";
-    name: string;
-    description: string;
-    frame_html: string;
-} | {
+export type ConfigOption = AllOptionsExceptEmbedded | {
     option_type: "embedded";
     name: string;
     description: string;
@@ -166,6 +133,29 @@ export type Uploader = {
 // Gets the uploaders.
 export async function getUploaders(): Promise<{[id: string]: Uploader}> {
     return baseRequestor("get_uploaders");
+}
+
+// Gets any custom uploaders.
+export async function getCustomUploaders(): Promise<{[id: string]: Uploader}> {
+    return baseRequestor("get_custom_uploaders");
+}
+
+// Creates a custom uploader. Returns true if it actually inserted.
+export async function insertCustomUploader(uploader: CustomUploader, replace: boolean) {
+    try {
+        await baseRequestor("insert_custom_uploader", { uploader, replace });
+    } catch (e) {
+        if (e instanceof APIError && !e.userFacing && e.message === "E_ALREADY_EXISTS") {
+            return false;
+        }
+        throw e;
+    }
+    return true;
+}
+
+// Deletes a custom uploader if it exists.
+export async function deleteCustomUploader(id: string) {
+    await baseRequestor("delete_custom_uploader", { id });
 }
 
 // Defines the callback for hotkeys.

@@ -443,6 +443,76 @@ fn get_uploaders() -> Result<serde_json::Value, APIError> {
     )
 }
 
+// Get all the custom uploaders.
+fn get_custom_uploaders() -> Result<serde_json::Value, APIError> {
+    Ok(
+        serde_json::Value::Object(
+            serde_json::Map::from_iter(
+                crate::uploaders::get_custom_uploaders().iter().
+                    map(|(k, v)| (k.to_string(), serde_json::to_value(v).unwrap())),
+            ),
+        )
+    )
+}
+
+// Inserts a custom uploader.
+fn insert_custom_uploader(query: &serde_json::Value) -> Option<APIError> {
+    // Get the uploader and attempt to deserialize it.
+    let uploader: crate::uploaders::custom::CustomUploader = match serde_json::from_value(query.clone()) {
+        Ok(v) => v,
+        Err(_) => return Some(APIError {
+            message: "The uploader is not valid.".to_string(),
+            user_facing: true,
+        }),
+    };
+
+    // Check if replace is set.
+    let replace = match query.get("replace") {
+        Some(replace) => match replace.as_bool() {
+            Some(replace) => replace,
+            None => return Some(APIError {
+                message: "The replace is not a boolean.".to_string(),
+                user_facing: true,
+            }),
+        },
+        None => false,
+    };
+
+    // Insert the custom uploader.
+    if let Err(e) = crate::uploaders::insert_custom_uploader(uploader, replace) {
+        let dispatched_err = match e {
+            crate::uploaders::CustomUploaderInsertError::AlreadyExists => {
+                APIError {
+                    message: "E_ALREADY_EXISTS".to_string(),
+                    user_facing: false,
+                }
+            },
+            crate::uploaders::CustomUploaderInsertError::SerializationError(e) => {
+                APIError {
+                    message: e,
+                    user_facing: true,
+                }
+            },
+        };
+        return Some(dispatched_err);
+    }
+    None
+}
+
+// Deletes a custom uploader if it exists.
+fn delete_custom_uploader(id: Option<&str>) -> Option<APIError> {
+    let id = match id {
+        Some(id) => id,
+        None => return Some(APIError {
+            message: "The id is required.".to_string(),
+            user_facing: true,
+        }),
+    };
+
+    crate::uploaders::delete_custom_uploader(id);
+    None
+}
+
 // Starts the hotkey capture.
 fn start_hotkey_capture() -> Option<APIError> {
     // TODO
@@ -525,6 +595,15 @@ fn route_api_call(api_type: &str, query: &serde_json::Value) -> Result<serde_jso
 
         // Get all the uploaders.
         "get_uploaders" => get_uploaders(),
+
+        // Gets all the custom uploaders.
+        "get_custom_uploaders" => get_custom_uploaders(),
+
+        // Inserts a custom uploader.
+        "insert_custom_uploader" => err_only(insert_custom_uploader(query)),
+
+        // Deletes a custom uploader if it exists.
+        "delete_custom_uploader" => err_only(delete_custom_uploader(query_find(query, "id"))),
 
         // Starts the hotkey capture.
         "start_hotkey_capture" => err_only(start_hotkey_capture()),

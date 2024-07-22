@@ -108,7 +108,7 @@ pub static UPLOADERS: Lazy<HashMap<String, Uploader>> = Lazy::new(|| {
 pub static LEAKED_UPLOADERS: Lazy<RwLock<HashMap<String, &'static Uploader>>> = Lazy::new(|| Default::default());
 
 // Get the uploader by ID.
-pub fn get_uploader(uploader_id: &str) -> Option<&Uploader> {
+pub fn get_uploader(uploader_id: &str) -> Option<&'static Uploader> {
     // Try to get from the official uploaders.
     if let Some(uploader) = UPLOADERS.get(uploader_id) {
         return Some(uploader);
@@ -155,6 +155,106 @@ pub fn get_uploader(uploader_id: &str) -> Option<&Uploader> {
     let leak = Box::leak(Box::new(uploader));
     locker.insert(hash.clone(), leak);
     Some(leak)
+}
+
+// Gets all the custom uploaders loaded into MagicCap.
+pub fn get_custom_uploaders() -> HashMap<String, &'static Uploader> {
+    // Get the custom uploader keys.
+    let uploader_keys = match database::get_config_option("custom_uploaders") {
+        Some(v) => v,
+        None => return HashMap::new(),
+    };
+    let uploader_keys = match uploader_keys.as_array() {
+        Some(v) => v,
+        None => return HashMap::new(),
+    };
+
+    // Get the uploaders.
+    let mut uploaders = HashMap::with_capacity(uploader_keys.len());
+    for key in uploader_keys.iter() {
+        // Get the key as a string.
+        let key = match key.as_str() {
+            Some(v) => v,
+            None => continue,
+        };
+
+        // Get the uploader.
+        if let Some(uploader) = get_uploader(key) {
+            uploaders.insert(key.to_string(), uploader);
+        }
+    }
+    uploaders
+}
+
+// Defines a custom uploader insert error.
+pub enum CustomUploaderInsertError {
+    SerializationError(String),
+    AlreadyExists,
+}
+
+// Inserts a custom uploader into MagicCap.
+pub fn insert_custom_uploader(uploader: custom::CustomUploader, replace: bool) -> Result<(), CustomUploaderInsertError> {
+    // Serialize the uploader.
+    let serialized = match serde_json::to_value(&uploader) {
+        Ok(v) => v,
+        Err(e) => return Err(CustomUploaderInsertError::SerializationError(e.to_string())),
+    };
+
+    // Check if the uploader already exists.
+    let uploader_key = "custom_uploader_".to_string() + &uploader.name;
+    if let Some(_) = database::get_config_option(&uploader_key) {
+        if !replace {
+            return Err(CustomUploaderInsertError::AlreadyExists);
+        }
+    }
+
+    // Insert the uploader.
+    database::set_config_option(&uploader_key, &serialized);
+    let mut custom_uploaders = match database::get_config_option("custom_uploaders") {
+        Some(v) => v,
+        None => serde_json::Value::Array(Vec::new()),
+    };
+    let custom_uploaders = match custom_uploaders.as_array_mut() {
+        Some(v) => v,
+        None => return Err(CustomUploaderInsertError::SerializationError("The custom uploaders is not an array.".to_string())),
+    };
+
+    // Write the uploader key.
+    custom_uploaders.push(serde_json::Value::String(uploader.name));
+
+    // Set the custom uploaders.
+    database::set_config_option("custom_uploaders", &serde_json::Value::Array(custom_uploaders.clone()));
+    Ok(())
+}
+
+// Deletes a custom uploader from MagicCap.
+pub fn delete_custom_uploader(uploader_name: &str) {
+    // Delete the custom uploader.
+    let uploader_key = "custom_uploader_".to_string() + uploader_name;
+    database::delete_config_option(&uploader_key);
+
+    // Delete the custom uploader from the custom uploaders.
+    let mut custom_uploaders = match database::get_config_option("custom_uploaders") {
+        Some(v) => v,
+        None => serde_json::Value::Array(Vec::new()),
+    };
+    let custom_uploaders = match custom_uploaders.as_array_mut() {
+        Some(v) => v,
+        None => return,
+    };
+    let mut index = None;
+    for (i, v) in custom_uploaders.iter().enumerate() {
+        if let Some(v) = v.as_str() {
+            if v == uploader_name {
+                index = Some(i);
+                break;
+            }
+        }
+    }
+    if let Some(i) = index {
+        custom_uploaders.remove(i);
+        database::set_config_option("custom_uploaders", &serde_json::Value::Array(custom_uploaders.clone()));
+    }
 }
 
 // Calls the uploader.
