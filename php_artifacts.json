@@ -1,0 +1,32 @@
+{
+    "php-macos-x86_64": {
+        "url": "https://github.com/WebScaleSoftwareLtd/magiccap-php-binaries/releases/download/8.3.9/php-macos-x86_64",
+        "sha256": "0fca04335986f14156f269f3c2aa417bc01d21edbf09c3ff1d2b15b4b524d076",
+        "zip": false
+    },
+    "php-macos-arm64": {
+        "url": "https://github.com/WebScaleSoftwareLtd/magiccap-php-binaries/releases/download/8.3.9/php-macos-arm64",
+        "sha256": "f45208d6b0269d7eb84f85d4690881a9d4483e33d22899cf1a1f48ae74c125e0",
+        "zip": false
+    },
+    "php-windows-x86_64": {
+        "url": "https://windows.php.net/downloads/releases/php-8.3.9-nts-Win32-vs16-x64.zip",
+        "sha256": "1141dd1b26c7401f092a15e7726ad8c78c6593b70d9f257c47d37d1c3f4e60e9",
+        "zip": true
+    },
+    "php-windows-arm64": {
+        "url": "https://windows.php.net/downloads/releases/php-8.3.9-nts-Win32-vs16-x64.zip",
+        "sha256": "1141dd1b26c7401f092a15e7726ad8c78c6593b70d9f257c47d37d1c3f4e60e9",
+        "zip": true
+    },
+    "php-linux-arm64": {
+        "url": "https://github.com/WebScaleSoftwareLtd/magiccap-php-binaries/releases/download/8.3.9/php-linux-arm64",
+        "sha256": "398471d14017cf60fffe1058ee3ed21fdd8009ee2ae9b6184d9a145b51e28303",
+        "zip": false
+    },
+    "php-linux-x86_64": {
+        "url": "https://github.com/WebScaleSoftwareLtd/magiccap-php-binaries/releases/download/8.3.9/php-linux-x86_64",
+        "sha256": "c7478d6c4dd982e4d6a956c6d1b59b3fd90a4eee1f187fed3726856b7306ba26",
+        "zip": false
+    }
+}

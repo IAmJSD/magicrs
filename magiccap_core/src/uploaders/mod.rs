@@ -8,13 +8,14 @@ mod ftp;
 mod s3;
 mod sftp;
 
-use std::{collections::HashMap, sync::atomic::Ordering};
+use std::{collections::HashMap, sync::{atomic::Ordering, RwLock}};
+use custom::IntoUploader;
 use once_cell::sync::Lazy;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use crate::{database, statics};
 
 // Handles the config option type.
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(rename_all = "snake_case", tag = "option_type")]
 pub enum ConfigOption {
     String {
@@ -82,10 +83,10 @@ pub struct Uploader {
     pub options: Vec<(String, ConfigOption)>,
 
     #[serde(skip)]
-    pub upload: fn(
-        filename: &str, options: HashMap<String, serde_json::Value>,
-        reader: Box<dyn std::io::Read + Send + Sync>,
-    ) -> Result<String, String>,
+    pub upload: Box<dyn Fn(
+        &str, HashMap<String, serde_json::Value>,
+        Box<dyn std::io::Read + Send + Sync>,
+    ) -> Result<String, String> + Send + Sync>,
 }
 
 // Defines the uploaders.
@@ -102,6 +103,60 @@ pub static UPLOADERS: Lazy<HashMap<String, Uploader>> = Lazy::new(|| {
     uploaders
 });
 
+// Defines all of the leaked uploaders. This is honestly fine since the user won't be flooding
+// this with custom uploaders.
+pub static LEAKED_UPLOADERS: Lazy<RwLock<HashMap<String, &'static Uploader>>> = Lazy::new(|| Default::default());
+
+// Get the uploader by ID.
+pub fn get_uploader(uploader_id: &str) -> Option<&Uploader> {
+    // Try to get from the official uploaders.
+    if let Some(uploader) = UPLOADERS.get(uploader_id) {
+        return Some(uploader);
+    }
+
+    // Get the custom uploader from the configuration.
+    let key = "custom_uploader_".to_string() + uploader_id;
+    let custom_uploader = match database::get_config_option(&key) {
+        Some(v) => v,
+        None => return None,
+    };
+
+    // Hash the value.
+    let h = match custom_uploader.as_object() {
+        Some(v) => v,
+        None => return None,
+    };
+    let hash = sha256::digest(
+        serde_json::to_string(&h).unwrap().as_bytes()
+    );
+
+    // Check if the uploader is leaked. If so, use the leaked uploader.
+    let locker = LEAKED_UPLOADERS.read().unwrap();
+    if locker.contains_key(&hash) {
+        return locker.get(&hash).copied();
+    }
+
+    // Parse the custom uploader.
+    let custom_uploader: custom::CustomUploader = match serde_json::from_value(custom_uploader) {
+        Ok(v) => v,
+        Err(_) => return None,
+    };
+
+    // Return the custom uploader.
+    let func = custom_uploader.handler.into_uploader(uploader_id.to_string());
+    let uploader = Uploader {
+        name: custom_uploader.name,
+        description: custom_uploader.description,
+        icon_path: custom_uploader.encoded_icon,
+        options: custom_uploader.config.into_inner(),
+        upload: func,
+    };
+    let mut locker = LEAKED_UPLOADERS.write().unwrap();
+    let leak = Box::leak(Box::new(uploader));
+    locker.insert(hash.clone(), leak);
+    Some(leak)
+}
+
 // Calls the uploader.
 pub fn call_uploader(
     uploader_name: &str, reader: Box<dyn std::io::Read + Send + Sync>, filename: &str,
@@ -112,7 +167,7 @@ pub fn call_uploader(
     }
 
     // Get the uploader.
-    let uploader = match UPLOADERS.get(uploader_name) {
+    let uploader = match get_uploader(uploader_name) {
         Some(uploader) => uploader,
         None => {
             return Err(format!("The uploader {} does not exist.", uploader_name));

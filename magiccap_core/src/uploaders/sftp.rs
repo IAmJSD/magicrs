@@ -304,6 +304,6 @@ pub fn sftp_support() -> Uploader {
                 },
             ),
         ],
-        upload: sftp_support_upload,
+        upload: Box::new(sftp_support_upload),
     }
 }

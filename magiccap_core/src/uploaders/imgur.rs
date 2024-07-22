@@ -30,6 +30,6 @@ pub fn imgur_support() -> Uploader {
         description: "Uploads the image to imgur.".to_string(),
         icon_path: "/icons/imgur.svg".to_string(),
         options: vec![],
-        upload: imgur_support_upload,
+        upload: Box::new(imgur_support_upload),
     }
 }

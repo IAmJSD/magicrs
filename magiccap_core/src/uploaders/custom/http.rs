@@ -2,12 +2,13 @@ use std::{collections::HashMap, str::FromStr, sync::Arc};
 use base64::{engine::general_purpose, Engine};
 use evalexpr::{ContextWithMutableFunctions, EvalexprError, Value};
 use mime::Mime;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use super::http_expr_functions::add_default_functions;
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 #[serde(tag = "type", content = "value")]
 pub enum HTTPRewrite {
+    Config(String),
     Static(String),
     Filename,
     MIME,
@@ -15,32 +16,44 @@ pub enum HTTPRewrite {
 
 fn rewrite_processor(
     rewrites: &HashMap<String, HTTPRewrite>, value: &str, filename: &str,
-    mime_type: &str,
+    mime_type: &str, config: &HashMap<String, serde_json::Value>,
 ) -> String {
     let mut value = value.to_string();
     for (key, rewrite) in rewrites {
         let replacement = match rewrite {
-            HTTPRewrite::Static(s) => s,
-            HTTPRewrite::Filename => filename,
-            HTTPRewrite::MIME => mime_type,
+            HTTPRewrite::Config(s) => {
+                match config.get(s) {
+                    Some(v) => {
+                        match v {
+                            serde_json::Value::String(s) => s.to_string(),
+                            _ => v.to_string(),
+                        }
+                    },
+                    None => "".to_string(),
+                }
+            },
+            HTTPRewrite::Static(s) => s.clone(),
+            HTTPRewrite::Filename => filename.to_string(),
+            HTTPRewrite::MIME => mime_type.to_string(),
         };
-        value = value.replace(key, replacement);
+        value = value.replace(key, replacement.as_str());
     }
     value
 }
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
 pub enum URLEncodingType {
     Hex, B64URL, B64,
 }
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct URLEncodingOpts {
     pub name: String,
     pub encoding_type: URLEncodingType,
 }
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 #[serde(tag = "type", content = "value")]
 pub enum HTTPBody {
     Raw,
@@ -61,12 +74,14 @@ fn consume_all_reader(
 fn process_http_response(
     template: &str, filename: &str, mime_type: &str,
     rewrites: HashMap<String, HTTPRewrite>, http_response: ureq::Response,
+    config: HashMap<String, serde_json::Value>,
 ) -> Result<String, String> {
     // Get the expr map.
     let mut expr_map = evalexpr::HashMapContext::new();
     let filename_str = filename.to_string();
     let mime_str = mime_type.to_string();
     let rewrites_arc = Arc::new(rewrites);
+    let config_arc = Arc::new(config);
     expr_map.set_function(
         "get_rewrite".to_string(),
         evalexpr::Function::new(move |arg| {
@@ -82,6 +97,17 @@ fn process_http_response(
                 )),
             };
             match rewrite {
+                HTTPRewrite::Config(s) => {
+                    match config_arc.get(s) {
+                        Some(v) => {
+                            match v {
+                                serde_json::Value::String(s) => Ok(Value::String(s.to_string())),
+                                _ => Ok(Value::String(v.to_string())),
+                            }
+                        },
+                        None => Ok(Value::String("".to_string())),
+                    }
+                },
                 HTTPRewrite::Static(s) => Ok(Value::String(s.to_string())),
                 HTTPRewrite::Filename => Ok(Value::String(filename_str.clone())),
                 HTTPRewrite::MIME => Ok(Value::String(mime_str.clone())),
@@ -126,20 +152,21 @@ pub fn http(
     filename: &str, mime_type: &str,
     rewrites: HashMap<String, HTTPRewrite>, url_template: &str,
     method: &str, header_templates: HashMap<String, String>, body: HTTPBody,
+    config: HashMap<String, serde_json::Value>,
     mut reader: Box<dyn std::io::Read + Send + Sync>, response: &str,
 ) -> Result<String, String> {
     // Rewrite the URL.
-    let url = rewrite_processor(&rewrites, url_template, filename, mime_type);
+    let url = rewrite_processor(&rewrites, url_template, filename, mime_type, &config);
 
     // Build the request.
     let mut req = ureq::agent().request(method, url.as_str());
     for (key, value) in header_templates {
         // Rewrite the header value.
         let key_rewritten = rewrite_processor(
-            &rewrites, key.as_str(), filename, mime_type,
+            &rewrites, key.as_str(), filename, mime_type, &config,
         );
         let value_rewritten = rewrite_processor(
-            &rewrites, value.as_str(), filename, mime_type,
+            &rewrites, value.as_str(), filename, mime_type, &config,
         );
 
         // Add the header.
@@ -227,6 +254,7 @@ pub fn http(
     match result {
         Ok(v) => process_http_response(
             response, filename, mime_type, rewrites, v,
+            config,
         ),
         Err(e) => Err(e.to_string()),
     }
