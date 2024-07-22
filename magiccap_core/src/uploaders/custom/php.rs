@@ -30,7 +30,7 @@ async fn copy_data(perma_data_folder: &str, data_folder: &PathBuf) -> Result<(),
     };
 
     // Iterate over the directory contents.
-    for entry in dir.next_entry().await.map_err(|e| e.to_string())? {
+    while let Some(entry) = dir.next_entry().await.map_err(|e| e.to_string())? {
         // Get the entry path.
         let entry_path = entry.path();
 

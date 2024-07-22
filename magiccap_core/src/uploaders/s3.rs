@@ -253,6 +253,6 @@ pub fn s3_support() -> Uploader {
                 },
             ),
         ],
-        upload: s3_support_upload,
+        upload: Box::new(s3_support_upload),
     }
 }

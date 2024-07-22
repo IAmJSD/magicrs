@@ -44,7 +44,7 @@ tar = "^0.4.41"
 flate2 = "1.0"
 ocrs = "0.8.0"
 rten = "0.10.0"
-tantivy = { git = "https://github.com/quickwit-oss/tantivy" }
+tantivy = "0.22"
 native-dialog = "0.7.0"
 suppaftp = { version = "^6", features = ["native-tls"] }
 sha256 = "1.5.0"
@@ -59,6 +59,8 @@ libc = "0.2.155"
 evalexpr = "11.3.0"
 sxd-document = "0.3.2"
 sxd-xpath = "0.4.2"
+walkdir = "2.5"
+zip = "2.1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cacao = { version = "0.3.2", features = ["webview"] }

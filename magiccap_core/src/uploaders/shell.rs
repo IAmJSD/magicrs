@@ -86,6 +86,6 @@ pub fn shell_support() -> Uploader {
                 },
             ),
         ],
-        upload: shell_support_upload,
+        upload: Box::new(shell_support_upload),
     }
 }

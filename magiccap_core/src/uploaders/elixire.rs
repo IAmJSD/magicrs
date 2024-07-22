@@ -105,6 +105,6 @@ pub fn elixire_support() -> Uploader {
                 validation_error_message: None,
             }),
         ],
-        upload: elixire_support_upload,
+        upload: Box::new(elixire_support_upload),
     }
 }

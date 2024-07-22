@@ -194,6 +194,6 @@ pub fn ftp_support() -> Uploader {
                 },
             ),
         ],
-        upload: ftp_support_upload,
+        upload: Box::new(ftp_support_upload),
     }
 }
