@@ -1,26 +1,29 @@
 import z from "zod";
 import { useAtom } from "jotai";
 import { useCallback, useEffect, useState, Fragment } from "react";
-import usePromise from "../../../hooks/usePromise";
-import Container from "../../atoms/Container";
-import Header from "../../atoms/Header";
-import { uploaderIdAtom } from "../../../atoms";
-import { Uploader, ConfigOption, getUploaderConfigOptions, getUploaders, testUploader, setConfigOption } from "../../../bridge/api";
-import Checkbox from "../../atoms/config/Checkbox";
-import Divider from "../../atoms/Divider";
-import Button from "../../atoms/Button";
-import Alert from "../../atoms/Alert";
-import Textbox from "../../atoms/config/Textbox";
-import LongText from "../../atoms/config/LongText";
-import NumberInput from "../../atoms/config/NumberInput";
-import Custom from "../../atoms/config/Custom";
-import { CustomPanelSelector, handleCustomPanels } from "./customUploaders";
-import Embedded from "../../atoms/config/Embedded";
-import Description from "../../atoms/Description";
+import usePromise from "../../hooks/usePromise";
+import Container from "../atoms/Container";
+import Header from "../atoms/Header";
+import { uploaderIdAtom } from "../../atoms";
+import {
+    Uploader, ConfigOption, getUploaderConfigOptions, getUploaders, testUploader,
+    setConfigOption, getCustomUploaders,
+} from "../../bridge/api";
+import Checkbox from "../atoms/config/Checkbox";
+import Divider from "../atoms/Divider";
+import Button from "../atoms/Button";
+import Alert from "../atoms/Alert";
+import Textbox from "../atoms/config/Textbox";
+import LongText from "../atoms/config/LongText";
+import NumberInput from "../atoms/config/NumberInput";
+import Custom from "../atoms/config/Custom";
+import Embedded from "../atoms/config/Embedded";
+import Description from "../atoms/Description";
 
 type UploaderProps = {
     uploader: Uploader;
     uploaderId: string;
+    custom: boolean;
 };
 
 type UploaderOptionsProps = UploaderProps & {
@@ -115,7 +118,7 @@ function UploaderOptions({ uploader, uploaderId, config }: UploaderOptionsProps)
     });
 }
 
-function Uploader({ uploader, uploaderId }: UploaderProps) {
+function Uploader({ uploader, uploaderId, custom }: UploaderProps) {
     const [config, promiseState] = usePromise(
         () => getUploaderConfigOptions(uploaderId), [uploaderId],
     );
@@ -167,6 +170,7 @@ function Uploader({ uploader, uploaderId }: UploaderProps) {
         {promiseState === "resolved" && <>
             <UploaderOptions
                 uploaderId={uploaderId} uploader={uploader} config={config}
+                custom={custom}
             />
 
             <div className="flex">
@@ -194,7 +198,7 @@ function Uploader({ uploader, uploaderId }: UploaderProps) {
 
 type UploaderListProps = {
     uploaders: { [id: string]: Uploader };
-    setUploaderId: (id: string) => void;
+    setUploaderId: (id: string | null) => void;
 };
 
 function UploaderList({ uploaders, setUploaderId }: UploaderListProps) {
@@ -215,7 +219,8 @@ function UploaderList({ uploaders, setUploaderId }: UploaderListProps) {
 
 export default function Uploaders() {
     const [uploaderId, setUploaderId] = useAtom(uploaderIdAtom);
-    const [uploaders, promiseState] = usePromise(getUploaders, []);
+    const [uploaders, uploadersPromiseState] = usePromise(getUploaders, []);
+    const [customUploaders, customUploadersPromiseState] = usePromise(getCustomUploaders, []);
 
     // Check if the hash explicitly contains an uploader ID.
     useEffect(() => {
@@ -225,14 +230,21 @@ export default function Uploaders() {
 
     if (uploaderId) {
         // Handle the odd case where the uploaders promise is not done.
-        if (promiseState !== "resolved") return <></>;
+        if (uploadersPromiseState !== "resolved" || customUploadersPromiseState !== "resolved") return <></>;
 
-        // This means a specific uploader is selected. Switch to that view.
-        const Panel = uploaderId.startsWith("custom_") && handleCustomPanels(uploaderId);
-        if (Panel) return <Panel />;
-        const uploader = uploaders[uploaderId];
-        if (uploader) return <Uploader uploaderId={uploaderId} uploader={uploader} />;
+        // Try official uploaders first.
+        let uploader = uploaders[uploaderId];
+        if (uploader) return <Uploader uploaderId={uploaderId} uploader={uploader} custom={false} />;
+
+        // Now try custom uploaders.
+        uploader = customUploaders[uploaderId];
+        if (uploader) return <Uploader uploaderId={uploaderId} uploader={uploader} custom={true} />;
     }
+
+    // Make sure no custom uploaders that are official are included.
+    const remappedCustomUploaders = customUploadersPromiseState === "resolved" ? Object.fromEntries(
+        Object.entries(customUploaders).filter(([id]) => !uploaders[id]),
+    ) : {};
 
     return <Container>
         <Header
@@ -256,7 +268,24 @@ export default function Uploaders() {
             Custom uploaders are not officially maintained by MagicCap:
         </h3>
 
-        <CustomPanelSelector />
+        {
+            customUploadersPromiseState === "resolved" && <>
+                {Object.keys(customUploaders).length === 0 ? <p className="text-sm">
+                    There are no custom uploaders available.
+                </p> : <UploaderList
+                    uploaders={remappedCustomUploaders} setUploaderId={uploaderId => {
+                        setUploaderId(uploaderId);
+
+                        // Abstract away the hash setting here.
+                        if (uploaderId) {
+                            window.location.hash = `${window.location.hash.slice(1).split("_")[0]}_${uploaderId}`;
+                        } else {
+                            window.location.hash = window.location.hash.slice(1).split("_")[0];
+                        }
+                    }}
+                />}
+            </>
+        }
 
         <Divider />
 
@@ -268,7 +297,7 @@ export default function Uploaders() {
             These uploaders are officially maintained by MagicCap:
         </h3>
 
-        {promiseState === "resolved" && <UploaderList
+        {uploadersPromiseState === "resolved" && <UploaderList
             uploaders={uploaders} setUploaderId={uploaderId => {
                 setUploaderId(uploaderId);
 
