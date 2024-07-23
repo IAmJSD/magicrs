@@ -19,6 +19,7 @@ import NumberInput from "../atoms/config/NumberInput";
 import Custom from "../atoms/config/Custom";
 import Embedded from "../atoms/config/Embedded";
 import Description from "../atoms/Description";
+import CustomUploaderButtons from "../molecules/CustomUploaderButtons";
 
 type UploaderProps = {
     uploader: Uploader;
@@ -157,6 +158,10 @@ function Uploader({ uploader, uploaderId, custom }: UploaderProps) {
         });
     }, [uploaderId]);
 
+    const deleteUploader = useCallback(() => {
+        // TODO: Implement this.
+    }, [uploaderId]);
+
     return <Container>
         <Header
             title={uploader.name}
@@ -183,7 +188,7 @@ function Uploader({ uploader, uploaderId, custom }: UploaderProps) {
                     </Button>
                 </div>
 
-                <div className="flex-col">
+                <div className="flex-col mr-2">
                     <Button
                         color="secondary"
                         onClick={defaultCb}
@@ -191,6 +196,17 @@ function Uploader({ uploader, uploaderId, custom }: UploaderProps) {
                         Set as Default Uploader
                     </Button>
                 </div>
+
+                {
+                    custom && <div className="flex-col">
+                        <Button
+                            color="danger"
+                            onClick={deleteUploader}
+                        >
+                            Delete Uploader
+                        </Button>
+                    </div>
+                }
             </div>
         </>}
     </Container>;
@@ -220,7 +236,8 @@ function UploaderList({ uploaders, setUploaderId }: UploaderListProps) {
 export default function Uploaders() {
     const [uploaderId, setUploaderId] = useAtom(uploaderIdAtom);
     const [uploaders, uploadersPromiseState] = usePromise(getUploaders, []);
-    const [customUploaders, customUploadersPromiseState] = usePromise(getCustomUploaders, []);
+    const [revision, setRevision] = useState(0);
+    const [customUploaders, customUploadersPromiseState] = usePromise(getCustomUploaders, [revision]);
 
     // Check if the hash explicitly contains an uploader ID.
     useEffect(() => {
@@ -284,6 +301,9 @@ export default function Uploaders() {
                         }
                     }}
                 />}
+                <div className="mt-4">
+                    <CustomUploaderButtons revise={() => setRevision((v) => v + 1)} />
+                </div>
             </>
         }
 
