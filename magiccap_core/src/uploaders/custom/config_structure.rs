@@ -132,7 +132,7 @@ impl IntoUploader for PHPUploaderConfig {
 
 // Defines the enum for the handler types.
 #[derive(Deserialize, Serialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
+#[serde(tag = "type", rename_all = "lowercase")]
 pub enum CustomUploaderHandler {
     HTTP(HTTPUploaderConfig),
     PHP(PHPUploaderConfig),
@@ -151,10 +151,11 @@ impl IntoUploader for CustomUploaderHandler {
     }
 }
 
-// Currently the only version is 1.
+// Currently the only version is V1.
 #[derive(Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum UploaderVersions {
-    V1 = 1,
+    V1,
 }
 
 // Defines the main custom uploader struct.

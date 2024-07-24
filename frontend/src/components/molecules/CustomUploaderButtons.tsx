@@ -13,7 +13,7 @@ function ReplaceUploaderModal(
         </p>
         <div className="flex mt-4">
             <Button
-                color="default"
+                color="primary"
                 onClick={onReplace}
             >
                 Replace Uploader

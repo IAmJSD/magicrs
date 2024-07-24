@@ -7,7 +7,7 @@ import Header from "../atoms/Header";
 import { uploaderIdAtom } from "../../atoms";
 import {
     Uploader, ConfigOption, getUploaderConfigOptions, getUploaders, testUploader,
-    setConfigOption, getCustomUploaders,
+    setConfigOption, getCustomUploaders, deleteCustomUploader,
 } from "../../bridge/api";
 import Checkbox from "../atoms/config/Checkbox";
 import Divider from "../atoms/Divider";
@@ -119,7 +119,7 @@ function UploaderOptions({ uploader, uploaderId, config }: UploaderOptionsProps)
     });
 }
 
-function Uploader({ uploader, uploaderId, custom }: UploaderProps) {
+function Uploader({ uploader, uploaderId, custom, reload }: UploaderProps & { reload: () => void }) {
     const [config, promiseState] = usePromise(
         () => getUploaderConfigOptions(uploaderId), [uploaderId],
     );
@@ -159,7 +159,12 @@ function Uploader({ uploader, uploaderId, custom }: UploaderProps) {
     }, [uploaderId]);
 
     const deleteUploader = useCallback(() => {
-        // TODO: Implement this.
+        deleteCustomUploader(uploaderId).catch(e => {
+            setAlert({
+                type: "error",
+                message: e.message,
+            });
+        }).then(reload);
     }, [uploaderId]);
 
     return <Container>
@@ -245,17 +250,23 @@ export default function Uploaders() {
         if (chunk) setUploaderId(chunk[1]);
     }, []);
 
+    // Reloads the menu with a new reision and no uploader ID.
+    const reload = useCallback(() => {
+        setRevision((v) => v + 1);
+        setUploaderId(null);
+    }, []);
+
     if (uploaderId) {
         // Handle the odd case where the uploaders promise is not done.
         if (uploadersPromiseState !== "resolved" || customUploadersPromiseState !== "resolved") return <></>;
 
         // Try official uploaders first.
         let uploader = uploaders[uploaderId];
-        if (uploader) return <Uploader uploaderId={uploaderId} uploader={uploader} custom={false} />;
+        if (uploader) return <Uploader uploaderId={uploaderId} uploader={uploader} custom={false} reload={reload} />;
 
         // Now try custom uploaders.
         uploader = customUploaders[uploaderId];
-        if (uploader) return <Uploader uploaderId={uploaderId} uploader={uploader} custom={true} />;
+        if (uploader) return <Uploader uploaderId={uploaderId} uploader={uploader} custom={true} reload={reload} />;
     }
 
     // Make sure no custom uploaders that are official are included.

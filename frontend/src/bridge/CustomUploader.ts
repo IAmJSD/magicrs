@@ -71,7 +71,7 @@ export type CustomUploaderHandler = {
 };
 
 export type CustomUploader = {
-    version: 1;
+    version: "v1";
     id: string;
     name: string;
     description: string;

@@ -103,9 +103,23 @@ pub static UPLOADERS: Lazy<HashMap<String, Uploader>> = Lazy::new(|| {
     uploaders
 });
 
-// Defines all of the leaked uploaders. This is honestly fine since the user won't be flooding
-// this with custom uploaders.
+// Defines all of the leaked uploaders. This is honestly fine since the user won't be flooding this with custom uploaders.
 pub static LEAKED_UPLOADERS: Lazy<RwLock<HashMap<String, &'static Uploader>>> = Lazy::new(|| Default::default());
+
+// Check if the uploader is a cache hit.
+fn uploader_cache_hit(hash: &str) -> Option<&'static Uploader> {
+    let leaked_uploaders = LEAKED_UPLOADERS.read().unwrap();
+    let res = leaked_uploaders.get(hash).copied();
+    drop(leaked_uploaders);
+    res
+}
+
+// Set the hash in the uploader cache.
+fn uploader_cache_set(hash: String, uploader: &'static Uploader) {
+    let mut leaked_uploaders = LEAKED_UPLOADERS.write().unwrap();
+    leaked_uploaders.insert(hash, uploader);
+    drop(leaked_uploaders);
+}
 
 // Get the uploader by ID.
 pub fn get_uploader(uploader_id: &str) -> Option<&'static Uploader> {
@@ -130,31 +144,33 @@ pub fn get_uploader(uploader_id: &str) -> Option<&'static Uploader> {
         serde_json::to_string(&h).unwrap().as_bytes()
     );
 
-    // Check if the uploader is leaked. If so, use the leaked uploader.
-    let locker = LEAKED_UPLOADERS.read().unwrap();
-    if locker.contains_key(&hash) {
-        return locker.get(&hash).copied();
+    // Check if the uploader is a cache hit.
+    if let Some(uploader) = uploader_cache_hit(&hash) {
+        return Some(uploader);
     }
 
-    // Parse the custom uploader.
+    // Deserialize the custom uploader.
     let custom_uploader: custom::CustomUploader = match serde_json::from_value(custom_uploader) {
         Ok(v) => v,
         Err(_) => return None,
     };
 
-    // Return the custom uploader.
-    let func = custom_uploader.handler.into_uploader(uploader_id.to_string());
+    // Create the uploader.
+    let handler_func = custom_uploader.handler.into_uploader(uploader_id.to_string());
     let uploader = Uploader {
-        name: custom_uploader.name,
+        name: uploader_id.to_string(),
         description: custom_uploader.description,
         icon_path: custom_uploader.encoded_icon,
         options: custom_uploader.config.into_inner(),
-        upload: func,
+        upload: Box::new(handler_func),
     };
-    let mut locker = LEAKED_UPLOADERS.write().unwrap();
-    let leak = Box::leak(Box::new(uploader));
-    locker.insert(hash.clone(), leak);
-    Some(leak)
+
+    // Leak the memory and insert into the cache.
+    let uploader_mem_leak = Box::leak(Box::new(uploader));
+    uploader_cache_set(hash.clone(), uploader_mem_leak);
+
+    // Return the uploader.
+    Some(uploader_mem_leak)
 }
 
 // Gets all the custom uploaders loaded into MagicCap.

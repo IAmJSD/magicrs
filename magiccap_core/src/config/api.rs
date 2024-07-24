@@ -458,10 +458,10 @@ fn get_custom_uploaders() -> Result<serde_json::Value, APIError> {
 // Inserts a custom uploader.
 fn insert_custom_uploader(query: &serde_json::Value) -> Option<APIError> {
     // Get the uploader and attempt to deserialize it.
-    let uploader: crate::uploaders::custom::CustomUploader = match serde_json::from_value(query.clone()) {
+    let uploader: crate::uploaders::custom::CustomUploader = match serde_json::from_value(query["uploader"].clone()) {
         Ok(v) => v,
-        Err(_) => return Some(APIError {
-            message: "The uploader is not valid.".to_string(),
+        Err(e) => return Some(APIError {
+            message: format!("The uploader is not valid: {}", e),
             user_facing: true,
         }),
     };
