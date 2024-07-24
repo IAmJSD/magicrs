@@ -245,7 +245,25 @@ fn setup_php(path: PathBuf, artifact: &'static ArtifactInfo, message: &'static s
 
     // Check the integrity of PHP.
     match check_php_integrity(&path) {
-        Ok(Ok(s)) => Ok(s.to_str().unwrap().to_string()),
+        Ok(Ok(s)) => {
+            // Mark the PHP binary as executable.
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let mut perms = match std::fs::metadata(&s) {
+                    Ok(p) => p.permissions(),
+                    Err(e) => return Err(e.to_string()),
+                };
+                perms.set_mode(0o755);
+                match std::fs::set_permissions(&s, perms) {
+                    Ok(_) => (),
+                    Err(e) => return Err(e.to_string()),
+                };
+            }
+
+            // Return the path to the PHP binary.
+            Ok(s.to_str().unwrap().to_string())
+        },
         Ok(Err(_)) => Err("The downloaded PHP binary fails integrity checks".to_string()),
         Err(e) => Err(e),
     }
