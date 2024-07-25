@@ -10,9 +10,10 @@ const styles = {
 type Props = PropsWithChildren<{
     color?: keyof typeof styles;
     onClick: () => void;
+    disabled?: boolean;
 }>;
 
-export default function Button({ children, color, onClick }: Props) {
+export default function Button({ children, color, disabled, onClick }: Props) {
     color = color || "default";
 
     return <form onSubmit={e => {
@@ -20,8 +21,9 @@ export default function Button({ children, color, onClick }: Props) {
         onClick();
     }}>
         <button
-            className={`block p-2 rounded-lg cursor-default ${styles[color]}`}
+            className={`block p-2 rounded-lg cursor-default disabled:cursor-not-allowed disabled:opacity-50 ${styles[color]}`}
             type="submit"
+            disabled={disabled}
         >
             {children}
         </button>
