@@ -162,7 +162,7 @@ export default function BasicMetadata({ setNextStep, config }: BuilderProps) {
         />
 
         <MetadataText
-            validator={z.string().min(1).max(64).regex(/^[a-zA-Z0-9_ ]+$/, "Name must be alphanumeric, spaces, and underscores only")}
+            validator={z.string().min(2).max(64).regex(/^[a-zA-Z0-9_][a-zA-Z0-9_ ]+$/, "Name must be alphanumeric, spaces, and underscores only")}
             setOk={setNameOk}
             configKey="name"
             config={config}
