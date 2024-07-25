@@ -6,6 +6,7 @@ dev-preinit:
 	make generate-license-file
 	cd frontend && npm ci && npm run build
 	cd build/download-models && npm ci && node .
+	rustup toolchain install nightly
 
 update-php:
 	cd build/update-php && npm ci && node .
@@ -15,7 +16,7 @@ linux-dev:
 	mkdir -p frontend/dist
 
 	# Build core_embedded as a debug build.
-	cd core_embedded && cargo build
+	cd core_embedded && RUSTFLAGS="-Z threads=$(shell nproc)" cargo +nightly build
 
 	# Load foreman.
 	foreman start -f Procfile.linux-dev
@@ -25,7 +26,7 @@ macos-dev:
 	mkdir -p frontend/dist
 
 	# Build core_embedded as a debug build.
-	cd core_embedded && cargo build
+	cd core_embedded && RUSTFLAGS="-Z threads=$(shell nproc)" cargo +nightly build
 
 	# rm -rf MagicCap Dev.app in case it exists.
 	rm -rf macos/MagicCap\ Dev.app

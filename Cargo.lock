@@ -725,7 +725,7 @@ dependencies = [
 [[package]]
 name = "axohtml"
 version = "0.5.0"
-source = "git+https://github.com/IAmJSD/axohtml#bfba72684bc5e9be8cc45fe6b96804eed059fdba"
+source = "git+https://github.com/IAmJSD/axohtml#4b853930a84a3484706820998e44d810d719cda5"
 dependencies = [
  "axohtml-macros",
  "htmlescape",
@@ -739,7 +739,7 @@ dependencies = [
 [[package]]
 name = "axohtml-macros"
 version = "0.5.0"
-source = "git+https://github.com/IAmJSD/axohtml#bfba72684bc5e9be8cc45fe6b96804eed059fdba"
+source = "git+https://github.com/IAmJSD/axohtml#4b853930a84a3484706820998e44d810d719cda5"
 dependencies = [
  "console",
  "lalrpop",
