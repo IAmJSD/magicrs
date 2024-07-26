@@ -11,17 +11,18 @@ type Props = PropsWithChildren<{
     color?: keyof typeof styles;
     onClick: () => void;
     disabled?: boolean;
+    fullHeight?: boolean;
 }>;
 
-export default function Button({ children, color, disabled, onClick }: Props) {
+export default function Button({ children, color, disabled, onClick, fullHeight }: Props) {
     color = color || "default";
 
-    return <form onSubmit={e => {
+    return <form className={fullHeight && "h-full"} onSubmit={e => {
         e.preventDefault();
         onClick();
     }}>
         <button
-            className={`block p-2 rounded-lg cursor-default disabled:cursor-not-allowed disabled:opacity-50 ${styles[color]}`}
+            className={`block p-2 rounded-lg ${fullHeight && "h-full"} cursor-default disabled:cursor-not-allowed disabled:opacity-50 ${styles[color]}`}
             type="submit"
             disabled={disabled}
         >

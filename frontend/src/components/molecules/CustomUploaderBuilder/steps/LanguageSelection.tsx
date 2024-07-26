@@ -32,7 +32,7 @@ function PHPDescription() {
             PHP Extension
         </p>
         <p>
-            PHP extensions can do more with uploads than using HTTP or can do very advanced upload logic. However, this will prompt the user to install PHP on their server.
+            PHP extensions can do more with uploads than using HTTP or can do very advanced upload logic. However, this will prompt the user to install PHP on their client.
         </p>
     </div>;
 }
@@ -48,6 +48,7 @@ export default function LanguageSelection({ setNextStep }: BuilderProps) {
                     <Button
                         color="primary"
                         onClick={() => setNextStep(0)}
+                        fullHeight={true}
                     >
                         <HTTPDescription />
                     </Button>
@@ -57,6 +58,7 @@ export default function LanguageSelection({ setNextStep }: BuilderProps) {
                     <Button
                         color="primary"
                         onClick={() => setNextStep(1)}
+                        fullHeight={true}
                     >
                         <PHPDescription />
                     </Button>
