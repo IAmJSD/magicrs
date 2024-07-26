@@ -1,3 +1,4 @@
+import { ClipLoader } from "react-spinners";
 import useDarkMode from "../../hooks/useDarkMode";
 import usePromise from "../../hooks/usePromise";
 import { loader, Editor as editorComponent } from "@monaco-editor/react";
@@ -22,7 +23,7 @@ export default function CodeEditor({ language, value, onChange, height, width }:
         },
     ), []);
 
-    if (promiseState !== "resolved") return <></>;
+    if (promiseState !== "resolved") return <ClipLoader color={darkMode ? "white" : "black"} size={100} />;
     return <Editor
         height={height}
         width={width}

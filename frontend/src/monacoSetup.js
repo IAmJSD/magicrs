@@ -1,6 +1,6 @@
 import * as monacoImport from "monaco-editor";
-import { initialize as tsWorker } from "monaco-editor/esm/vs/language/typescript/ts.worker?worker";
-import { initialize as editorWorker } from "monaco-editor/esm/vs/editor/editor.worker?worker";
+import tsWorker from "monaco-editor/esm/vs/language/typescript/ts.worker?worker";
+import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 
 self.MonacoEnvironment = {
     getWorker(_, label) {

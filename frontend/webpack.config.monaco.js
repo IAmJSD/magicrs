@@ -6,13 +6,24 @@ module.exports = {
     mode: "production",
 	output: {
 		path: path.resolve(__dirname, "public", "monaco"),
-		filename: "monacoSetup.mjs",
+		filename: (pathData) => {
+			return pathData.chunk.name === "main" ? "monacoSetup.mjs" : "monacoSetup.[hash].mjs";
+		},
         publicPath: "/monaco",
 	},
     cache: true,
 	devtool: false,
 	module: {
 		rules: [
+			{
+				loader: "webpack-query-loader",
+				options: {
+					resourceQuery: "worker",
+					use: {
+						loader: "worker-rspack-loader",
+					},
+				},
+			},
 			{
 				test: /\.css$/,
 				use: ["style-loader", "css-loader"],
