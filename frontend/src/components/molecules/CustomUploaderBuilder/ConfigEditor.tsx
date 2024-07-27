@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, type FC } from "react";
 import { AllOptionsExceptEmbedded } from "../../../bridge/CustomUploader";
 import Button from "../../atoms/Button";
 
@@ -39,17 +39,46 @@ function ConfigID({ item, validate }: RowProps) {
     </form>;
 }
 
+function BooleanRow({ item, validate }: RowProps) {
+    // TODO
+    return <></>;
+}
+
+const selectOpts: [string, FC<RowProps>][] = [
+    ["Boolean", BooleanRow],
+];
+
 function ConfigMetadata({ item, validate }: RowProps) {
+    const [Component, setLoadedComponent] = useState<FC<RowProps> | null>(null);
+
+    const onSelectUpdate = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+        const value = e.target.value;
+        const component = selectOpts.find(([key]) => key === value);
+        if (component) {
+            setLoadedComponent(component[1]);
+            item[1] = null;
+            validate();
+        }
+    }, [item, validate]);
+
     return <>
-        <td className="p-1">
-            hello
+        <td className="p-1 w-[12vw]">
+            <select
+                onChange={onSelectUpdate}
+                className="w-full rounded-lg dark:text-black"
+                defaultValue="Select a type..."
+            >
+                <option value="" disabled>Select a type...</option>
+                {selectOpts.map(([key]) => <option key={key} value={key}>{key}</option>)}
+            </select>
         </td>
+        {Component && <Component item={item} validate={validate} />}
     </>;
 }
 
 function ConfigRow({ item, validate }: RowProps) {
     return <tr>
-        <td className="p-1 max-w-[12vw]">
+        <td className="p-1 w-[12vw]">
             <ConfigID item={item} validate={validate} />
         </td>
         <ConfigMetadata item={item} validate={validate} />
@@ -95,9 +124,8 @@ export default function ConfigEditor(props: Props) {
                 <tr>
                     <th className="p-1">ID</th>
                     <th className="p-1">Type</th>
-                    <th className="p-1">Value</th>
-                    <th className="p-1">Default</th>
                     <th className="p-1">Required</th>
+                    <th className="p-1">Value</th>
                 </tr>
             </thead>
 
