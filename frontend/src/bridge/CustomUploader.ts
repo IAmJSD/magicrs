@@ -27,7 +27,6 @@ export type AllOptionsExceptEmbedded = ({
     name: string;
     description: string;
     default: boolean | null;
-    required: boolean;
 } | {
     option_type: "custom";
     name: string;

@@ -1,6 +1,7 @@
 import { useCallback, useState, type FC } from "react";
 import { AllOptionsExceptEmbedded } from "../../../bridge/CustomUploader";
 import Button from "../../atoms/Button";
+import selectOpts from "./option_types";
 
 function useConfigState<T>(config: any, key: string, defaultValue: T): [T, (value: T) => void] {
     if (!config[key]) config[key] = defaultValue;
@@ -14,7 +15,7 @@ function useConfigState<T>(config: any, key: string, defaultValue: T): [T, (valu
 
 type ConfigOptions = [string, AllOptionsExceptEmbedded | null][];
 
-type RowProps = {
+export type RowProps = {
     item: ConfigOptions[number];
     validate: () => void;
 };
@@ -39,15 +40,6 @@ function ConfigID({ item, validate }: RowProps) {
     </form>;
 }
 
-function BooleanRow({ item, validate }: RowProps) {
-    // TODO
-    return <></>;
-}
-
-const selectOpts: [string, FC<RowProps>][] = [
-    ["Boolean", BooleanRow],
-];
-
 function ConfigMetadata({ item, validate }: RowProps) {
     const [Component, setLoadedComponent] = useState<FC<RowProps> | null>(null);
 
@@ -55,7 +47,7 @@ function ConfigMetadata({ item, validate }: RowProps) {
         const value = e.target.value;
         const component = selectOpts.find(([key]) => key === value);
         if (component) {
-            setLoadedComponent(component[1]);
+            setLoadedComponent(component[2]);
             item[1] = null;
             validate();
         }
@@ -66,22 +58,35 @@ function ConfigMetadata({ item, validate }: RowProps) {
             <select
                 onChange={onSelectUpdate}
                 className="w-full rounded-lg dark:text-black"
-                defaultValue="Select a type..."
+                defaultValue={item[1] ? item[1].option_type : "Select a type..."}
             >
-                <option value="" disabled>Select a type...</option>
-                {selectOpts.map(([key]) => <option key={key} value={key}>{key}</option>)}
+                <option value="Select a type..." disabled>Select a type...</option>
+                {selectOpts.map(([key, val]) => <option key={key} value={key}>{val}</option>)}
             </select>
         </td>
-        {Component && <Component item={item} validate={validate} />}
+        {Component ? <Component item={item} validate={validate} /> : <>
+            <td></td>
+            <td></td>
+        </>}
     </>;
 }
 
-function ConfigRow({ item, validate }: RowProps) {
+function ConfigRow({ item, validate, drop }: RowProps & { drop: () => void }) {
     return <tr>
         <td className="p-1 w-[12vw]">
             <ConfigID item={item} validate={validate} />
         </td>
         <ConfigMetadata item={item} validate={validate} />
+        <td className="p-1">
+            <Button
+                color="danger"
+                onClick={drop}
+            >
+                <span aria-label="Remove">
+                    <i className="fas fa-trash" />
+                </span>
+            </Button>
+        </td>
     </tr>;
 }
 
@@ -111,11 +116,18 @@ export default function ConfigEditor(props: Props) {
                 }
             }
         }
-    }, [options]);
+        props.setOk(true);
+    }, [options, props.setOk]);
 
     const rows = options.map((a, i) => {
         const reactKey = `config-${i}-${JSON.stringify(a)}`;
-        return <ConfigRow key={reactKey} item={a} validate={validate} />;
+        return <ConfigRow
+            key={reactKey} item={a} validate={validate}
+            drop={() => {
+                setOptions(options.filter((_, j) => j !== i));
+                validate();
+            }}
+        />;
     });
 
     return <>
@@ -126,6 +138,7 @@ export default function ConfigEditor(props: Props) {
                     <th className="p-1">Type</th>
                     <th className="p-1">Required</th>
                     <th className="p-1">Value</th>
+                    <th></th>
                 </tr>
             </thead>
 
@@ -134,14 +147,16 @@ export default function ConfigEditor(props: Props) {
             </tbody>
         </table>
 
-        <Button
-            color="primary"
-            onClick={() => {
-                setOptions([...options, ["", null]]);
-                props.setOk(false);
-            }}
-        >
-            Add Option
-        </Button>
+        <div className="ml-1">
+            <Button
+                color="primary"
+                onClick={() => {
+                    setOptions([...options, ["", null]]);
+                    props.setOk(false);
+                }}
+            >
+                Add Option
+            </Button>
+        </div>
     </>;
 }

@@ -45,7 +45,6 @@ pub enum ConfigOption {
         name: String,
         description: String,
         default: Option<bool>,
-        required: bool,
     },
     Embedded {
         name: String,
@@ -67,7 +66,7 @@ impl ConfigOption {
             ConfigOption::String { required, .. } => *required,
             ConfigOption::LongString { required, .. } => *required,
             ConfigOption::Number { required, .. } => *required,
-            ConfigOption::Boolean { required, .. } => *required,
+            ConfigOption::Boolean { .. } => false,
             ConfigOption::Embedded { required, .. } => *required,
             ConfigOption::Custom { required, .. } => *required,
         }

@@ -30,7 +30,12 @@ export default function PHPSetup({ setNextStep, config }: BuilderProps) {
     const finalize = () => setNextStep(0);
 
     return <>    
-        <div className="flex">
+        <p>
+            Use this editor to build your uploader with PHP. The left is the code editor for your PHP logic, and the right
+            is the configuration editor for your uploader.
+        </p>
+
+        <div className="flex my-4">
             <div className="flex-col mr-1">
                 <PHPCode config={config} />
             </div>
@@ -41,14 +46,12 @@ export default function PHPSetup({ setNextStep, config }: BuilderProps) {
             </div>
         </div>
 
-        <div className="mt-4">
-            <Button
-                color="primary"
-                onClick={finalize}
-                disabled={!ok}
-            >
-                Finish
-            </Button>
-        </div>
+        <Button
+            color="primary"
+            onClick={finalize}
+            disabled={!ok}
+        >
+            Finish
+        </Button>
     </>;
 }

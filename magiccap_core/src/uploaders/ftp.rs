@@ -142,7 +142,6 @@ pub fn ftp_support() -> Uploader {
                     name: "SSL Enabled".to_string(),
                     description: "Whether to use SSL for the connection.".to_string(),
                     default: None,
-                    required: false,
                 },
             ),
             (
