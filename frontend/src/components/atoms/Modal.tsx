@@ -8,6 +8,7 @@ type Props = PropsWithChildren<{
 }>;
 
 function ModalPortal({ children, title, onClose }: Props) {
+    const focusEl = (el: HTMLElement | null) => void setTimeout(() => el?.focus(), 0);
     return <dialog ref={el => void el?.showModal()} className="fixed inset-0 z-50" onClick={onClose}>
         <div className="fixed inset-0 bg-black bg-opacity-50" />
         <div className="fixed inset-0 flex items-center justify-center">
@@ -31,7 +32,9 @@ function ModalPortal({ children, title, onClose }: Props) {
                     </div>
                 </div>
 
-                {children}
+                <span ref={el => focusEl(el?.querySelector("button, a, input, textarea"))}>
+                    {children}
+                </span>
             </div>
         </div>
     </dialog>;
