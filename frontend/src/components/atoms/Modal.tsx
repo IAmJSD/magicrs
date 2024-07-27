@@ -9,16 +9,7 @@ type Props = PropsWithChildren<{
 }>;
 
 function ModalPortal({ children, title, onClose }: Props) {
-    const ref = React.useRef<HTMLDialogElement>(null);
-
-    React.useEffect(() => {
-        const dialog = ref.current;
-        if (!dialog) return;
-
-        dialog.showModal();
-    }, [ref, onClose]);
-
-    return <dialog ref={ref} className="fixed inset-0 z-50" onClick={onClose}>
+    return <dialog ref={el => void el?.showModal()} className="fixed inset-0 z-50" onClick={onClose}>
         <div className="fixed inset-0 bg-black bg-opacity-50" />
         <div className="fixed inset-0 flex items-center justify-center">
             <div
