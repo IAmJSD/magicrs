@@ -1,4 +1,5 @@
 import type { PropsWithChildren } from "react";
+import React from "react";
 import ReactDOM from "react-dom";
 
 type Props = PropsWithChildren<{
@@ -8,7 +9,16 @@ type Props = PropsWithChildren<{
 }>;
 
 function ModalPortal({ children, title, onClose }: Props) {
-    return <dialog open className="fixed inset-0 z-50" onClick={onClose}>
+    const ref = React.useRef<HTMLDialogElement>(null);
+
+    React.useEffect(() => {
+        const dialog = ref.current;
+        if (!dialog) return;
+
+        dialog.showModal();
+    }, [ref, onClose]);
+
+    return <dialog ref={ref} className="fixed inset-0 z-50" onClick={onClose}>
         <div className="fixed inset-0 bg-black bg-opacity-50" />
         <div className="fixed inset-0 flex items-center justify-center">
             <div
