@@ -6,7 +6,7 @@ import Container from "../atoms/Container";
 import Header from "../atoms/Header";
 import { uploaderIdAtom } from "../../atoms";
 import {
-    Uploader, ConfigOption, getUploaderConfigOptions, getUploaders, testUploader,
+    Uploader as UploaderType, ConfigOption, getUploaderConfigOptions, getUploaders, testUploader,
     setConfigOption, getCustomUploaders, deleteCustomUploader,
 } from "../../bridge/api";
 import Checkbox from "../atoms/config/Checkbox";
@@ -22,7 +22,7 @@ import Description from "../atoms/Description";
 import CustomUploaderButtons from "../molecules/CustomUploaderButtons";
 
 type UploaderProps = {
-    uploader: Uploader;
+    uploader: UploaderType;
     uploaderId: string;
     custom: boolean;
 };
@@ -218,7 +218,7 @@ function Uploader({ uploader, uploaderId, custom, reload }: UploaderProps & { re
 }
 
 type UploaderListProps = {
-    uploaders: { [id: string]: Uploader };
+    uploaders: { [id: string]: UploaderType };
     setUploaderId: (id: string | null) => void;
 };
 
