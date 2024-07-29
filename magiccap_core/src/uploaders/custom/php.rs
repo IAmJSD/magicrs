@@ -216,6 +216,7 @@ pub fn php(
     let content_folder = temp_folder.join("content");
     let data_folder = content_folder.join("data");
     let screenshot_path = content_folder.join(filename);
+    let config_json = content_folder.join("config.json");
 
     // Execute the PHP script and get the output.
     let output = std::process::Command::new(php_path)
@@ -224,6 +225,7 @@ pub fn php(
         .arg(php_script)
         .env("DATA_DIR", data_folder)
         .env("SCREENSHOT_PATH", screenshot_path)
+        .env("CONFIG_JSON_PATH", config_json)
         .output();
 
     // In all cases, do the cleanup.

@@ -106,7 +106,7 @@ function ObjectBuilderRow<T>({
             <form autoComplete="off" onSubmit={e => e.preventDefault()}>
                 <input
                     type="text"
-                    placeholder="ID"
+                    placeholder="Key"
                     value={id}
                     onChange={editKey}
                     className="w-full rounded-lg p-[5px] dark:bg-slate-900 bg-slate-50"
