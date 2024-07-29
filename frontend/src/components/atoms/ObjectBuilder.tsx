@@ -115,7 +115,7 @@ function ObjectBuilderRow<T>({
         </td>
         {
             columns.map((key, i) => {
-                const [,, Component] = componentsWithIrrelevantBitNoRealloc.find(
+                const [, , Component] = componentsWithIrrelevantBitNoRealloc.find(
                     ([, k]) => k === key,
                 ) || [0, "", (() => <td></td>)];
                 return <td key={i} className="p-1">
@@ -140,6 +140,7 @@ type Destruct = () => void;
 type RecheckOkState = () => void;
 export type InnerProps<T> = {
     value: T;
+    rewriteValue: (value: T) => void;
     onColumnsEdit: () => void;
     deleteRow: () => void;
     addOkCallback: (cb: () => boolean) => readonly [Destruct, RecheckOkState];
@@ -148,7 +149,7 @@ export type InnerProps<T> = {
 export function useValueOkHandler(
     defaultOk: boolean, addOkCallback: (cb: () => boolean) => readonly [Destruct, RecheckOkState],
 ) {
-    const ref = useRef<[() => void, boolean]>([() => {}, defaultOk]);
+    const ref = useRef<[() => void, boolean]>([() => { }, defaultOk]);
 
     useEffect(() => {
         const [destruct, recheck] = addOkCallback(() => ref.current[1]);
@@ -211,6 +212,7 @@ export function ObjectBuilder<T>({ obj, setOk, newInstance, componentsBuilder }:
                     <Component
                         key={`${i}-${weight}`}
                         value={value}
+                        rewriteValue={v => obj.set(key, v)}
                         onColumnsEdit={changePtr}
                         deleteRow={() => deleteItem(i)}
                         addOkCallback={cb => {
@@ -283,4 +285,15 @@ export function ObjectBuilder<T>({ obj, setOk, newInstance, componentsBuilder }:
             Add Row
         </Button>
     </>;
+}
+
+export function valueInitiallyOk<T>(Component: FC<InnerProps<T>>) {
+    return (props: InnerProps<T>) => {
+        useEffect(() => {
+            const [destruct, recheck] = props.addOkCallback(() => true);
+            recheck();
+            destruct();
+        }, [props.addOkCallback]);
+        return <Component {...props} />;
+    };
 }

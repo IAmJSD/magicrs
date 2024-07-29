@@ -36,36 +36,40 @@ export type AllOptionsExceptEmbedded = ({
 
 export type FormDataEntryKey = string;
 
+export type Rewrite = {
+    type: "Filename" | "MIME";
+} | {
+    type: "Config" | "Static";
+    value: string;
+};
+
+export type HTTPBody = { type: "Raw" } | {
+    type: "URLEncoded";
+    content: [
+        { [key: string]: string },
+        {
+            name: string;
+            encoding_type: "hex" | "b64url" | "664";
+        },
+    ],
+} | {
+    type: "Multipart";
+    content: [
+        { [key: string]: string },
+        FormDataEntryKey,
+    ];
+};
+
 export type CustomUploaderHandler = {
     type: "php";
     code: string;
 } | {
     type: "http";
-    rewrites: {
-        type: "Filename" | "MIME";
-    } | {
-        type: "Config" | "Static";
-        value: string;
-    };
+    rewrites: { [key: string]: Rewrite };
     url_template: string;
     method: "GET" | "POST" | "PUT" | "PATCH";
-    header_templates: {[key: string]: string};
-    body: {type: "Raw"} | {
-        type: "URLEncoded";
-        content: [
-            {[key: string]: string},
-            {
-                name: string;
-                encoding_type: "hex" | "b64url" | "664";
-            },
-        ],
-    } | {
-        type: "Multipart";
-        content: [
-            {[key: string]: string},
-            FormDataEntryKey,
-        ];
-    };
+    header_templates: { [key: string]: string };
+    body: HTTPBody;
     response_expr: string;
 };
 
