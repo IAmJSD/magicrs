@@ -151,6 +151,7 @@ function wrapNumberHandler(key: "default" | "min" | "max") {
                             setVal(Number(e.target.value));
                             value[key] = Number(e.target.value);
                         }}
+                        className="w-full rounded-lg p-[5px] dark:bg-slate-900 bg-slate-50"
                     />
                 }
             </div>
