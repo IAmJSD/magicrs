@@ -35,7 +35,7 @@ async function getJson(r: string) {
 }
 
 // Defines the base requestor.
-async function baseRequestor(type: string, params?: {[key: string]: any}) {
+async function baseRequestor(type: string, params?: { [key: string]: any }) {
     params = params || {};
     params["_t"] = type;
     return getJson(
@@ -99,7 +99,7 @@ export async function deleteUploaderConfigOption(uploaderId: string, key: string
 }
 
 // Gets a uploaders configuration items.
-export async function getUploaderConfigOptions(uploaderId: string): Promise<{[key: string]: any}> {
+export async function getUploaderConfigOptions(uploaderId: string): Promise<{ [key: string]: any }> {
     return baseRequestor("get_uploader_config_options", { uploaderId });
 }
 
@@ -131,12 +131,12 @@ export type Uploader = {
 };
 
 // Gets the uploaders.
-export async function getUploaders(): Promise<{[id: string]: Uploader}> {
+export async function getUploaders(): Promise<{ [id: string]: Uploader }> {
     return baseRequestor("get_uploaders");
 }
 
 // Gets any custom uploaders.
-export async function getCustomUploaders(): Promise<{[id: string]: Uploader}> {
+export async function getCustomUploaders(): Promise<{ [id: string]: Uploader }> {
     return baseRequestor("get_custom_uploaders");
 }
 
@@ -181,4 +181,9 @@ export async function stopHotkeyCapture() {
 // Allows you to test a uploaders configuration.
 export async function testUploader(id: string) {
     await baseRequestor("test_uploader", { id });
+}
+
+// Open a save dialog.
+export async function saveDialog(data: string, name: string) {
+    await baseRequestor("save_dialog", { data, name });
 }
