@@ -3,5 +3,6 @@ target
 /macos/MagicCap Dev.app
 .DS_Store
 rust_licenses.json
+rust_licenses.compressed.json
 dist
 node_modules/

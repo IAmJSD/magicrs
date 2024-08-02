@@ -1,6 +1,7 @@
 generate-license-file:
 	cargo install cargo-bundle-licenses
 	cargo bundle-licenses --format json --output rust_licenses.json
+	node ./build/compressRustLicenses.js
 
 dev-preinit:
 	make generate-license-file

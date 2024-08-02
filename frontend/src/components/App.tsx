@@ -86,7 +86,7 @@ export default function App() {
 
     return <CrashHandler>
         <div className="h-screen w-screen relative">
-            <div className="w-full overflow-y-scroll" style={{ height: "calc(100% - 3.5rem)" }}>
+            <div className="w-full overflow-y-scroll" style={{ maxHeight: "calc(100% - 3.5rem)" }}>
                 <PanelLoader panelIndex={panelIndex} />
             </div>
             <div className="absolute bottom-0 w-full h-14">

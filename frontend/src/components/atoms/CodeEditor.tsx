@@ -8,7 +8,7 @@ type Props = {
     height: string;
     width: string;
     value: string;
-    onChange: (value: string) => void;
+    onChange?: (value: string) => void;
 };
 
 export default function CodeEditor({ language, value, onChange, height, width }: Props) {
@@ -30,6 +30,7 @@ export default function CodeEditor({ language, value, onChange, height, width }:
         language={language}
         value={value}
         onChange={onChange}
+        options={{ readOnly: !onChange }}
         theme={darkMode ? "vs-dark" : "light"}
     />;
 }

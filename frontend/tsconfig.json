@@ -4,6 +4,10 @@
         "jsx": "react-jsx",
         "esModuleInterop": true,
         "downlevelIteration": true,
-        "lib": ["DOM", "ES2020"]
+        "resolveJsonModule": true,
+        "lib": [
+            "DOM",
+            "ES2020"
+        ]
     }
 }
