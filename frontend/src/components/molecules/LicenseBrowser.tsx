@@ -7,9 +7,10 @@ type SearchProps = {
     setQuery: (query: string) => void;
     libsAndVersions: { index: number; name: string; version: string }[];
     itemSelected: (index: number) => void;
+    editorId: string;
 };
 
-function Search({ query, setQuery, libsAndVersions, itemSelected }: SearchProps) {
+function Search({ query, setQuery, libsAndVersions, itemSelected, editorId }: SearchProps) {
     const [libsAndVersionsIndex, setLibsAndVersionsIndex] = React.useState(0);
 
     return <div className="mr-4">
@@ -24,23 +25,24 @@ function Search({ query, setQuery, libsAndVersions, itemSelected }: SearchProps)
                     }}
                     placeholder="Search..."
                     className="justify-center w-full mx-[2px] my-2 dark:bg-zinc-800 bg-slate-50 p-1 rounded-lg"
+                    aria-controls={editorId}
                 />
             </div>
         </div>
         <div className="flex flex-col">
             {libsAndVersions.map((lib, i) => {
-                return <div
+                return <button
                     key={i}
-                    className={`p-2 cursor-pointer ${libsAndVersionsIndex === i ? "bg-gray-200 dark:bg-blue-700" : ""}`}
+                    className={`p-2 text-left cursor-pointer mx-[4px] ${libsAndVersionsIndex === i ? "bg-gray-200 dark:bg-blue-700" : ""}`}
                     onClick={() => {
                         setLibsAndVersionsIndex(i);
                         itemSelected(lib.index);
                     }}
-                    tabIndex={0}
+                    aria-controls={editorId}
                 >
                     <div className="font-bold">{lib.name}</div>
                     {lib.version}
-                </div>;
+                </button>;
             })}
         </div>
     </div>;
@@ -80,6 +82,7 @@ export default function LicenseBrowser({ licenses }: Props) {
         setText(license.text);
     }, [libsAndVersions]);
 
+    const editorId = React.useId();
     return <div className="flex">
         <div className="flex flex-col w-1/3">
             <div className="block overflow-y-scroll h-[70vh]">
@@ -88,7 +91,7 @@ export default function LicenseBrowser({ licenses }: Props) {
                     itemSelected={i => {
                         const license = "get" in licenses ? licenses.get(i) : licenses[i];
                         setText(license.text);
-                    }}
+                    }} editorId={editorId}
                 />
             </div>
         </div>
@@ -98,6 +101,7 @@ export default function LicenseBrowser({ licenses }: Props) {
                 height="100%"
                 width="100%"
                 language="plaintext"
+                id={editorId}
             />
         </div>
     </div>;

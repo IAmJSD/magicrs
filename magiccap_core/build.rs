@@ -8,9 +8,7 @@ fn os_specific_compilation() {
     println!("cargo:rustc-link-lib=framework=UserNotifications");
 
     // Compile the macOS Objective-C file.
-    cc::Build::new()
-        .file("src/macos/macos.m")
-        .compile("macos");
+    cc::Build::new().file("src/macos/macos.m").compile("macos");
 }
 
 #[cfg(target_os = "linux")]
@@ -33,4 +31,28 @@ fn os_specific_compilation() {}
 fn main() {
     // Handle OS-specific compilation.
     os_specific_compilation();
+
+    // Get the build timestamp.
+    let build_timestamp = chrono::Utc::now().timestamp();
+    println!("cargo:rustc-env=BUILD_TIMESTAMP={}", build_timestamp);
+
+    // Get the Git commit hash and branch.
+    let git_hash = std::process::Command::new("git")
+        .args(&["rev-parse", "--short", "HEAD"])
+        .output()
+        .expect("Failed to get Git commit hash.")
+        .stdout;
+    let git_branch = std::process::Command::new("git")
+        .args(&["rev-parse", "--abbrev-ref", "HEAD"])
+        .output()
+        .expect("Failed to get Git branch.")
+        .stdout;
+    println!(
+        "cargo:rustc-env=GIT_HASH={}",
+        String::from_utf8(git_hash).unwrap()
+    );
+    println!(
+        "cargo:rustc-env=GIT_BRANCH={}",
+        String::from_utf8(git_branch).unwrap()
+    );
 }

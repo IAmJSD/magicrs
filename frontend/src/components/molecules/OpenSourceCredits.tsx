@@ -75,9 +75,9 @@ export default function OpenSourceCredits() {
             <div className="max-w-4xl">
                 <CreditModal />
             </div>
-        </Modal >
+        </Modal>
         <Button
-            color="primary"
+            color="default"
             onClick={() => setOpen(!open)}
         >
             Open Source Credits

@@ -5,7 +5,7 @@ import Description from "../Description";
 type Props = {
     uploader?: {
         id: string;
-        items: {[key: string]: any};
+        items: { [key: string]: any };
     };
     dbKey: string;
     label: string;

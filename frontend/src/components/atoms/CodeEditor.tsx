@@ -9,9 +9,10 @@ type Props = {
     width: string;
     value: string;
     onChange?: (value: string) => void;
+    id?: string;
 };
 
-export default function CodeEditor({ language, value, onChange, height, width }: Props) {
+export default function CodeEditor({ language, value, onChange, height, width, id }: Props) {
     const darkMode = useDarkMode();
 
     // Monaco is HUGE. Only load it when we need it.
@@ -32,5 +33,6 @@ export default function CodeEditor({ language, value, onChange, height, width }:
         onChange={onChange}
         options={{ readOnly: !onChange }}
         theme={darkMode ? "vs-dark" : "light"}
+        wrapperProps={id ? { id } : undefined}
     />;
 }

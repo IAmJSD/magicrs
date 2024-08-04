@@ -230,6 +230,7 @@ fn query_find<'q>(query: &'q serde_json::Value, key: &str) -> Option<&'q str> {
 // Sets a configuration option.
 fn set_config_option(query: &serde_json::Value) -> Option<APIError> {
     // TODO: reload things here!
+    // TODO: handle autoupdate and startup options.
 
     let key = match query_find(query, "key") {
         Some(key) => key,
@@ -492,6 +493,45 @@ fn get_custom_uploaders() -> Result<serde_json::Value, APIError> {
     )))
 }
 
+// Get the build date.
+fn build_date() -> String {
+    let build_timestamp = env!("BUILD_TIMESTAMP");
+    let build_timestamp = build_timestamp.parse::<i64>().unwrap();
+    let build_date = chrono::DateTime::from_timestamp(build_timestamp, 0);
+    build_date
+        .unwrap()
+        .naive_utc()
+        .format("%Y-%m-%d %H:%M:%S UTC")
+        .to_string()
+}
+
+// Gets build information from the internal data.
+fn get_build_info(key: Option<&str>) -> Result<serde_json::Value, APIError> {
+    let key = match key {
+        Some(key) => key,
+        None => {
+            return Err(APIError {
+                message: "key is required.".to_string(),
+                user_facing: true,
+            })
+        }
+    };
+
+    match key {
+        "autoupdate_compiled" => Ok(serde_json::Value::Bool(
+            std::env::var("MAGICCAP_INTERNAL_STARTED_WITH_BOOTLOADER").unwrap_or("0".to_string())
+                == "1".to_string(),
+        )),
+        "build_hash" => Ok(serde_json::Value::String(env!("GIT_HASH").to_string())),
+        "build_branch" => Ok(serde_json::Value::String(env!("GIT_BRANCH").to_string())),
+        "build_date" => Ok(serde_json::Value::String(build_date())),
+        _ => Err(APIError {
+            message: "The key is not valid.".to_string(),
+            user_facing: true,
+        }),
+    }
+}
+
 // Inserts a custom uploader.
 fn insert_custom_uploader(query: &serde_json::Value) -> Option<APIError> {
     // Get the uploader and attempt to deserialize it.
@@ -701,6 +741,9 @@ fn route_api_call(
 
         // Gets all the custom uploaders.
         "get_custom_uploaders" => get_custom_uploaders(),
+
+        // Gets build information from the internal data.
+        "get_build_info" => get_build_info(query_find(query, "key")),
 
         // Inserts a custom uploader.
         "insert_custom_uploader" => err_only(insert_custom_uploader(query)),

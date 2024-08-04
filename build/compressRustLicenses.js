@@ -10,6 +10,7 @@ const licenseMap = new Map();
 for (const lib of third_party_libraries) {
     const license = lib.licenses[0];
     if (!license) continue;
+    if (license.text === "NOT FOUND") continue;
     const index = licenseMap.get(license.text);
     if (index === undefined) {
         const nextIndex = newLicensesArr.length;

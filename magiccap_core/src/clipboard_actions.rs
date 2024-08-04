@@ -1,16 +1,18 @@
+use crate::{database, notification};
 use copypasta::{ClipboardContext, ClipboardProvider};
 use serde_json::Value;
-use crate::{database, notification};
 
 pub struct CaptureFile {
     pub file_name: String,
     pub content: Vec<u8>,
 }
 
-static DEFAULT: &str = "url";
+static DEFAULT: &str = "content";
 
 pub fn handle_clipboard_action(
-    file_path: Option<&str>, url: Option<&str>, content: Option<CaptureFile>,
+    file_path: Option<&str>,
+    url: Option<&str>,
+    content: Option<CaptureFile>,
 ) {
     // Figure out the clipboard action.
     let value_scratch: Value;
@@ -25,9 +27,9 @@ pub fn handle_clipboard_action(
                         "The clipboard action is not a string. Please file a bug report!",
                     );
                     return;
-                },
+                }
             }
-        },
+        }
         None => DEFAULT,
     };
     match action {
@@ -37,14 +39,14 @@ pub fn handle_clipboard_action(
                 ctx.set_contents(url.to_string()).unwrap();
                 return;
             }
-        },
+        }
         "file_path" => {
             if let Some(file_path) = file_path {
                 let mut ctx = ClipboardContext::new().unwrap();
                 ctx.set_contents(file_path.to_string()).unwrap();
                 return;
             }
-        },
+        }
         "content" => (),
 
         "none" => return,
@@ -64,7 +66,7 @@ pub fn handle_clipboard_action(
                 Some(fp) => {
                     fp_cstr = CString::new(fp).unwrap();
                     fp_cstr.as_ptr()
-                },
+                }
                 None => std::ptr::null(),
             };
 
@@ -72,8 +74,10 @@ pub fn handle_clipboard_action(
             let data_len = content.content.len();
 
             copy_file_to_clipboard(
-                fp_ptr, filename_cstr.as_ptr(),
-                content.content.as_ptr(), data_len as usize,
+                fp_ptr,
+                filename_cstr.as_ptr(),
+                content.content.as_ptr(),
+                data_len as usize,
             );
             drop(fp_cstr);
             drop(filename_cstr);

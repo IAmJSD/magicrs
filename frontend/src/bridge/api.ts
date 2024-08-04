@@ -187,3 +187,8 @@ export async function testUploader(id: string) {
 export async function saveDialog(data: string, name: string) {
     await baseRequestor("save_dialog", { data, name });
 }
+
+// Gets the build information from the internal data.
+export async function getBuildInfo(key: string) {
+    return baseRequestor("get_build_info", { key });
+}

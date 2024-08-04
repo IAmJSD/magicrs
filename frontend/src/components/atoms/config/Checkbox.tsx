@@ -4,11 +4,12 @@ import { getConfigOption, setConfigOption, setUploaderConfigOption } from "../..
 type Props = {
     uploader?: {
         id: string;
-        items: {[key: string]: any};
+        items: { [key: string]: any };
     };
     defaultValue: boolean;
     dbKey: string;
     label: string;
+    ariaLabelledBy?: string;
 };
 
 export default function Checkbox({ uploader, defaultValue, dbKey, label }: Props) {
@@ -52,6 +53,7 @@ export default function Checkbox({ uploader, defaultValue, dbKey, label }: Props
                 checked={checked}
                 onChange={e => cb(e.target.checked)}
                 id={id}
+                aria-labelledby={label}
             />
 
             {label}
