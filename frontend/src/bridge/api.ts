@@ -188,6 +188,26 @@ export async function saveDialog(data: string, name: string) {
     await baseRequestor("save_dialog", { data, name });
 }
 
+// Wipes the search index.
+export async function wipeSearchIndex() {
+    await baseRequestor("wipe_search_index");
+}
+
+// Wipes the entire configuration.
+export async function wipeConfig() {
+    await baseRequestor("wipe_config");
+}
+
+// Loads the configuration from the disk.
+export async function loadConfig() {
+    await baseRequestor("load_config");
+}
+
+// Saves the configuration to the disk.
+export async function saveConfig() {
+    await baseRequestor("save_config");
+}
+
 // Gets the build information from the internal data.
 export async function getBuildInfo(key: string) {
     return baseRequestor("get_build_info", { key });

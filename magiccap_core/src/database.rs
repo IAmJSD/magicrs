@@ -1,6 +1,6 @@
-use std::{borrow::Borrow, collections::HashMap, sync::RwLock};
-use sqlite::{ConnectionThreadSafe, State};
 use crate::{config, search_indexing, statics::CONFIG_FOLDER};
+use sqlite::{ConnectionThreadSafe, State};
+use std::{borrow::Borrow, collections::HashMap, sync::RwLock};
 
 // Defines the database connection.
 static DATABASE: RwLock<Option<ConnectionThreadSafe>> = RwLock::new(None);
@@ -28,7 +28,7 @@ pub fn get_uploader_config_items(uploader_id: &str) -> HashMap<String, serde_jso
             Ok(value) => {
                 config_items.insert(name, value);
             }
-            Err(_) => {},
+            Err(_) => {}
         }
     }
 
@@ -55,6 +55,8 @@ pub fn set_uploader_config_item(uploader_id: &str, name: &str, value: &serde_jso
 
     // Execute the statement.
     stmt.next().unwrap();
+
+    // TODO: call any update hooks
 }
 
 // Deletes a configuration option for an uploader.
@@ -74,6 +76,8 @@ pub fn delete_uploader_config_item(uploader_id: &str, name: &str) {
 
     // Execute the statement.
     stmt.next().unwrap();
+
+    // TODO: call any update hooks
 }
 
 // Gets a configuration option.
@@ -119,6 +123,8 @@ pub fn set_config_option(name: &str, value: &serde_json::Value) {
 
     // Execute the statement.
     stmt.next().unwrap();
+
+    // TODO: call any update hooks
 }
 
 // Deletes a configuration option.
@@ -137,6 +143,8 @@ pub fn delete_config_option(name: &str) {
 
     // Execute the statement.
     stmt.next().unwrap();
+
+    // TODO: call any update hooks
 }
 
 pub struct Capture {
@@ -168,7 +176,9 @@ pub fn get_capture(id: i64) -> Option<Capture> {
 
     // Prepare the statement.
     let mut stmt = database
-        .prepare("SELECT id, created_at, success, filename, file_path, url FROM captures WHERE id = ?")
+        .prepare(
+            "SELECT id, created_at, success, filename, file_path, url FROM captures WHERE id = ?",
+        )
         .unwrap();
 
     // Execute the statement.
@@ -193,8 +203,15 @@ pub fn get_many_captures(capture_ids: Vec<i64>) -> Vec<Capture> {
     let database = database_opt.borrow().as_ref().unwrap();
 
     // Defines the query. This is safe because the ID's are all numbers.
-    let ids = capture_ids.iter().map(|id| id.to_string()).collect::<Vec<String>>().join(", ");
-    let query = format!("SELECT id, created_at, success, filename, file_path, url FROM captures WHERE id IN ({})", ids);
+    let ids = capture_ids
+        .iter()
+        .map(|id| id.to_string())
+        .collect::<Vec<String>>()
+        .join(", ");
+    let query = format!(
+        "SELECT id, created_at, success, filename, file_path, url FROM captures WHERE id IN ({})",
+        ids
+    );
 
     // Execute the statement.
     let mut stmt = database.prepare(query).unwrap();
@@ -236,7 +253,9 @@ pub fn insert_failed_capture(filename: &str, file_path: Option<&str>) {
 
     // Prepare the statement.
     let mut stmt = database
-        .prepare("INSERT INTO captures (success, filename, file_path) VALUES (0, ?, ?) RETURNING id")
+        .prepare(
+            "INSERT INTO captures (success, filename, file_path) VALUES (0, ?, ?) RETURNING id",
+        )
         .unwrap();
 
     // Create the binds.
@@ -251,7 +270,11 @@ pub fn insert_failed_capture(filename: &str, file_path: Option<&str>) {
 }
 
 // Inserts a successful capture into the database.
-pub fn insert_successful_capture(filename: &str, file_path: Option<&str>, url: Option<&str>) -> i64 {
+pub fn insert_successful_capture(
+    filename: &str,
+    file_path: Option<&str>,
+    url: Option<&str>,
+) -> i64 {
     // Acquire the database lock.
     let database_opt = DATABASE.read().unwrap();
     let database = database_opt.borrow().as_ref().unwrap();
@@ -335,9 +358,8 @@ pub fn connect() {
     let mut database = DATABASE.write().unwrap();
 
     // Set the database to the connection.
-    *database = Some(sqlite::Connection::open_thread_safe(
-        CONFIG_FOLDER.join("database.db"),
-    ).unwrap());
+    *database =
+        Some(sqlite::Connection::open_thread_safe(CONFIG_FOLDER.join("database.db")).unwrap());
 
     // Drop the database lock.
     drop(database);
@@ -353,4 +375,21 @@ pub fn disconnect() {
 
     // Set the database to none.
     *database = None;
+}
+
+// Wipe everything inside the database.
+pub fn wipe_all() {
+    // Acquire the database lock.
+    let database_opt = DATABASE.read().unwrap();
+    let database = database_opt.borrow().as_ref().unwrap();
+
+    // Run the statements.
+    let stmts = "
+        DELETE FROM uploader_config_items;
+        DELETE FROM config;
+        DELETE FROM captures;
+    ";
+    database.execute(stmts).unwrap();
+
+    // TODO: call any update hooks
 }

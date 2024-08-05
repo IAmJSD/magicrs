@@ -689,6 +689,31 @@ fn save_dialog(query: &serde_json::Value) -> Option<APIError> {
     None
 }
 
+// Wipes the search index.
+fn wipe_search_index() -> Option<APIError> {
+    crate::search_indexing::wipe_index();
+    None
+}
+
+// Wipes the entire configuration.
+fn wipe_config() -> Option<APIError> {
+    crate::search_indexing::wipe_index();
+    crate::database::wipe_all();
+    None
+}
+
+// Saves the configuration.
+fn save_config() -> Option<APIError> {
+    // TODO
+    None
+}
+
+// Loads the configuration.
+fn load_config() -> Option<APIError> {
+    // TODO
+    None
+}
+
 // Routes the API call to the correct function.
 fn route_api_call(
     api_type: &str,
@@ -762,6 +787,18 @@ fn route_api_call(
 
         // Opens a save dialog.
         "save_dialog" => err_only(save_dialog(query)),
+
+        // Wipes the search index.
+        "wipe_search_index" => err_only(wipe_search_index()),
+
+        // Wipes the entire configuration.
+        "wipe_config" => err_only(wipe_config()),
+
+        // Saves the configuration.
+        "save_config" => err_only(save_config()),
+
+        // Loads the configuration.
+        "load_config" => err_only(load_config()),
 
         // Catch all unknown API types.
         _ => Err(APIError {

@@ -1,7 +1,10 @@
-use std::sync::Mutex;
-use once_cell::sync::Lazy;
-use tantivy::{schema::{self, Value}, Index, IndexWriter, TantivyDocument, Term};
 use crate::statics::CONFIG_FOLDER;
+use once_cell::sync::Lazy;
+use std::sync::Mutex;
+use tantivy::{
+    schema::{self, Value},
+    Index, IndexWriter, TantivyDocument, Term,
+};
 
 // Defines the schema for the index.
 static SCHEMA: Lazy<schema::Schema> = Lazy::new(|| {
@@ -74,9 +77,10 @@ pub fn remove_capture(capture_id: i64) {
         Some(writer) => writer,
         None => return,
     };
-    writer_ref.delete_term(
-        Term::from_field_i64(SCHEMA.get_field("capture_id").unwrap(),
-        capture_id));
+    writer_ref.delete_term(Term::from_field_i64(
+        SCHEMA.get_field("capture_id").unwrap(),
+        capture_id,
+    ));
     writer_ref.commit().unwrap();
 }
 
@@ -88,18 +92,42 @@ pub fn search_index(query: &str) -> Vec<i64> {
     };
     let reader = index.reader().unwrap();
     let searcher = reader.searcher();
-    let query_parser = tantivy::query::QueryParser::for_index(&index, vec![
-        SCHEMA.get_field("filename").unwrap(), SCHEMA.get_field("text").unwrap(),
-        SCHEMA.get_field("window_names_space_joined").unwrap(),
-    ]);
+    let query_parser = tantivy::query::QueryParser::for_index(
+        &index,
+        vec![
+            SCHEMA.get_field("filename").unwrap(),
+            SCHEMA.get_field("text").unwrap(),
+            SCHEMA.get_field("window_names_space_joined").unwrap(),
+        ],
+    );
     let query = match query_parser.parse_query(query) {
         Ok(query) => query,
         Err(_) => return Vec::new(),
     };
-    let top_docs = searcher.search(&query, &tantivy::collector::TopDocs::with_limit(10)).unwrap();
-    top_docs.into_iter().map(|(_, doc_address)| {
-        let retrieved_doc: TantivyDocument = searcher.doc(doc_address).unwrap();
-        let capture_id = retrieved_doc.get_first(SCHEMA.get_field("capture_id").unwrap()).unwrap().as_i64().unwrap();
-        capture_id
-    }).collect()
+    let top_docs = searcher
+        .search(&query, &tantivy::collector::TopDocs::with_limit(10))
+        .unwrap();
+    top_docs
+        .into_iter()
+        .map(|(_, doc_address)| {
+            let retrieved_doc: TantivyDocument = searcher.doc(doc_address).unwrap();
+            let capture_id = retrieved_doc
+                .get_first(SCHEMA.get_field("capture_id").unwrap())
+                .unwrap()
+                .as_i64()
+                .unwrap();
+            capture_id
+        })
+        .collect()
+}
+
+// Wipes the index clean.
+pub fn wipe_index() {
+    let mut guard = INDEX_WRITER.lock().unwrap();
+    let writer_ref = match guard.as_mut() {
+        Some(writer) => writer,
+        None => return,
+    };
+    writer_ref.delete_all_documents().unwrap();
+    writer_ref.commit().unwrap();
 }
