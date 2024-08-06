@@ -6,6 +6,7 @@ mod clipboard_actions;
 mod config;
 mod data_dump;
 mod database;
+mod database_hooks;
 mod mainthread;
 mod notification;
 mod ocr;

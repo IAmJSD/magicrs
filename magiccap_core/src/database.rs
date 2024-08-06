@@ -1,4 +1,9 @@
-use crate::{config, search_indexing, statics::CONFIG_FOLDER};
+use crate::{
+    config,
+    database_hooks::{on_bulk_changes, on_delete, on_set, on_uploader_edit},
+    search_indexing,
+    statics::CONFIG_FOLDER,
+};
 use sqlite::{ConnectionThreadSafe, State};
 use std::{borrow::Borrow, collections::HashMap, sync::RwLock};
 
@@ -88,7 +93,8 @@ pub fn set_uploader_config_item(uploader_id: &str, name: &str, value: &serde_jso
     // Execute the statement.
     stmt.next().unwrap();
 
-    // TODO: call any update hooks
+    // Call the set hook.
+    on_uploader_edit(uploader_id);
 }
 
 // Deletes a configuration option for an uploader.
@@ -109,7 +115,8 @@ pub fn delete_uploader_config_item(uploader_id: &str, name: &str) {
     // Execute the statement.
     stmt.next().unwrap();
 
-    // TODO: call any update hooks
+    // Call the set hook.
+    on_uploader_edit(uploader_id);
 }
 
 // Gets a configuration option.
@@ -182,7 +189,8 @@ pub fn set_config_option(name: &str, value: &serde_json::Value) {
     // Execute the statement.
     stmt.next().unwrap();
 
-    // TODO: call any update hooks
+    // Call any update hooks.
+    on_set(name, value);
 }
 
 // Deletes a configuration option.
@@ -202,7 +210,8 @@ pub fn delete_config_option(name: &str) {
     // Execute the statement.
     stmt.next().unwrap();
 
-    // TODO: call any update hooks
+    // Call any delete hooks.
+    on_delete(name);
 }
 
 pub struct Capture {
@@ -449,7 +458,8 @@ pub fn wipe_all() {
     ";
     database.execute(stmts).unwrap();
 
-    // TODO: call any update hooks
+    // Handle the bulk changes.
+    on_bulk_changes();
 }
 
 // Rewrite the database.
@@ -507,5 +517,6 @@ pub fn rewrite(
         stmt.next().unwrap();
     }
 
-    // TODO: call any update hooks
+    // Call any bulk update hooks.
+    on_bulk_changes();
 }
