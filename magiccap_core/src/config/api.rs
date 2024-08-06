@@ -1,4 +1,7 @@
-use crate::{database, mainthread::main_thread_async};
+use crate::{
+    database,
+    mainthread::{main_thread_async, main_thread_sync},
+};
 use serde::Serialize;
 
 // Defines an API error.
@@ -704,13 +707,57 @@ fn wipe_config() -> Option<APIError> {
 
 // Saves the configuration.
 fn save_config() -> Option<APIError> {
-    // TODO
+    let fp = main_thread_sync(|| {
+        let res = native_dialog::FileDialog::new()
+            .add_filter("MagicCap Data Dump", &["mdump"])
+            .show_save_single_file();
+        match res {
+            Ok(Some(path)) => Some(path),
+            Ok(None) => None,
+            Err(e) => {
+                eprintln!("Failed to open save dialog: {}", e);
+                None
+            }
+        }
+    });
+
+    if let Some(fp) = fp {
+        if let Some(err) = crate::data_dump::dump_data(fp.to_str().unwrap().to_string()) {
+            return Some(APIError {
+                message: err,
+                user_facing: true,
+            });
+        }
+    }
+
     None
 }
 
 // Loads the configuration.
 fn load_config() -> Option<APIError> {
-    // TODO
+    let fp = main_thread_sync(|| {
+        let res = native_dialog::FileDialog::new()
+            .add_filter("MagicCap Data Dump", &["mdump"])
+            .show_open_single_file();
+        match res {
+            Ok(Some(path)) => Some(path),
+            Ok(None) => None,
+            Err(e) => {
+                eprintln!("Failed to open save dialog: {}", e);
+                None
+            }
+        }
+    });
+
+    if let Some(fp) = fp {
+        if let Some(err) = crate::data_dump::load_data(fp.to_str().unwrap().to_string()) {
+            return Some(APIError {
+                message: err,
+                user_facing: true,
+            });
+        }
+    }
+
     None
 }
 

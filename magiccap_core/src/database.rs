@@ -36,6 +36,38 @@ pub fn get_uploader_config_items(uploader_id: &str) -> HashMap<String, serde_jso
     config_items
 }
 
+// Get all the configuration options for uploaders.
+pub fn get_all_uploaders_config_options() -> HashMap<String, HashMap<String, serde_json::Value>> {
+    // Acquire the database lock.
+    let database_opt = DATABASE.read().unwrap();
+    let database = database_opt.borrow().as_ref().unwrap();
+
+    // Prepare the statement.
+    let mut stmt = database
+        .prepare("SELECT uploader_id, name, value FROM uploader_config_items")
+        .unwrap();
+
+    // Execute the statement.
+    let mut uploaders_config = HashMap::new();
+    while let Ok(State::Row) = stmt.next() {
+        let uploader_id = stmt.read::<String, _>("uploader_id").unwrap();
+        let name = stmt.read::<String, _>("name").unwrap();
+        let value = stmt.read::<String, _>("value").unwrap();
+        match serde_json::from_str(&value) {
+            Ok(value) => {
+                let uploader = uploaders_config
+                    .entry(uploader_id)
+                    .or_insert(HashMap::new());
+                uploader.insert(name, value);
+            }
+            Err(_) => {}
+        }
+    }
+
+    // Return the uploaders config.
+    uploaders_config
+}
+
 // Sets a configuration option for an uploader.
 pub fn set_uploader_config_item(uploader_id: &str, name: &str, value: &serde_json::Value) {
     // Acquire the database lock.
@@ -103,6 +135,32 @@ pub fn get_config_option(name: &str) -> Option<serde_json::Value> {
 
     // Return none.
     None
+}
+
+// Gets all the configuration options.
+pub fn get_all_config_options() -> HashMap<String, serde_json::Value> {
+    // Acquire the database lock.
+    let database_opt = DATABASE.read().unwrap();
+    let database = database_opt.borrow().as_ref().unwrap();
+
+    // Prepare the statement.
+    let mut stmt = database.prepare("SELECT name, value FROM config").unwrap();
+
+    // Create the config items.
+    let mut config_items = HashMap::new();
+    while let Ok(State::Row) = stmt.next() {
+        let name = stmt.read::<String, _>("name").unwrap();
+        let value = stmt.read::<String, _>("value").unwrap();
+        match serde_json::from_str(&value) {
+            Ok(value) => {
+                config_items.insert(name, value);
+            }
+            Err(_) => {}
+        }
+    }
+
+    // Return the config items.
+    config_items
 }
 
 // Sets a configuration option.
@@ -390,6 +448,64 @@ pub fn wipe_all() {
         DELETE FROM captures;
     ";
     database.execute(stmts).unwrap();
+
+    // TODO: call any update hooks
+}
+
+// Rewrite the database.
+pub fn rewrite(
+    config_items: HashMap<String, serde_json::Value>,
+    uploader_config_items: HashMap<String, HashMap<String, serde_json::Value>>,
+    captures: Vec<Capture>,
+) {
+    // Acquire the database lock.
+    let database_opt = DATABASE.read().unwrap();
+    let database = database_opt.borrow().as_ref().unwrap();
+
+    // Run the delete statements.
+    let stmts = "
+        DELETE FROM uploader_config_items;
+        DELETE FROM config;
+        DELETE FROM captures;
+    ";
+    database.execute(stmts).unwrap();
+
+    // Run the insert statements.
+    for (name, value) in config_items {
+        let mut stmt = database
+            .prepare("INSERT INTO config (name, value) VALUES (?, ?)")
+            .unwrap();
+        stmt.bind((1, name.as_str())).unwrap();
+        let v = value.to_string();
+        stmt.bind((2, v.as_str())).unwrap();
+        stmt.next().unwrap();
+    }
+    for (uploader_id, items) in uploader_config_items {
+        for (name, value) in items {
+            let mut stmt = database
+                .prepare(
+                    "INSERT INTO uploader_config_items (uploader_id, name, value) VALUES (?, ?, ?)",
+                )
+                .unwrap();
+            stmt.bind((1, uploader_id.as_str())).unwrap();
+            stmt.bind((2, name.as_str())).unwrap();
+            let v = value.to_string();
+            stmt.bind((3, v.as_str())).unwrap();
+            stmt.next().unwrap();
+        }
+    }
+    for capture in captures {
+        let mut stmt = database
+            .prepare("INSERT INTO captures (id, created_at, success, filename, file_path, url) VALUES (?, ?, ?, ?, ?, ?)")
+            .unwrap();
+        stmt.bind((1, capture.id)).unwrap();
+        stmt.bind((2, capture.created_at.as_str())).unwrap();
+        stmt.bind((3, capture.success as i64)).unwrap();
+        stmt.bind((4, capture.filename.as_str())).unwrap();
+        stmt.bind((5, capture.file_path.as_deref())).unwrap();
+        stmt.bind((6, capture.url.as_deref())).unwrap();
+        stmt.next().unwrap();
+    }
 
     // TODO: call any update hooks
 }
