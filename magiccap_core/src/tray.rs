@@ -1,25 +1,25 @@
 use crate::clipboard_actions;
+use crate::database;
+use crate::mainthread::main_thread_async;
 use crate::notification;
 use crate::statics::run_thread;
 use crate::uploaders;
-use crate::database;
-use crate::mainthread::main_thread_async;
 
 // TODO: update tray on Linux
 
 // Defines the safe call which is wrapped.
 fn safely_upload(name: &str, path: &str) {
     // Create a reader for the path.
-    let reader: Box<dyn std::io::Read + Send + Sync> = Box::new(
-        std::fs::File::open(path).unwrap()
-    );
+    let reader: Box<dyn std::io::Read + Send + Sync> = Box::new(std::fs::File::open(path).unwrap());
 
     let filename = path.split(path::MAIN_SEPARATOR).last().unwrap();
     match uploaders::call_uploader(&name, reader, filename) {
         Ok(url) => {
             // Write a successful "capture".
             notification::send_notification(
-                "The file was uploaded successfully.", Some(&url), None,
+                "The file was uploaded successfully.",
+                Some(&url),
+                None,
             );
             database::insert_successful_capture(filename, Some(path), Some(&url));
 
@@ -30,14 +30,19 @@ fn safely_upload(name: &str, path: &str) {
             // Write a failed "capture".
             database::insert_failed_capture(filename, Some(path));
             notification::send_dialog_message(&e);
-        },
+        }
     };
 }
 
 // Wraps the safe call to the uploader with a C-compatible function.
 #[no_mangle]
 #[cfg(target_os = "macos")]
-unsafe extern "C" fn call_uploader(name_ptr: *const u8, name_len: usize, path_ptr: *const u8, path_len: usize) {
+unsafe extern "C" fn call_uploader(
+    name_ptr: *const u8,
+    name_len: usize,
+    path_ptr: *const u8,
+    path_len: usize,
+) {
     // Get the name and path.
     let name = std::slice::from_raw_parts(name_ptr, name_len);
     let path = std::slice::from_raw_parts(path_ptr, path_len);
@@ -103,11 +108,11 @@ extern "C" fn capture_type_clicked(type_: c_int) {
 // Defines the function to create the tray on macOS.
 #[cfg(target_os = "macos")]
 fn tray_main_thread() {
-    use std::ffi::CString;
-    use crate::macos_delegate;
     use crate::macos;
-    use objc::{class, runtime::Object, sel, msg_send, sel_impl};
+    use crate::macos_delegate;
+    use objc::{class, msg_send, runtime::Object, sel, sel_impl};
     use objc_id::{Id, ShareId};
+    use std::ffi::CString;
 
     // Get the tray ID.
     let app = macos_delegate::app();
@@ -128,14 +133,15 @@ fn tray_main_thread() {
         Some(option_json) => {
             let cpy = option_json.clone();
             cpy.to_string()
-        },
+        }
 
         // imgur is the default uploader within the application if none is set.
         None => "imgur".to_owned(),
     };
 
     // Create all the uploader items.
-    let mut uploader_items: Vec<macos::UploaderItem> =  Vec::with_capacity(uploaders::UPLOADERS.len());
+    let mut uploader_items: Vec<macos::UploaderItem> =
+        Vec::with_capacity(uploaders::UPLOADERS.len());
     for (id, uploader) in uploaders::UPLOADERS.iter() {
         // Check if this is the default uploader.
         let is_default = id == &default_uploader;
@@ -176,7 +182,10 @@ fn tray_main_thread() {
             type_: 0,
         },
         macos::CaptureType {
-            name: Box::leak(Box::new(std::ffi::CString::new("Fullscreen Capture").unwrap())).as_ptr(),
+            name: Box::leak(Box::new(
+                std::ffi::CString::new("Fullscreen Capture").unwrap(),
+            ))
+            .as_ptr(),
             type_: 1,
         },
         macos::CaptureType {
@@ -188,7 +197,10 @@ fn tray_main_thread() {
             type_: 3,
         },
         macos::CaptureType {
-            name: Box::leak(Box::new(std::ffi::CString::new("Clipboard Capture").unwrap())).as_ptr(),
+            name: Box::leak(Box::new(
+                std::ffi::CString::new("Clipboard Capture").unwrap(),
+            ))
+            .as_ptr(),
             type_: 4,
         },
     ];
@@ -196,9 +208,13 @@ fn tray_main_thread() {
     // Create the tray.
     let tray_id_usize = unsafe {
         macos::create_tray(
-            uploader_items.as_ptr(), uploader_items.len(),
-            capture_items.as_ptr(), capture_items.len(),
-            call_uploader, quit_handler, capture_type_clicked,
+            uploader_items.as_ptr(),
+            uploader_items.len(),
+            capture_items.as_ptr(),
+            capture_items.len(),
+            call_uploader,
+            quit_handler,
+            capture_type_clicked,
             config_open,
         )
     };
@@ -276,7 +292,11 @@ fn do_upload_fp(uploader_id: &str) {
     let file_path = match native_dialog::FileDialog::new().show_open_single_file() {
         Ok(Some(fp)) => fp,
         _ => return,
-    }.as_path().to_str().unwrap().to_string();
+    }
+    .as_path()
+    .to_str()
+    .unwrap()
+    .to_string();
 
     // Run a thread to upload the file.
     let id_cpy = uploader_id.to_string();
@@ -285,30 +305,28 @@ fn do_upload_fp(uploader_id: &str) {
 
 // Creates the menu items on Linux.
 #[cfg(not(target_os = "macos"))]
-fn create_or_update_menu(menu: &mut Box<Menu>) {
+fn create_menu() -> muda::Menu {
     use muda::Submenu;
 
     // Wipe all menu items or make the map they all live in.
-    match unsafe { MENU_ITEM_HANDLERS.as_mut() } {
-        Some(m) => {
-            let len = menu.items().len();
-            for _ in 0..len {
-                menu.remove_at(0);
-            }
-            m.clear();
-        }
+    let menu = match unsafe { MENU_ITEM_HANDLERS.as_mut() } {
+        Some(_) => muda::Menu::new(),
         None => {
             let map = HashMap::new();
-            unsafe { MENU_ITEM_HANDLERS = Some(map); }
+            unsafe {
+                MENU_ITEM_HANDLERS = Some(map);
+            }
+            muda::Menu::new()
         }
-    }
+    };
 
     // Add the uploaders to a submenu.
     let uploaders_menu = Submenu::new("Upload to...", true);
     for (id, uploader) in uploaders::UPLOADERS.iter() {
         // Check if this is the default uploader.
-        let is_default = id == &database::get_config_option("uploader_type").unwrap_or_else(
-            || serde_json::Value::String("imgur".to_owned()));
+        let is_default = id
+            == &database::get_config_option("uploader_type")
+                .unwrap_or_else(|| serde_json::Value::String("imgur".to_owned()));
 
         // Get all of the configuration options for this uploader from the database.
         let db_options = database::get_uploader_config_items(id.as_str());
@@ -325,29 +343,61 @@ fn create_or_update_menu(menu: &mut Box<Menu>) {
         // If all required options are set, add the uploader to the list.
         if all_required_options_set {
             // Get the label for the uploader.
-            let label = format!("Upload to {}{}", uploader.name, if is_default { " (Default)" } else { "" });
+            let label = format!(
+                "Upload to {}{}",
+                uploader.name,
+                if is_default { " (Default)" } else { "" }
+            );
 
             // Create the menu item.
             let id_cpy = id.clone();
-            uploaders_menu.append(
-                menu_item!(label.as_str(), true, Box::new(move || do_upload_fp(id_cpy.as_str()))),
-            ).unwrap();
+            uploaders_menu
+                .append(menu_item!(
+                    label.as_str(),
+                    true,
+                    Box::new(move || do_upload_fp(id_cpy.as_str()))
+                ))
+                .unwrap();
         }
     }
 
     // Add all of the items to the menu.
     menu.append_items(&[
-        menu_item!("Region Capture", true, Box::new(|| run_thread(crate::capture::region_capture))),
-        menu_item!("Fullscreen Capture", true, Box::new(|| run_thread(crate::capture::fullscreen_capture))),
-        menu_item!("GIF Capture", true, Box::new(|| run_thread(crate::capture::gif_capture))),
-        menu_item!("Video Capture", true, Box::new(|| run_thread(crate::capture::video_capture))),
-        menu_item!("Clipboard Capture", true, Box::new(|| run_thread(crate::capture::clipboard_capture))),
+        menu_item!(
+            "Region Capture",
+            true,
+            Box::new(|| run_thread(crate::capture::region_capture))
+        ),
+        menu_item!(
+            "Fullscreen Capture",
+            true,
+            Box::new(|| run_thread(crate::capture::fullscreen_capture))
+        ),
+        menu_item!(
+            "GIF Capture",
+            true,
+            Box::new(|| run_thread(crate::capture::gif_capture))
+        ),
+        menu_item!(
+            "Video Capture",
+            true,
+            Box::new(|| run_thread(crate::capture::video_capture))
+        ),
+        menu_item!(
+            "Clipboard Capture",
+            true,
+            Box::new(|| run_thread(crate::capture::clipboard_capture))
+        ),
         separator!(),
         &uploaders_menu,
         separator!(),
         menu_item!("Captures/Config", true, Box::new(|| config_open())),
         menu_item!("Quit", true, Box::new(|| quit_handler())),
-    ]).unwrap();
+    ])
+    .unwrap();
+
+    // Return the menu.
+    menu
 }
 
 // Defines the tray menu dynamic handler on Linux. This allows it to be upgraded over time without restarting the application.
@@ -382,13 +432,12 @@ pub fn tray_main_thread() {
     event_handler_w.replace(&menu_event);
 
     // Handle fetching the tray icon.
-    let mut write_guard = app().tray_menu.write().unwrap();
+    let mut write_guard = app().tray_icon.write().unwrap();
     match write_guard.as_mut() {
         // Handle the tray already being loaded.
-        Some(menu) => {
-            // We just want to update the menu.
-            create_or_update_menu(menu);
-        },
+        Some(tray) => {
+            tray.set_menu(Some(Box::new(create_menu())));
+        }
 
         // Handle the first load of the application.
         None => {
@@ -399,30 +448,20 @@ pub fn tray_main_thread() {
             TrayIconEvent::set_event_handler(Some(move |_| {}));
 
             // Create the menu since this is first run.
-            let mut menu = Box::new(Menu::new());
-            create_or_update_menu(&mut menu);
-
-            // Chuu chuu! Here comes the language abuse! We need to do this since this is a special deployment
-            // method since this is a library that can be updated, and when it is updated we need to update the
-            // menu.
-            let menu_ref = &mut menu;
-            let menu_ref_cpy = unsafe {
-                std::mem::transmute::<&mut Box<Menu>, &'static mut Box<Menu>>(menu_ref)
-            };
+            let menu = create_menu();
 
             // Create the tray icon since this is the first run. Tell Rust to leak it since even after
             // updates, we do not want to remove it, and we certainly do not want to drop it with the
             // abuse we just did.
-            Box::leak(Box::new(TrayIconBuilder::new()
-                .with_menu(menu)
-                .with_icon(Icon::from_rgba(rgba.to_vec(), rgba.width(), rgba.height()).unwrap())
-                .with_tooltip("MagicCap")
-                .build()
-                .unwrap()));
-
-            // Update the write guard with our abused menu reference.
-            write_guard.replace(menu_ref_cpy);
-        },
+            Box::leak(Box::new(
+                TrayIconBuilder::new()
+                    .with_menu(Box::new(menu))
+                    .with_icon(Icon::from_rgba(rgba.to_vec(), rgba.width(), rgba.height()).unwrap())
+                    .with_tooltip("MagicCap")
+                    .build()
+                    .unwrap(),
+            ));
+        }
     }
 }
 

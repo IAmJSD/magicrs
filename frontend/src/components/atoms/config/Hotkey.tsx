@@ -1,7 +1,10 @@
 import { useAtom } from "jotai";
 import { useCallback, useEffect, useId, useState } from "react";
 import { hotkeyAtom } from "../../../atoms";
-import { getConfigOption, startHotkeyCapture, stopHotkeyCapture } from "../../../bridge/api";
+import {
+    getConfigOption, setConfigOption, startHotkeyCapture,
+    stopHotkeyCapture,
+} from "../../../bridge/api";
 import Description from "../Description";
 import Button from "../Button";
 
@@ -36,6 +39,7 @@ export default function Hotkey({ dbKey, label, description }: Props) {
         startHotkeyCapture(hotkey => {
             setHotkey(hotkey);
             setActiveHotkey(null);
+            setConfigOption(dbKey, hotkey);
         });
 
         // Handle stopping when the component is unmounted if we are capturing.

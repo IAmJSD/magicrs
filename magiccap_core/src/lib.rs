@@ -7,6 +7,7 @@ mod config;
 mod data_dump;
 mod database;
 mod database_hooks;
+mod hotkeys;
 mod mainthread;
 mod notification;
 mod ocr;

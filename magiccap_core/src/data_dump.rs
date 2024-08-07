@@ -62,7 +62,7 @@ pub fn dump_data(fp: String) -> Option<String> {
         app_config,
         uploaders_config,
         user_dir: home::home_dir().unwrap().to_string_lossy().to_string(),
-        is_windows: cfg!(platform_os = "windows"),
+        is_windows: cfg!(target_os = "windows"),
     };
     let header = match serde_json::to_vec(&header) {
         Ok(h) => h,
@@ -173,7 +173,7 @@ fn config2path(config: Option<&str>, header: &DataDumpHeader) -> Option<String> 
             let c = c.replace(header.user_dir.as_str(), &header.user_dir);
 
             // Handle if the path type is different.
-            if cfg!(platform_os = "windows") {
+            if cfg!(target_os = "windows") {
                 if header.is_windows {
                     Some(c)
                 } else {

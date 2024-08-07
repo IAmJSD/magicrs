@@ -1,9 +1,9 @@
-use std::sync::RwLock;
+use crate::{reload, statics::run_thread};
 use muda::MenuEvent;
 use once_cell::sync::OnceCell;
-use webkit2gtk::{URISchemeRequest, WebContext, WebContextExt, WebView};
+use std::sync::RwLock;
 use tray_icon::menu::Menu;
-use crate::{reload, statics::run_thread};
+use webkit2gtk::{URISchemeRequest, WebContext, WebContextExt, WebView};
 
 // Defines a wrapper to fake something being safe to send.
 pub struct FakeSend<T> {
@@ -17,7 +17,7 @@ pub struct SharedApplication {
     pub context: FakeSend<WebContext>,
     pub protocol_handler: Box<RwLock<Option<&'static dyn Fn(&URISchemeRequest)>>>,
     pub webview: RwLock<Option<FakeSend<WebView>>>,
-    pub tray_menu: RwLock<Option<&'static mut Box<Menu>>>,
+    pub tray_icon: RwLock<Option<tray_icon::TrayIcon>>,
     pub menu_event: RwLock<Option<&'static dyn Fn(MenuEvent)>>,
 }
 
@@ -25,7 +25,7 @@ pub struct SharedApplication {
 static mut SHARED_APPLICATION: OnceCell<&'static mut SharedApplication> = OnceCell::new();
 
 // Defines the shared application object.
-pub fn app() -> &'static mut SharedApplication { 
+pub fn app() -> &'static mut SharedApplication {
     unsafe { SHARED_APPLICATION.get_mut().unwrap() }
 }
 
@@ -44,25 +44,35 @@ pub fn application_init() {
 
     // Create the shared application box.
     let leaky_box = Box::leak(Box::new(SharedApplication {
-        context: FakeSend { value: WebContext::default().unwrap() },
+        context: FakeSend {
+            value: WebContext::default().unwrap(),
+        },
         protocol_handler: Box::new(RwLock::new(None)),
         webview: RwLock::new(None),
-        tray_menu: RwLock::new(None),
+        tray_icon: RwLock::new(None),
         menu_event: RwLock::new(None),
     }));
     let ptr = leaky_box as *mut SharedApplication;
-    unsafe { let _ = SHARED_APPLICATION.set(&mut *ptr); }
+    unsafe {
+        let _ = SHARED_APPLICATION.set(&mut *ptr);
+    }
 
     // Set the MAGICCAP_INTERNAL_MEMORY_ADDRESS env var.
-    std::env::set_var("MAGICCAP_INTERNAL_MEMORY_ADDRESS", (ptr as usize).to_string());
+    std::env::set_var(
+        "MAGICCAP_INTERNAL_MEMORY_ADDRESS",
+        (ptr as usize).to_string(),
+    );
 
     // Set the context handler for the webview context.
-    app().context.value.register_uri_scheme("magiccap-internal", |req| {
-        let protocol_handler = app().protocol_handler.read().unwrap().clone();
-        if let Some(hn) = protocol_handler {
-            hn(req);
-        }
-    });
+    app()
+        .context
+        .value
+        .register_uri_scheme("magiccap-internal", |req| {
+            let protocol_handler = app().protocol_handler.read().unwrap().clone();
+            if let Some(hn) = protocol_handler {
+                hn(req);
+            }
+        });
 
     // In a thread, launch the application_reload function. This is because it can cause problems
     // if it blocks the main thread.
@@ -82,14 +92,14 @@ pub fn application_hydrate() {
     }
 
     // Get the MAGICCAP_INTERNAL_MEMORY_ADDRESS env var.
-    let mem_addr = std::env::var("MAGICCAP_INTERNAL_MEMORY_ADDRESS").unwrap()
-        .parse::<usize>().unwrap();
+    let mem_addr = std::env::var("MAGICCAP_INTERNAL_MEMORY_ADDRESS")
+        .unwrap()
+        .parse::<usize>()
+        .unwrap();
 
     // Turn it into a pointer.
     unsafe {
-        let _ = SHARED_APPLICATION.set(
-            (mem_addr as *mut SharedApplication).as_mut().unwrap()
-        );
+        let _ = SHARED_APPLICATION.set((mem_addr as *mut SharedApplication).as_mut().unwrap());
     }
 
     // In a thread, launch the application_reload function. This is because it can cause problems

@@ -1,8 +1,10 @@
 use crate::{
     database,
+    hotkeys::HotkeyCapture,
     mainthread::{main_thread_async, main_thread_sync},
 };
 use serde::Serialize;
+use std::sync::Mutex;
 
 // Defines an API error.
 #[derive(Serialize)]
@@ -232,9 +234,6 @@ fn query_find<'q>(query: &'q serde_json::Value, key: &str) -> Option<&'q str> {
 
 // Sets a configuration option.
 fn set_config_option(query: &serde_json::Value) -> Option<APIError> {
-    // TODO: reload things here!
-    // TODO: handle autoupdate and startup options.
-
     let key = match query_find(query, "key") {
         Some(key) => key,
         None => {
@@ -596,15 +595,20 @@ fn delete_custom_uploader(id: Option<&str>) -> Option<APIError> {
     None
 }
 
+// Defines the global hotkey being captured.
+static GLOBAL_HOTKEY: Mutex<Option<HotkeyCapture>> = Mutex::new(None);
+
 // Starts the hotkey capture.
 fn start_hotkey_capture() -> Option<APIError> {
-    // TODO
+    let mut global_hotkey = GLOBAL_HOTKEY.lock().unwrap();
+    global_hotkey.replace(HotkeyCapture::new());
     None
 }
 
 // Stops the hotkey capture.
 fn stop_hotkey_capture() -> Option<APIError> {
-    // TODO
+    let mut global_hotkey = GLOBAL_HOTKEY.lock().unwrap();
+    global_hotkey.take();
     None
 }
 
