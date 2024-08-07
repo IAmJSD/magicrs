@@ -12,7 +12,7 @@
     self.callback();
 }
 
-- (id)initWithTitle:(NSString *)string 
+- (id)initWithTitle:(NSString *)string
     callback:(void (^)())cb
     keyEquivalent:(NSString *)charCode
 {
@@ -26,8 +26,8 @@
 @end
 
 @implementation MagicCapNotificationDelegate
-- (void)userNotificationCenter:(UNUserNotificationCenter *)_ 
-    didReceiveNotificationResponse:(UNNotificationResponse *)response 
+- (void)userNotificationCenter:(UNUserNotificationCenter *)_
+    didReceiveNotificationResponse:(UNNotificationResponse *)response
     withCompletionHandler:(void (^)(void))completionHandler {
     // Get the action identifier.
     NSString* actionIdentifier = response.actionIdentifier;
@@ -97,14 +97,24 @@ void copy_file_to_clipboard(const char* file_path, const char* filename, uint8_t
         return;
     }
 
-    // Create a temporary file and write the data to it.
-    // TODO
+    // Create a NSURL from the data.
+    NSString* filename_str = [NSString stringWithUTF8String:filename];
+    NSString* temp_dir = NSTemporaryDirectory();
+    NSString* temp_file = [temp_dir stringByAppendingPathComponent:filename_str];
+    [data writeToFile:temp_file atomically:YES];
 
+    // Write the file to the clipboard.
     [
+        [pboard clearContents];
         pboard writeObjects:@[
-            [NSURL fileURLWithPath:[NSString stringWithUTF8String:filename]]
+            [NSURL fileURLWithPath:temp_file]
         ]
     ];
+
+    // Release the strings.
+    [filename_str release];
+    [temp_dir release];
+    [temp_file release];
 }
 
 void send_ok_dialog(const char* message) {

@@ -1,16 +1,22 @@
-use std::{io::Cursor, path::PathBuf};
 use crate::{
-    clipboard_actions::{self, CaptureFile}, database, notification, ocr,
-    region_selector::open_region_selector, search_indexing, statics::run_thread,
-    uploaders, utils::get_filename,
+    clipboard_actions::{self, CaptureFile},
+    database, notification, ocr,
+    region_selector::open_region_selector,
+    search_indexing,
+    statics::run_thread,
+    uploaders,
+    utils::get_filename,
 };
 use image::{DynamicImage, RgbaImage};
+use std::{io::Cursor, path::PathBuf};
 use xcap::{Monitor, Window};
 
 // Handles writing captures to the filesystem, uploading them to the internet, and injecting them into the clipboard.
 // Also handles any errors within the process.
 fn post_capture_flow(
-    ext: &str, notification_content: &str, data: Vec<u8>,
+    ext: &str,
+    notification_content: &str,
+    data: Vec<u8>,
     thread_callback: Option<Box<dyn FnOnce(&str, i64) + Send>>,
 ) {
     // Generate a file name.
@@ -57,7 +63,7 @@ fn post_capture_flow(
 
         // Create the folder if it does not exist.
         match std::fs::create_dir_all(&folder_path) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => {
                 // Log this as a capture failure.
                 database::insert_failed_capture(&filename, None);
@@ -65,7 +71,7 @@ fn post_capture_flow(
                 // Notify the user and stop the flow.
                 notification::send_dialog_message(&format!("Failed to create the folder: {}", e));
                 return;
-            },
+            }
         }
 
         // Get the file path.
@@ -74,26 +80,27 @@ fn post_capture_flow(
 
         // Write the file.
         match std::fs::write(&fp, &data) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => {
                 // Log this as a capture failure.
                 database::insert_failed_capture(&filename, None);
 
                 // Notify the user and stop the flow.
-                notification::send_dialog_message(&format!("Failed to write the file to the filesystem: {}", e));
+                notification::send_dialog_message(&format!(
+                    "Failed to write the file to the filesystem: {}",
+                    e
+                ));
                 return;
-            },
+            }
         }
         fp_result = fp.to_str().unwrap().to_string();
     }
 
     // Get the uploader type.
     let uploader_type = match database::get_config_option("uploader_type") {
-        Some(type_or_null) => {
-            match type_or_null.as_str() {
-                Some(type_) => type_.to_string(),
-                None => "imgur".to_string(),
-            }
+        Some(type_or_null) => match type_or_null.as_str() {
+            Some(type_) => type_.to_string(),
+            None => "imgur".to_string(),
         },
 
         // Defaults to uploading to imgur.
@@ -113,7 +120,9 @@ fn post_capture_flow(
     let mut capture_success = true;
     if upload_capture {
         match uploaders::call_uploader(
-            &uploader_type, Box::new(Cursor::new(data.clone())), filename.as_str(),
+            &uploader_type,
+            Box::new(Cursor::new(data.clone())),
+            filename.as_str(),
         ) {
             Ok(u) => url_result = Some(u),
             Err(e) => {
@@ -125,7 +134,7 @@ fn post_capture_flow(
 
                 // Notify the user but do not stop the flow for uploader errors.
                 notification::send_dialog_message(&e);
-            },
+            }
         }
     }
 
@@ -135,16 +144,20 @@ fn post_capture_flow(
         Some(url) => {
             scratch_str = url;
             Some(scratch_str.as_str())
-        },
+        }
         None => None,
     };
-    clipboard_actions::handle_clipboard_action(match save_capture {
-        true => Some(&fp_result),
-        false => None,
-    }, url_str, Some(CaptureFile {
-        file_name: filename.clone(),
-        content: data,
-    }));
+    clipboard_actions::handle_clipboard_action(
+        match save_capture {
+            true => Some(&fp_result),
+            false => None,
+        },
+        url_str,
+        Some(CaptureFile {
+            file_name: filename.clone(),
+            content: data,
+        }),
+    );
 
     // If this capture was successful, push a notification and write to the database.
     if capture_success {
@@ -154,10 +167,14 @@ fn post_capture_flow(
         if let Some(thread_callback) = thread_callback {
             run_thread(move || thread_callback(&filename_clone, capture_id));
         }
-        notification::send_notification(notification_content, url_str, match save_capture {
-            true => Some(&fp_result),
-            false => None,
-        });
+        notification::send_notification(
+            notification_content,
+            url_str,
+            match save_capture {
+                true => Some(&fp_result),
+                false => None,
+            },
+        );
     }
 }
 
@@ -168,12 +185,18 @@ fn search_indexing_rgba(image: RgbaImage, windows: Vec<Window>, filename: &str, 
     let text = ocr::scan_text(image);
 
     // Insert the capture into the index.
-    search_indexing::insert_capture(capture_id, filename, text, windows.iter().map(
-        |w| w.title().to_string()).collect());
+    search_indexing::insert_capture(
+        capture_id,
+        filename,
+        text,
+        windows.iter().map(|w| w.title().to_string()).collect(),
+    );
 }
 macro_rules! search_indexing_rgba_callback {
     ($rgba:ident, $windows:ident) => {
-        Some(Box::new(move |filename, id| search_indexing_rgba($rgba, $windows, filename, id)))
+        Some(Box::new(move |filename, id| {
+            search_indexing_rgba($rgba, $windows, filename, id)
+        }))
     };
 }
 
@@ -186,10 +209,14 @@ pub fn region_capture() {
 
     // Convert the result to a PNG.
     let mut data: Vec<u8> = Vec::new();
-    image.write_to(&mut Cursor::new(&mut data), image::ImageFormat::Png).unwrap();
+    image
+        .write_to(&mut Cursor::new(&mut data), image::ImageFormat::Png)
+        .unwrap();
 
     post_capture_flow(
-        "png", "Region capture successful.", data,
+        "png",
+        "Region capture successful.",
+        data,
         search_indexing_rgba_callback!(image, windows),
     )
 }
@@ -224,12 +251,20 @@ pub fn fullscreen_capture() {
         let w = monitor.width() * monitor.scale_factor() as u32;
         let h = monitor.height() * monitor.scale_factor() as u32;
 
-        if lowest_x > x { lowest_x = x }
-        if lowest_y > y { lowest_y = y }
+        if lowest_x > x {
+            lowest_x = x
+        }
+        if lowest_y > y {
+            lowest_y = y
+        }
         let top_right_x = x + w as i32;
         let bottom_left_y = y + h as i32;
-        if top_right_x > highest_x { highest_x = top_right_x }
-        if bottom_left_y > highest_y { highest_y = bottom_left_y }
+        if top_right_x > highest_x {
+            highest_x = top_right_x
+        }
+        if bottom_left_y > highest_y {
+            highest_y = bottom_left_y
+        }
     }
 
     // Handle normalising the smallest values.
@@ -255,12 +290,16 @@ pub fn fullscreen_capture() {
 
     // Convert the canvas to a vector.
     let mut vec: Vec<u8> = Vec::new();
-    canvas.write_to(&mut Cursor::new(&mut vec), image::ImageFormat::Png).unwrap();
+    canvas
+        .write_to(&mut Cursor::new(&mut vec), image::ImageFormat::Png)
+        .unwrap();
 
     // Handle the post capture flow.
     let windows = Window::all().unwrap();
     post_capture_flow(
-        "png", "Fullscreen capture successful.", vec,
+        "png",
+        "Fullscreen capture successful.",
+        vec,
         search_indexing_rgba_callback!(canvas, windows),
     );
 }

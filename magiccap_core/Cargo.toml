@@ -29,7 +29,7 @@ axohtml = { git = "https://github.com/IAmJSD/axohtml" }
 open = "5.0.1"
 base64 = "0.22.1"
 urlencoding = "2.1.3"
-copypasta = "0.10.1"
+copypasta = { git = "https://github.com/alacritty/copypasta" }
 xcap = "0.0.10"
 image = "0.25.1"
 glfw = "0.57.0"
