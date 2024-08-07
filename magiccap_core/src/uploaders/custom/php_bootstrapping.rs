@@ -1,7 +1,7 @@
-use std::{collections::HashMap, path::PathBuf};
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 use sha2::Digest;
+use std::{collections::HashMap, path::PathBuf};
 
 // Defines artifact information.
 #[derive(Deserialize)]
@@ -33,7 +33,11 @@ fn get_artifact_info() -> Result<&'static ArtifactInfo, String> {
     // Get the artifact information.
     let artifact_info = match ARTIFACT_BLOB.get(key.as_str()) {
         Some(a) => a,
-        None => return Err("No PHP artifact information found for the current OS/architecture".to_string()),
+        None => {
+            return Err(
+                "No PHP artifact information found for the current OS/architecture".to_string(),
+            )
+        }
     };
 
     // Return the artifact information.
@@ -43,8 +47,7 @@ fn get_artifact_info() -> Result<&'static ArtifactInfo, String> {
 // Check the integrity of a PHP folder.
 fn check_php_folder(path: &PathBuf, sha256: &'static str) -> Result<bool, String> {
     // Get the directory contents recursively.
-    let items = walkdir::WalkDir::new(path).into_iter()
-        .collect::<Vec<_>>();
+    let items = walkdir::WalkDir::new(path).into_iter().collect::<Vec<_>>();
 
     // Hash the files.
     let mut hash_results: Vec<[String; 2]> = Vec::with_capacity(items.len());
@@ -68,14 +71,22 @@ fn check_php_folder(path: &PathBuf, sha256: &'static str) -> Result<bool, String
             let hash = sha2::Sha256::digest(&file);
 
             // Encode the hash as a hex string.
-            hash.iter().map(|b| format!("{:02x}", b)).collect::<String>()
+            hash.iter()
+                .map(|b| format!("{:02x}", b))
+                .collect::<String>()
         } else {
             is_file = false;
             "".to_string()
         };
 
         // Get the normalised path with the root as the relative start.
-        let path = item.path().strip_prefix(path).unwrap().to_str().unwrap().to_string();
+        let path = item
+            .path()
+            .strip_prefix(path)
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
         let mut path = path.replace("\\", "/");
         if !is_file && !path.ends_with("/") {
             path.push_str("/");
@@ -92,7 +103,10 @@ fn check_php_folder(path: &PathBuf, sha256: &'static str) -> Result<bool, String
     let hash = hasher.finalize();
 
     // Encode the hash as a hex string.
-    let hash_str = hash.iter().map(|b| format!("{:02x}", b)).collect::<String>();
+    let hash_str = hash
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<String>();
 
     // Return if they are equal.
     Ok(hash_str == sha256)
@@ -114,7 +128,10 @@ fn check_php_bin(path: &PathBuf, sha256: &'static str) -> Result<bool, String> {
     let hash = hasher.finalize();
 
     // Encode the hash as a hex string.
-    let hash_str = hash.iter().map(|b| format!("{:02x}", b)).collect::<String>();
+    let hash_str = hash
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<String>();
 
     // Return if they are equal.
     Ok(hash_str == sha256)
@@ -196,7 +213,11 @@ fn extract_php(bytes: Vec<u8>, path: &PathBuf) -> Option<String> {
 }
 
 // Prompt and setup PHP if possible. Returns the path.
-fn setup_php(path: PathBuf, artifact: &'static ArtifactInfo, message: &'static str) -> Result<String, String> {
+fn setup_php(
+    path: PathBuf,
+    artifact: &'static ArtifactInfo,
+    message: &'static str,
+) -> Result<String, String> {
     // Prompt the user to download PHP.
     let confirmation = crate::mainthread::main_thread_sync(|| {
         native_dialog::MessageDialog::new()
@@ -263,7 +284,7 @@ fn setup_php(path: PathBuf, artifact: &'static ArtifactInfo, message: &'static s
 
             // Return the path to the PHP binary.
             Ok(s.to_str().unwrap().to_string())
-        },
+        }
         Ok(Err(_)) => Err("The downloaded PHP binary fails integrity checks".to_string()),
         Err(e) => Err(e),
     }

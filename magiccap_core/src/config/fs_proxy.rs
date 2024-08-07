@@ -1,6 +1,9 @@
-use std::{fs, io::{BufReader, Cursor}};
 use base64::Engine;
 use image::GenericImageView;
+use std::{
+    fs,
+    io::{BufReader, Cursor},
+};
 
 pub fn proxy_fp(fp: &str) -> Result<Vec<u8>, String> {
     // Check if the extension is allowed.
@@ -52,5 +55,11 @@ pub fn proxy_fp(fp: &str) -> Result<Vec<u8>, String> {
     }
 
     // Return a data URI with the file.
-    Ok(format!("data:{};base64,{}", mime, base64::engine::general_purpose::STANDARD.encode(cursor.into_inner())).as_bytes().to_vec())
+    Ok(format!(
+        "data:{};base64,{}",
+        mime,
+        base64::engine::general_purpose::STANDARD.encode(cursor.into_inner())
+    )
+    .as_bytes()
+    .to_vec())
 }

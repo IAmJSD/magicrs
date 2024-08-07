@@ -1,9 +1,9 @@
-use image::RgbImage;
-use rusttype::{point, Scale};
 use super::{
     color_picker::open_color_picker, engine::RegionSelectorContext, gl_abstractions::GLTexture,
     texture_pack::LOADED_FONT,
 };
+use image::RgbImage;
+use rusttype::{point, Scale};
 
 // Defines the margin from the top right corner.
 const MARGIN: i32 = 10;
@@ -32,7 +32,8 @@ pub fn render_texture(r: u8, g: u8, b: u8) -> GLTexture {
     let mut start_point = point(6.0, (HEIGHT - 15) as f32 - scale.y.ceil());
 
     // Create a new image.
-    let mut img: image::ImageBuffer<image::Rgb<u8>, Vec<u8>> = RgbImage::from_vec(WIDTH as u32, HEIGHT as u32, data).unwrap();
+    let mut img: image::ImageBuffer<image::Rgb<u8>, Vec<u8>> =
+        RgbImage::from_vec(WIDTH as u32, HEIGHT as u32, data).unwrap();
 
     // Draw the text onto the image.
     macro_rules! draw_text {
@@ -46,12 +47,18 @@ pub fn render_texture(r: u8, g: u8, b: u8) -> GLTexture {
                             let pixel = img.get_pixel_mut(x as u32, y as u32);
                             let alpha = (v * 255.0) as u8;
                             let inv_alpha = 255 - alpha;
-        
+
                             let fg = if is_light { [0, 0, 0] } else { [255, 255, 255] };
-        
-                            pixel.0[0] = ((alpha as u16 * fg[0] as u16 + inv_alpha as u16 * pixel.0[0] as u16) / 255 as u16) as u8;
-                            pixel.0[1] = ((alpha as u16 * fg[1] as u16 + inv_alpha as u16 * pixel.0[1] as u16) / 255 as u16) as u8;
-                            pixel.0[2] = ((alpha as u16 * fg[2] as u16 + inv_alpha as u16 * pixel.0[2] as u16) / 255 as u16) as u8;
+
+                            pixel.0[0] = ((alpha as u16 * fg[0] as u16
+                                + inv_alpha as u16 * pixel.0[0] as u16)
+                                / 255 as u16) as u8;
+                            pixel.0[1] = ((alpha as u16 * fg[1] as u16
+                                + inv_alpha as u16 * pixel.0[1] as u16)
+                                / 255 as u16) as u8;
+                            pixel.0[2] = ((alpha as u16 * fg[2] as u16
+                                + inv_alpha as u16 * pixel.0[2] as u16)
+                                / 255 as u16) as u8;
                         }
                     });
                 }
@@ -73,8 +80,11 @@ pub unsafe fn draw_color_box(ctx: &mut RegionSelectorContext, width: i32, height
 
     // Bind the framebuffer to the texture.
     gl::FramebufferTexture2D(
-        gl::READ_FRAMEBUFFER, gl::COLOR_ATTACHMENT0,
-        gl::TEXTURE_2D, guard.3.texture, 0
+        gl::READ_FRAMEBUFFER,
+        gl::COLOR_ATTACHMENT0,
+        gl::TEXTURE_2D,
+        guard.3.texture,
+        0,
     );
 
     // Get the start X/Y.
@@ -83,14 +93,26 @@ pub unsafe fn draw_color_box(ctx: &mut RegionSelectorContext, width: i32, height
 
     // BLit the color box.
     gl::BlitFramebuffer(
-        0, HEIGHT, WIDTH, 0,
-        x, height - y - HEIGHT, x + WIDTH, height - y,
-        gl::COLOR_BUFFER_BIT, gl::LINEAR
+        0,
+        HEIGHT,
+        WIDTH,
+        0,
+        x,
+        height - y - HEIGHT,
+        x + WIDTH,
+        height - y,
+        gl::COLOR_BUFFER_BIT,
+        gl::LINEAR,
     );
 }
 
 // Handles if the color box is clicked.
-pub fn handle_color_box_click(ctx: &mut RegionSelectorContext, x: i32, y: i32, window_w: i32) -> bool {
+pub fn handle_color_box_click(
+    ctx: &mut RegionSelectorContext,
+    x: i32,
+    y: i32,
+    window_w: i32,
+) -> bool {
     if x < window_w - WIDTH - MARGIN || x > window_w - MARGIN {
         return false;
     }

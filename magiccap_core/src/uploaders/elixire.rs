@@ -1,10 +1,11 @@
-use std::collections::HashMap;
 use super::{mime::guess_mime_type, ConfigOption, Uploader};
+use std::collections::HashMap;
 use ureq_multipart::MultipartBuilder;
 use uriparse::URI;
 
 fn elixire_support_upload(
-    filename: &str, config: HashMap<String, serde_json::Value>,
+    filename: &str,
+    config: HashMap<String, serde_json::Value>,
     reader: Box<dyn std::io::Read + Send + Sync>,
 ) -> Result<String, String> {
     // Guess the MIME type.
@@ -14,8 +15,8 @@ fn elixire_support_upload(
     };
 
     // Build the multipart data from the reader.
-    let multipart = MultipartBuilder::new()
-        .add_stream(&mut reader, "f", Some(filename), Some(mime));
+    let multipart =
+        MultipartBuilder::new().add_stream(&mut reader, "f", Some(filename), Some(mime));
 
     // Check that the stream was consumed okay.
     let multipart = match multipart {
@@ -78,7 +79,7 @@ fn elixire_support_upload(
                 Some(link) => Ok(link.to_string()),
                 None => Err("The response did not contain a link.".to_string()),
             }
-        },
+        }
         Err(err) => Err(err.to_string()),
     }
 }
@@ -89,21 +90,27 @@ pub fn elixire_support() -> Uploader {
         description: "elixire is the future".to_string(),
         icon_path: "/icons/elixire.svg".to_string(),
         options: vec![
-            ("domain_config".to_string(), ConfigOption::Embedded {
-                name: "Domain Configuration".to_string(),
-                description: "The configuration for the domain to use.".to_string(),
-                component_name: "elixire.domain_config".to_string(),
-                required: false,
-            }),
-            ("token".to_string(), ConfigOption::String {
-                name: "Token".to_string(),
-                description: "The token to use for the elixi.re API.".to_string(),
-                default: None,
-                required: true,
-                password: true,
-                regex: None,
-                validation_error_message: None,
-            }),
+            (
+                "domain_config".to_string(),
+                ConfigOption::Embedded {
+                    name: "Domain Configuration".to_string(),
+                    description: "The configuration for the domain to use.".to_string(),
+                    component_name: "elixire.domain_config".to_string(),
+                    required: false,
+                },
+            ),
+            (
+                "token".to_string(),
+                ConfigOption::String {
+                    name: "Token".to_string(),
+                    description: "The token to use for the elixi.re API.".to_string(),
+                    default: None,
+                    required: true,
+                    password: true,
+                    regex: None,
+                    validation_error_message: None,
+                },
+            ),
         ],
         upload: Box::new(elixire_support_upload),
     }

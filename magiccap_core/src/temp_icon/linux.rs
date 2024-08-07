@@ -1,11 +1,19 @@
-use muda::MenuEvent;
-use tray_icon::{TrayIcon, TrayIconBuilder, menu::{MenuItem, Menu}};
 use crate::linux_shared::FakeSend;
+use crate::temp_icon::shared::{COG_ICON, STOP_ICON};
+use muda::MenuEvent;
 use std::{
-    io::{Read, BufRead, Write}, process,
-    sync::{atomic::{AtomicBool, Ordering}, Mutex}, thread,
+    io::{BufRead, Read, Write},
+    process,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Mutex,
+    },
+    thread,
 };
-use crate::temp_icon::shared::{STOP_ICON, COG_ICON};
+use tray_icon::{
+    menu::{Menu, MenuItem},
+    TrayIcon, TrayIconBuilder,
+};
 
 // Defines the slot for the temporary icon demon sender.
 static mut TRAY_SENDER: Option<&'static mut FakeSend<TrayIcon>> = None;
@@ -50,7 +58,8 @@ fn stop_recording() {
 pub fn icond() {
     // Defines the tray.
     let menu = Box::new(Menu::new());
-    menu.append(&MenuItem::new("Stop Recording", true, None)).unwrap();
+    menu.append(&MenuItem::new("Stop Recording", true, None))
+        .unwrap();
     let tray = TrayIconBuilder::new()
         .with_tooltip("MagicCap Recording")
         .with_icon(STOP_ICON.clone())

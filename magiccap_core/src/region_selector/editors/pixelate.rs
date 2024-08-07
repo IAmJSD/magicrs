@@ -1,17 +1,25 @@
-use image::RgbaImage;
-use crate::region_selector::{engine::RegionSelectorContext, gl_abstractions::GLTexture};
 use super::{Editor, EditorFactory, EditorRegion};
+use crate::region_selector::{engine::RegionSelectorContext, gl_abstractions::GLTexture};
+use image::RgbaImage;
 
 // Defines the pixelate editor.
 struct Pixelate {
     cache: Option<(u32, u32, i32, i32, GLTexture)>,
 }
 impl Editor for Pixelate {
-    fn click(&mut self, _: i32, _: i32) -> Option<Option<EditorRegion>> { None }
+    fn click(&mut self, _: i32, _: i32) -> Option<Option<EditorRegion>> {
+        None
+    }
 
     fn render(
-        &mut self, screenshot: &GLTexture, _: u32, screen_h: u32,
-        texture_w: u32, texture_h: u32, texture_x: i32, texture_y: i32,
+        &mut self,
+        screenshot: &GLTexture,
+        _: u32,
+        screen_h: u32,
+        texture_w: u32,
+        texture_h: u32,
+        texture_x: i32,
+        texture_y: i32,
     ) {
         // Handle if the cache is a hit.
         if let Some((a, b, c, d, gl_tex)) = &self.cache {
@@ -19,14 +27,23 @@ impl Editor for Pixelate {
                 // Since this was a hit, we can just blit the texture and then return.
                 unsafe {
                     gl::FramebufferTexture2D(
-                        gl::READ_FRAMEBUFFER, gl::COLOR_ATTACHMENT0,
-                        gl::TEXTURE_2D, gl_tex.texture, 0
+                        gl::READ_FRAMEBUFFER,
+                        gl::COLOR_ATTACHMENT0,
+                        gl::TEXTURE_2D,
+                        gl_tex.texture,
+                        0,
                     );
                     gl::BlitFramebuffer(
-                        0, 0, texture_w as i32, texture_h as i32,
-                        texture_x, screen_h as i32 - texture_y, texture_x + texture_w as i32,
+                        0,
+                        0,
+                        texture_w as i32,
+                        texture_h as i32,
+                        texture_x,
+                        screen_h as i32 - texture_y,
+                        texture_x + texture_w as i32,
                         (screen_h as i32 - (texture_y + texture_h as i32)) as i32,
-                        gl::COLOR_BUFFER_BIT, gl::NEAREST
+                        gl::COLOR_BUFFER_BIT,
+                        gl::NEAREST,
                     );
                 }
                 return;
@@ -38,18 +55,25 @@ impl Editor for Pixelate {
         unsafe {
             let texture = screenshot.texture;
             gl::FramebufferTexture2D(
-                gl::READ_FRAMEBUFFER, gl::COLOR_ATTACHMENT0,
-                gl::TEXTURE_2D, texture, 0
+                gl::READ_FRAMEBUFFER,
+                gl::COLOR_ATTACHMENT0,
+                gl::TEXTURE_2D,
+                texture,
+                0,
             );
             gl::ReadPixels(
-                texture_x, texture_y, texture_w as i32, texture_h as i32,
-                gl::RGBA, gl::UNSIGNED_BYTE, pixels.as_mut_ptr() as *mut _
+                texture_x,
+                texture_y,
+                texture_w as i32,
+                texture_h as i32,
+                gl::RGBA,
+                gl::UNSIGNED_BYTE,
+                pixels.as_mut_ptr() as *mut _,
             );
         }
 
         // Get as a RGBA image.
-        let mut image = RgbaImage::from_raw(
-            texture_w, texture_h, pixels).unwrap();
+        let mut image = RgbaImage::from_raw(texture_w, texture_h, pixels).unwrap();
 
         // Pixelate the underlying image.
         let pixelation_size = 20;
@@ -93,18 +117,27 @@ impl Editor for Pixelate {
         // Bind the pixelated texture.
         unsafe {
             gl::FramebufferTexture2D(
-                gl::READ_FRAMEBUFFER, gl::COLOR_ATTACHMENT0,
-                gl::TEXTURE_2D, texture.texture, 0
+                gl::READ_FRAMEBUFFER,
+                gl::COLOR_ATTACHMENT0,
+                gl::TEXTURE_2D,
+                texture.texture,
+                0,
             );
         };
 
         // Blit the pixelated image.
         unsafe {
             gl::BlitFramebuffer(
-                0, 0, texture_w as i32, texture_h as i32,
-                texture_x, screen_h as i32 - texture_y, texture_x + texture_w as i32,
+                0,
+                0,
+                texture_w as i32,
+                texture_h as i32,
+                texture_x,
+                screen_h as i32 - texture_y,
+                texture_x + texture_w as i32,
                 (screen_h as i32 - (texture_y + texture_h as i32)) as i32,
-                gl::COLOR_BUFFER_BIT, gl::NEAREST
+                gl::COLOR_BUFFER_BIT,
+                gl::NEAREST,
             );
         }
 
@@ -125,6 +158,6 @@ impl EditorFactory for PixelateFactory {
     }
 
     fn create_editor(&mut self, _: &mut RegionSelectorContext) -> Box<dyn Editor> {
-        Box::new(Pixelate {cache: None})
+        Box::new(Pixelate { cache: None })
     }
 }

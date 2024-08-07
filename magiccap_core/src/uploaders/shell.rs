@@ -1,8 +1,12 @@
-use std::{collections::HashMap, process::{Command, Stdio}};
 use super::{ConfigOption, Uploader};
+use std::{
+    collections::HashMap,
+    process::{Command, Stdio},
+};
 
 fn shell_support_upload(
-    filename: &str, config: HashMap<String, serde_json::Value>,
+    filename: &str,
+    config: HashMap<String, serde_json::Value>,
     mut reader: Box<dyn std::io::Read + Send + Sync>,
 ) -> Result<String, String> {
     // Get the command from the config.
@@ -49,16 +53,17 @@ fn shell_support_upload(
     match process.wait_with_output() {
         Ok(output) => {
             if !output.status.success() {
-                return Err(format!("The command failed with a non-zero exit code: {}", output.status));
+                return Err(format!(
+                    "The command failed with a non-zero exit code: {}",
+                    output.status
+                ));
             }
             match String::from_utf8(output.stdout) {
                 Ok(url) => Ok(url),
                 Err(e) => return Err(format!("Failed to read the URL from the stdout: {}", e)),
             }
-        },
-        Err(e) => {
-            Err(format!("Failed to wait for the process to finish: {}", e))
-        },
+        }
+        Err(e) => Err(format!("Failed to wait for the process to finish: {}", e)),
     }
 }
 
@@ -72,20 +77,18 @@ pub fn shell_support() -> Uploader {
         name: "Shell".to_string(),
         description: DESCRIPTION.to_string(),
         icon_path: "/icons/shell.png".to_string(),
-        options: vec![
-            (
-                "command".to_string(),
-                ConfigOption::String {
-                    name: "Command".to_string(),
-                    description: "The command to run to upload the screenshot.".to_string(),
-                    default: None,
-                    required: true,
-                    password: false,
-                    regex: None,
-                    validation_error_message: None,
-                },
-            ),
-        ],
+        options: vec![(
+            "command".to_string(),
+            ConfigOption::String {
+                name: "Command".to_string(),
+                description: "The command to run to upload the screenshot.".to_string(),
+                default: None,
+                required: true,
+                password: false,
+                regex: None,
+                validation_error_message: None,
+            },
+        )],
         upload: Box::new(shell_support_upload),
     }
 }

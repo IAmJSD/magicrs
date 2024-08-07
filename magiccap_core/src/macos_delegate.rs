@@ -1,14 +1,24 @@
-use crate::{config::{MagicCapConfigDelegate, setup_window}, macos, reload, statics::run_thread};
-use std::{cell::OnceCell, sync::{Mutex, RwLock}};
+use crate::{
+    config::{setup_window, MagicCapConfigDelegate},
+    macos, reload,
+    statics::run_thread,
+};
 use cacao::{
-    appkit::{window::{Window, WindowDelegate}, App, AppDelegate},
+    appkit::{
+        window::{Window, WindowDelegate},
+        App, AppDelegate,
+    },
     webview::WebView,
 };
 use objc::runtime::Object;
 use objc_id::Id;
+use std::{
+    cell::OnceCell,
+    sync::{Mutex, RwLock},
+};
 
 pub struct ConfigWindow {
-    pub content: WebView<MagicCapConfigDelegate>
+    pub content: WebView<MagicCapConfigDelegate>,
 }
 
 impl WindowDelegate for ConfigWindow {
@@ -19,7 +29,9 @@ impl WindowDelegate for ConfigWindow {
         setup_window(&window);
 
         // Make sure it is shown in the dock and focused.
-        unsafe { macos::transform_process_type(true); };
+        unsafe {
+            macos::transform_process_type(true);
+        };
 
         // Make sure the window is focused.
         window.make_key_and_order_front();
@@ -27,7 +39,9 @@ impl WindowDelegate for ConfigWindow {
 
     fn should_close(&self) -> bool {
         app().delegate.webview.write().unwrap().take();
-        unsafe { macos::transform_process_type(false); };
+        unsafe {
+            macos::transform_process_type(false);
+        };
         true
     }
 }
@@ -48,7 +62,7 @@ impl AppDelegate for MagicCapAppDelegate {
                     let monitor = &monitors[0];
                     let _ = monitor.capture_image();
                 }
-            },
+            }
             Err(_) => (),
         }
 
@@ -56,7 +70,9 @@ impl AppDelegate for MagicCapAppDelegate {
         unsafe { macos::hook_notif_center() };
 
         // Hide in the dock.
-        unsafe { macos::transform_process_type(false); };
+        unsafe {
+            macos::transform_process_type(false);
+        };
 
         // In a thread, launch the application_reload function. This is because
         // it can cause problems if it blocks the main thread.
@@ -75,9 +91,11 @@ static mut APP: OnceCell<App<MagicCapAppDelegate>> = OnceCell::new();
 
 pub unsafe fn application_init() {
     // Spawn the application and store it in APP.
-    APP.set(
-        App::new("org.magiccap.magiccap", MagicCapAppDelegate::default())
-    ).unwrap();
+    APP.set(App::new(
+        "org.magiccap.magiccap",
+        MagicCapAppDelegate::default(),
+    ))
+    .unwrap();
     app().run();
 }
 

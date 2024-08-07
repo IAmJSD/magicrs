@@ -1,6 +1,9 @@
-use std::{path::PathBuf, sync::{atomic::AtomicBool, RwLock}};
 use once_cell::sync::Lazy;
 use rayon::{ThreadPool, ThreadPoolBuilder};
+use std::{
+    path::PathBuf,
+    sync::{atomic::AtomicBool, RwLock},
+};
 
 // Defines the config folder.
 pub static CONFIG_FOLDER: Lazy<PathBuf> = Lazy::new(|| {
@@ -20,7 +23,7 @@ static THREAD_POOL: Lazy<RwLock<Option<ThreadPool>>> = Lazy::new(|| {
         ThreadPoolBuilder::new()
             .num_threads(num_cpus::get() * 2)
             .build()
-            .unwrap()
+            .unwrap(),
     ))
 });
 
@@ -36,7 +39,7 @@ where
         None => {
             std::thread::spawn(f);
             return;
-        },
+        }
     };
 
     // Spawn the function.

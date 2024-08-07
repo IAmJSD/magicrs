@@ -12,17 +12,15 @@ pub fn send_dialog_message(message: &str) {
 // Send a notification to the user.
 #[cfg(target_os = "macos")]
 pub fn send_notification(message: &str, url: Option<&str>, file_path: Option<&str>) {
-    use cacao::foundation::{id, NSString, nil};
-    use objc::{sel, msg_send, sel_impl, class};
+    use cacao::foundation::{id, nil, NSString};
+    use objc::{class, msg_send, sel, sel_impl};
 
     // Figure out the identifier.
     let identifier = match url {
         Some(url) => NSString::new(format!("url={}", url).as_str()),
-        None => {
-            match file_path {
-                Some(file_path) => NSString::new(format!("fp={}", file_path).as_str()),
-                None => NSString::new("none"),
-            }
+        None => match file_path {
+            Some(file_path) => NSString::new(format!("fp={}", file_path).as_str()),
+            None => NSString::new("none"),
         },
     };
 
@@ -78,7 +76,7 @@ pub fn send_notification(message: &str, url: Option<&str>, file_path: Option<&st
         match e {
             "open_url" => open::that(url.unwrap()).unwrap(),
             "open_fp" => open::that(file_path.unwrap()).unwrap(),
-            _ => {},
+            _ => {}
         };
     })
 }

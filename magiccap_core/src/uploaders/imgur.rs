@@ -1,8 +1,9 @@
-use std::collections::HashMap;
 use super::Uploader;
+use std::collections::HashMap;
 
 fn imgur_support_upload(
-    _: &str, _: HashMap<String, serde_json::Value>,
+    _: &str,
+    _: HashMap<String, serde_json::Value>,
     reader: Box<dyn std::io::Read + Send + Sync>,
 ) -> Result<String, String> {
     let resp = ureq::post("https://api.imgur.com/3/image")

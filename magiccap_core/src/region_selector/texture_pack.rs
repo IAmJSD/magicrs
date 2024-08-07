@@ -1,8 +1,8 @@
-use std::collections::HashMap;
+use super::{editors, gl_abstractions::GLTexture};
 use image::{GenericImage, Rgba, RgbaImage};
 use once_cell::sync::Lazy;
 use rusttype::{point, Scale};
-use super::{editors, gl_abstractions::GLTexture};
+use std::collections::HashMap;
 
 // Load Roboto from the frontend public folder.
 static ROBOTO_REGULAR: &[u8] = include_bytes!("../../../frontend/public/Roboto-Regular.ttf");
@@ -19,9 +19,8 @@ static WHITE_NO_HOVER: &[u8] = include_bytes!("textures/white_no_hover.png");
 static HIGHLIGHTED: &[u8] = include_bytes!("textures/highlighted.png");
 
 // Defines the loaded font.
-pub static LOADED_FONT: Lazy<rusttype::Font<'static>> = Lazy::new(|| {
-    rusttype::Font::try_from_bytes(ROBOTO_REGULAR).unwrap()
-});
+pub static LOADED_FONT: Lazy<rusttype::Font<'static>> =
+    Lazy::new(|| rusttype::Font::try_from_bytes(ROBOTO_REGULAR).unwrap());
 
 // Defines the charset.
 const CHARSET: &str = "? ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}\\|;:'\",.<>/`~";
@@ -36,9 +35,10 @@ struct StaticTexture {
 // Generates the static textures.
 fn generate_static_texture(dark: bool) -> StaticTexture {
     // Get the icon bytes and map them to RGBA.
-    let icons = editors::create_editor_icons().iter().map(|icon| {
-        image::load_from_memory(icon).unwrap().to_rgba8()
-    }).collect::<Vec<_>>();
+    let icons = editors::create_editor_icons()
+        .iter()
+        .map(|icon| image::load_from_memory(icon).unwrap().to_rgba8())
+        .collect::<Vec<_>>();
 
     // Get the menu textures.
     let menu_textures = if dark {
@@ -57,10 +57,17 @@ fn generate_static_texture(dark: bool) -> StaticTexture {
 
     // Calculate the width and height of the texture.
     let icons_height = icons.iter().map(|icon| icon.height()).max().unwrap();
-    let menu_height = menu_textures.iter().map(|texture| texture.height()).max().unwrap();
+    let menu_height = menu_textures
+        .iter()
+        .map(|texture| texture.height())
+        .max()
+        .unwrap();
     let height = icons_height.max(menu_height);
     let icons_width = icons.iter().map(|icon| icon.width()).sum::<u32>();
-    let menu_width = menu_textures.iter().map(|texture| texture.width()).sum::<u32>();
+    let menu_width = menu_textures
+        .iter()
+        .map(|texture| texture.width())
+        .sum::<u32>();
     let width = icons_width + menu_width;
 
     // Create the texture.
@@ -103,10 +110,16 @@ const CHARSET_SCALE: f32 = 2.0;
 // Generates the charset.
 fn generate_charset(dark: bool) -> CharsetTexture {
     // Figure out the width and height of the charset.
-    let charset_width = CHARSET.chars().map(|c| {
-        let glyph = LOADED_FONT.glyph(c).scaled(rusttype::Scale::uniform(24.0 * CHARSET_SCALE));
-        glyph.h_metrics().advance_width
-    }).sum::<f32>().ceil() as u32;
+    let charset_width = CHARSET
+        .chars()
+        .map(|c| {
+            let glyph = LOADED_FONT
+                .glyph(c)
+                .scaled(rusttype::Scale::uniform(24.0 * CHARSET_SCALE));
+            glyph.h_metrics().advance_width
+        })
+        .sum::<f32>()
+        .ceil() as u32;
     let charset_height = 28 * CHARSET_SCALE as u32;
 
     // Create the charset with a background that is either black or white.
@@ -132,7 +145,10 @@ fn generate_charset(dark: bool) -> CharsetTexture {
     // Draw each character in the charset.
     let mut x_offset = 0.0;
     for c in CHARSET.bytes() {
-        let glyph: rusttype::PositionedGlyph = LOADED_FONT.glyph(c as char).scaled(scale).positioned(point(x_offset, offset_y));
+        let glyph: rusttype::PositionedGlyph = LOADED_FONT
+            .glyph(c as char)
+            .scaled(scale)
+            .positioned(point(x_offset, offset_y));
 
         // Draw the glyph into the image.
         if let Some(bounding_box) = glyph.pixel_bounding_box() {
@@ -156,7 +172,13 @@ fn generate_charset(dark: bool) -> CharsetTexture {
 
         // Store the x offset.
         let aw = glyph.unpositioned().h_metrics().advance_width;
-        x_offsets.insert(c, ((x_offset / CHARSET_SCALE) as i32, (aw / CHARSET_SCALE) as i32));
+        x_offsets.insert(
+            c,
+            (
+                (x_offset / CHARSET_SCALE) as i32,
+                (aw / CHARSET_SCALE) as i32,
+            ),
+        );
 
         // Advance the x_offset for the next glyph.
         x_offset += aw;
@@ -164,8 +186,10 @@ fn generate_charset(dark: bool) -> CharsetTexture {
 
     // Shrink the image to the minimum size.
     let charset = image::imageops::resize(
-        &charset, charset_width / CHARSET_SCALE as u32,
-        charset_height / CHARSET_SCALE as u32, image::imageops::FilterType::Gaussian,
+        &charset,
+        charset_width / CHARSET_SCALE as u32,
+        charset_height / CHARSET_SCALE as u32,
+        image::imageops::FilterType::Gaussian,
     );
 
     // Return the charset and offsets.
@@ -176,10 +200,12 @@ fn generate_charset(dark: bool) -> CharsetTexture {
 }
 
 // Defines the dark texture lazy container.
-static DARK_TEXTURE: Lazy<(StaticTexture, CharsetTexture)> = Lazy::new(|| (generate_static_texture(true), generate_charset(true)));
+static DARK_TEXTURE: Lazy<(StaticTexture, CharsetTexture)> =
+    Lazy::new(|| (generate_static_texture(true), generate_charset(true)));
 
 // Defines the light texture lazy container.
-static LIGHT_TEXTURE: Lazy<(StaticTexture, CharsetTexture)> = Lazy::new(|| (generate_static_texture(false), generate_charset(false)));
+static LIGHT_TEXTURE: Lazy<(StaticTexture, CharsetTexture)> =
+    Lazy::new(|| (generate_static_texture(false), generate_charset(false)));
 
 // Preloads the dark and light textures.
 pub fn preload_textures() {
@@ -211,15 +237,29 @@ impl TextureSection {
         let x1 = if flip_x { x + w } else { x };
         let x2 = if flip_x { x } else { x + w };
         gl::BlitFramebuffer(
-            self.x, self.y, self.x + self.width, self.y + self.height,
-            x1, screen_h - y, x2, screen_h - y - h,
-            gl::COLOR_BUFFER_BIT, gl::LINEAR
+            self.x,
+            self.y,
+            self.x + self.width,
+            self.y + self.height,
+            x1,
+            screen_h - y,
+            x2,
+            screen_h - y - h,
+            gl::COLOR_BUFFER_BIT,
+            gl::LINEAR,
         );
     }
 }
 
 // Handles putting a contained texture onto the screen.
-unsafe fn generate_item_container(mut x: i32, mut y: i32, mut w: i32, mut h: i32, sh: i32, texture: TextureSection) {
+unsafe fn generate_item_container(
+    mut x: i32,
+    mut y: i32,
+    mut w: i32,
+    mut h: i32,
+    sh: i32,
+    texture: TextureSection,
+) {
     // Handle a margin around the texture.
     const MARGIN: i32 = 10;
     x += MARGIN;
@@ -254,35 +294,53 @@ impl TexturePack {
 
     // Get the length of the text specified.
     pub fn text_length(&self, text: &str) -> i32 {
-        text.bytes().map(|c| {
-            self.charset_offsets.get(&c).unwrap_or(
-                self.charset_offsets.get(&('?' as u8)).unwrap()
-            ).1
-        }).sum::<i32>() + (self.space_w * 2)
+        text.bytes()
+            .map(|c| {
+                self.charset_offsets
+                    .get(&c)
+                    .unwrap_or(self.charset_offsets.get(&('?' as u8)).unwrap())
+                    .1
+            })
+            .sum::<i32>()
+            + (self.space_w * 2)
     }
 
     // Write text at a position. Marked as unsafe due to OpenGL usage.
     pub unsafe fn write_text(&self, text: &str, mut rel_x: i32, rel_y: i32, screen_height: i32) {
         // Load content into the framebuffer.
         gl::FramebufferTexture2D(
-            gl::READ_FRAMEBUFFER, gl::COLOR_ATTACHMENT0,
-            gl::TEXTURE_2D, self.charset_texture.texture, 0
+            gl::READ_FRAMEBUFFER,
+            gl::COLOR_ATTACHMENT0,
+            gl::TEXTURE_2D,
+            self.charset_texture.texture,
+            0,
         );
 
         // Handle writing to the screen.
         macro_rules! render_char {
             ($char:expr) => {
                 // Get the character X offset/width in the character map.
-                let (offset, char_width) = self.charset_offsets.get($char).unwrap_or(
-                    // Fallback to the question mark if the character is not found.
-                    self.charset_offsets.get(&('?' as u8)).unwrap()
-                ).clone();
+                let (offset, char_width) = self
+                    .charset_offsets
+                    .get($char)
+                    .unwrap_or(
+                        // Fallback to the question mark if the character is not found.
+                        self.charset_offsets.get(&('?' as u8)).unwrap(),
+                    )
+                    .clone();
 
                 // Blit the framebuffer to the screen.
                 gl::BlitFramebuffer(
-                    offset, 0, offset + char_width, 28,
-                    rel_x, screen_height - rel_y, rel_x + char_width as i32, screen_height - rel_y - 28,
-                    gl::COLOR_BUFFER_BIT, gl::NEAREST,
+                    offset,
+                    0,
+                    offset + char_width,
+                    28,
+                    rel_x,
+                    screen_height - rel_y,
+                    rel_x + char_width as i32,
+                    screen_height - rel_y - 28,
+                    gl::COLOR_BUFFER_BIT,
+                    gl::NEAREST,
                 );
 
                 // Add the character width to the relative X position.
@@ -301,19 +359,27 @@ impl TexturePack {
 
     // Render the menu bar. Marked as unsafe due to OpenGL usage.
     pub unsafe fn render_menu_bar(
-        &self, selected: usize, hovering: Option<usize>, mut rel_x: i32, rel_y: i32, screen_height: i32,
+        &self,
+        selected: usize,
+        hovering: Option<usize>,
+        mut rel_x: i32,
+        rel_y: i32,
+        screen_height: i32,
     ) {
         // Load content into the framebuffer.
         gl::FramebufferTexture2D(
-            gl::READ_FRAMEBUFFER, gl::COLOR_ATTACHMENT0,
-            gl::TEXTURE_2D, self.static_texture.texture, 0
+            gl::READ_FRAMEBUFFER,
+            gl::COLOR_ATTACHMENT0,
+            gl::TEXTURE_2D,
+            self.static_texture.texture,
+            0,
         );
 
         // Iterate over the menu bar items with the index.
         let menu_item_count = self.icon_offsets.len();
-        for (
-            i, (item_texture_x, icon_texture_w, icon_texture_h),
-        ) in self.icon_offsets.iter().map(|x| *x).enumerate() {
+        for (i, (item_texture_x, icon_texture_w, icon_texture_h)) in
+            self.icon_offsets.iter().map(|x| *x).enumerate()
+        {
             // Find the menu texture to use.
             let menu_texture_x = self.menu_offsets[if selected == i {
                 0
@@ -329,15 +395,24 @@ impl TexturePack {
                 y: 0,
                 width: 50,
                 height: 50,
-            }.render(
-                rel_x, rel_y, 50, 50, screen_height,
+            }
+            .render(
+                rel_x,
+                rel_y,
+                50,
+                50,
+                screen_height,
                 i == menu_item_count - 1,
             );
 
             // Render the item texture.
             generate_item_container(
-                rel_x, rel_y, 50, 50,
-                screen_height, TextureSection {
+                rel_x,
+                rel_y,
+                50,
+                50,
+                screen_height,
+                TextureSection {
                     x: item_texture_x,
                     y: 0,
                     width: icon_texture_w,

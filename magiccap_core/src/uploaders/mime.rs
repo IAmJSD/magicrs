@@ -1,9 +1,14 @@
-use std::{io::{BufRead, BufReader, Error}, path::Path, str::FromStr};
 use mime::Mime;
 use mime_sniffer::MimeTypeSniffer;
+use std::{
+    io::{BufRead, BufReader, Error},
+    path::Path,
+    str::FromStr,
+};
 
 pub fn guess_mime_type(
-    filename: &str, reader: Box<dyn std::io::Read + Send + Sync>,
+    filename: &str,
+    reader: Box<dyn std::io::Read + Send + Sync>,
 ) -> Result<(Mime, Box<dyn std::io::Read + Send + Sync>), Error> {
     // Try to guess the MIME type by the file extension.
     let mime = mime_guess::from_path(Path::new(filename)).first();
@@ -24,7 +29,8 @@ pub fn guess_mime_type(
     let mime = Mime::from_str(match mime {
         Some(mime) => mime,
         None => "application/octet-stream",
-    }).unwrap();
+    })
+    .unwrap();
 
     // Return the MIME type and the reader rewound.
     Ok((mime, Box::new(reader)))

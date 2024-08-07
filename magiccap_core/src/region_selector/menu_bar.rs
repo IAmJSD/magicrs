@@ -8,7 +8,10 @@ fn get_top_gap() -> i32 {
 
 // Find the index of the icon that the cursor is over.
 fn get_editor_index(
-    icons_count: usize, rel_x: i32, rel_y: i32, screen_w: i32,
+    icons_count: usize,
+    rel_x: i32,
+    rel_y: i32,
+    screen_w: i32,
     top_gap: i32,
 ) -> Option<usize> {
     // Calculate the total width of the menu bar.
@@ -36,14 +39,16 @@ fn get_editor_index(
 
 // Draw the menu bar.
 pub unsafe fn draw_menu_bar(
-    ctx: &mut RegionSelectorContext, cursor_x: i32, cursor_y: i32,
-    screen_w: i32, screen_h: i32,
+    ctx: &mut RegionSelectorContext,
+    cursor_x: i32,
+    cursor_y: i32,
+    screen_w: i32,
+    screen_h: i32,
 ) {
     // Get the index of the editor.
     let icons_count = ctx.editors.len() + 1;
     let top_gap = get_top_gap();
-    let hovering = get_editor_index(
-        icons_count, cursor_x, cursor_y, screen_w, top_gap);
+    let hovering = get_editor_index(icons_count, cursor_x, cursor_y, screen_w, top_gap);
 
     // Get the X position of the menu bar.
     let half_sw = screen_w / 2;
@@ -55,9 +60,8 @@ pub unsafe fn draw_menu_bar(
         Some(i) => i + 1,
         None => 0,
     };
-    ctx.texture_pack.render_menu_bar(
-        selected, hovering, x, top_gap, screen_h,
-    );
+    ctx.texture_pack
+        .render_menu_bar(selected, hovering, x, top_gap, screen_h);
 
     // Render the description.
     if let Some(i) = hovering {

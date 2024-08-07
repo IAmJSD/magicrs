@@ -1,8 +1,8 @@
-use std::sync::RwLock;
+use crate::{mainthread::main_event_loop, reload, statics::run_thread};
 use once_cell::sync::OnceCell;
+use std::sync::RwLock;
 use tray_icon::menu::{Menu, MenuEvent};
 use windows::Win32::System::Threading::GetCurrentThreadId;
-use crate::{mainthread::main_event_loop, reload, statics::run_thread};
 
 // Defines the structure for a shared application.
 pub struct SharedApplication {
@@ -16,7 +16,7 @@ pub struct SharedApplication {
 static mut SHARED_APPLICATION: OnceCell<&'static mut SharedApplication> = OnceCell::new();
 
 // Defines the shared application object.
-pub fn app() -> &'static mut SharedApplication { 
+pub fn app() -> &'static mut SharedApplication {
     unsafe { SHARED_APPLICATION.get_mut().unwrap() }
 }
 
@@ -33,10 +33,15 @@ pub fn application_init() {
         menu_event: RwLock::new(None),
     }));
     let ptr = leaky_box as *mut SharedApplication;
-    unsafe { let _ = SHARED_APPLICATION.set(&mut *ptr); }
+    unsafe {
+        let _ = SHARED_APPLICATION.set(&mut *ptr);
+    }
 
     // Set the MAGICCAP_INTERNAL_MEMORY_ADDRESS env var.
-    std::env::set_var("MAGICCAP_INTERNAL_MEMORY_ADDRESS", (ptr as usize).to_string());
+    std::env::set_var(
+        "MAGICCAP_INTERNAL_MEMORY_ADDRESS",
+        (ptr as usize).to_string(),
+    );
 
     // In a thread, launch the application_reload function. This is because it can cause problems
     // if it blocks the main thread.

@@ -1,14 +1,18 @@
-use std::sync::{Arc, RwLock};
 use super::{
-    color_box, editors::{create_editor_vec, Editor, EditorFactory},
+    color_box,
+    editors::{create_editor_vec, Editor, EditorFactory},
     event_loop_handler::{region_selector_event_loop_handler, region_selector_io_event_sent},
-    gl_abstractions::GLTexture, light_detector::LightDetector, texture_pack::TexturePack,
-    ui_renderer::region_selector_render_ui, RegionCapture,
+    gl_abstractions::GLTexture,
+    light_detector::LightDetector,
+    texture_pack::TexturePack,
+    ui_renderer::region_selector_render_ui,
+    RegionCapture,
 };
 use crate::mainthread::{main_thread_async, main_thread_sync};
 use glfw::{Context, Glfw, PWindow};
 use image::RgbaImage;
 use once_cell::unsync::Lazy;
+use std::sync::{Arc, RwLock};
 
 // A container that bypasses the Send and Sync traits.
 pub struct SendSyncBypass<T> {
@@ -22,7 +26,9 @@ impl<T> SendSyncBypass<T> {
     }
 
     // Gets a mutable reference to the data.
-    pub fn as_mut(&mut self) -> &mut T { &mut self.data }
+    pub fn as_mut(&mut self) -> &mut T {
+        &mut self.data
+    }
 }
 unsafe impl<T> Send for SendSyncBypass<T> {}
 unsafe impl<T> Sync for SendSyncBypass<T> {}
@@ -117,8 +123,9 @@ fn get_black_white_and_striped_texture(size: u32) -> (GLTexture, GLTexture, GLTe
 
 // Handles iterating or jumping right to a index.
 pub fn iter_windows_or_jump(
-    ctx: &mut RegionSelectorContext, index: Option<usize>,
-    closure: &dyn Fn(&mut RegionSelectorContext, &mut glfw::Window, usize)
+    ctx: &mut RegionSelectorContext,
+    index: Option<usize>,
+    closure: &dyn Fn(&mut RegionSelectorContext, &mut glfw::Window, usize),
 ) {
     // Use unsafe to get the mutable reference. This is safe because we know that the context will outlive
     // the mutable reference.
@@ -143,7 +150,8 @@ pub fn iter_windows_or_jump(
 
 // Sets up the region selector.
 fn setup_region_selector(
-    setup: Box<RegionSelectorSetup>, screenshots: &mut Vec<RgbaImage>,
+    setup: Box<RegionSelectorSetup>,
+    screenshots: &mut Vec<RgbaImage>,
 ) -> Option<Box<SendSyncBypass<RegionSelectorContext>>> {
     // Setup glfw.
     let mut glfw = glfw::init(glfw::fail_on_errors).unwrap();
@@ -155,12 +163,16 @@ fn setup_region_selector(
         #[allow(unused_variables)] // Only used on Linux.
         for (index, monitor) in setup.monitors.iter().enumerate() {
             // Find the matching glfw monitor.
-            let glfw_monitor = glfw_monitors.iter().
-                find(|m| m.get_pos() == (monitor.x(), monitor.y())).unwrap();
+            let glfw_monitor = glfw_monitors
+                .iter()
+                .find(|m| m.get_pos() == (monitor.x(), monitor.y()))
+                .unwrap();
 
             // Set the window hints to control the version of OpenGL.
             glfw.window_hint(glfw::WindowHint::ContextVersion(3, 2));
-            glfw.window_hint(glfw::WindowHint::OpenGlProfile(glfw::OpenGlProfileHint::Core));
+            glfw.window_hint(glfw::WindowHint::OpenGlProfile(
+                glfw::OpenGlProfileHint::Core,
+            ));
             glfw.window_hint(glfw::WindowHint::OpenGlForwardCompat(true));
 
             // Handle IO events.
@@ -185,11 +197,17 @@ fn setup_region_selector(
             #[allow(unused_mut)] // Only used on Windows.
             let mut window = match if glfw_windows.is_empty() {
                 glfw.create_window(
-                    monitor.width(), monitor.height(), "Region Selector", window_mode,
+                    monitor.width(),
+                    monitor.height(),
+                    "Region Selector",
+                    window_mode,
                 )
             } else {
                 glfw_windows[0].create_shared(
-                    monitor.width(), monitor.height(), "Region Selector", window_mode,
+                    monitor.width(),
+                    monitor.height(),
+                    "Region Selector",
+                    window_mode,
                 )
             } {
                 Some(t) => t.0,
@@ -198,14 +216,20 @@ fn setup_region_selector(
                         window.set_should_close(true);
                     }
                     return false;
-                },
+                }
             };
 
             // On Windows, set the position of the window to the monitor.
             #[cfg(target_os = "windows")]
             {
                 window.set_monitor(
-                    glfw::WindowMode::Windowed, monitor.x(), monitor.y(), monitor.width(), monitor.height(), None);
+                    glfw::WindowMode::Windowed,
+                    monitor.x(),
+                    monitor.y(),
+                    monitor.width(),
+                    monitor.height(),
+                    None,
+                );
             }
 
             // Handle window servers on Linux.
@@ -214,9 +238,14 @@ fn setup_region_selector(
                 let x_ptr = window.get_x11_window();
                 if !x_ptr.is_null() {
                     extern "C" {
-                        fn magiccap_handle_linux_x11(x_window_ptr: *mut std::ffi::c_void, last: bool);
+                        fn magiccap_handle_linux_x11(
+                            x_window_ptr: *mut std::ffi::c_void,
+                            last: bool,
+                        );
                     }
-                    unsafe { magiccap_handle_linux_x11(x_ptr, index == setup.monitors.len() - 1); }
+                    unsafe {
+                        magiccap_handle_linux_x11(x_ptr, index == setup.monitors.len() - 1);
+                    }
                 }
             }
 
@@ -229,45 +258,54 @@ fn setup_region_selector(
 
         // Return true since success.
         true
-    }) { return None; }
+    }) {
+        return None;
+    }
 
     // If there is no windows, return None.
-    if glfw_windows.is_empty() { return None; }
+    if glfw_windows.is_empty() {
+        return None;
+    }
 
     // Load in the OpenGL functions.
     let first_window_ref = &mut glfw_windows[0];
     gl::load_with(|s| first_window_ref.get_proc_address(s) as *const _);
 
     // Get the image dimensions.
-    let image_dimensions = screenshots.iter().map(|img| {
-        img.dimensions()
-    }).collect::<Vec<_>>();
+    let image_dimensions = screenshots
+        .iter()
+        .map(|img| img.dimensions())
+        .collect::<Vec<_>>();
 
     // Turn the images into textures.
-    let gl_screenshots = screenshots.iter().map(|img| {
-        GLTexture::from_rgba(&img)
-    }).collect::<Vec<_>>();
+    let gl_screenshots = screenshots
+        .iter()
+        .map(|img| GLTexture::from_rgba(&img))
+        .collect::<Vec<_>>();
 
     // Get the light detectors.
-    let light_detectors = screenshots.iter().map(|img| {
-        LightDetector::new(img.clone())
-    }).collect::<Vec<_>>();
+    let light_detectors = screenshots
+        .iter()
+        .map(|img| LightDetector::new(img.clone()))
+        .collect::<Vec<_>>();
 
     // Turn the images into darkened textures by manipulating the underlying data.
     // This is quicker than compiling a shader on first load and since we are not
     // mutating it in OpenGL, it will be very fast to blit from the texture.
-    let gl_screenshots_darkened = screenshots.iter_mut().map(
-        |img| {
+    let gl_screenshots_darkened = screenshots
+        .iter_mut()
+        .map(|img| {
             // Darken the image.
             super::image_manipulation_simd::set_brightness_half_simd(img);
 
             // Create the texture.
             GLTexture::from_rgba(&img)
-        }
-    ).collect::<Vec<_>>();
+        })
+        .collect::<Vec<_>>();
 
     // Create the context.
-    let (black_texture, white_texture, striped_tex_w, striped_tex_h) = get_black_white_and_striped_texture(largest_w_or_h);
+    let (black_texture, white_texture, striped_tex_w, striped_tex_h) =
+        get_black_white_and_striped_texture(largest_w_or_h);
     let (dr, dg, db) = setup.default_color;
     let mut context = RegionSelectorContext {
         setup,
@@ -278,11 +316,18 @@ fn setup_region_selector(
         light_detectors,
         gl_screenshots_darkened,
         editors: create_editor_vec(),
-        black_texture, white_texture,
-        striped_tex_w, striped_tex_h,
+        black_texture,
+        white_texture,
+        striped_tex_w,
+        striped_tex_h,
         texture_pack: TexturePack::new(),
 
-        color_selection: Arc::new(RwLock::new((dr, dg, db, color_box::render_texture(dr, dg, db)))),
+        color_selection: Arc::new(RwLock::new((
+            dr,
+            dg,
+            db,
+            color_box::render_texture(dr, dg, db),
+        ))),
         active_selection: None,
         active_editors: Vec::new(),
         editor_index: None,
@@ -291,11 +336,7 @@ fn setup_region_selector(
     };
 
     // Render the UI.
-    unsafe {
-        region_selector_render_ui(
-            &mut context, true, None,
-        )
-    };
+    unsafe { region_selector_render_ui(&mut context, true, None) };
 
     // Box the context.
     let mut ctx_boxed = Box::new(SendSyncBypass::new(context));
@@ -358,16 +399,20 @@ fn setup_region_selector(
 }
 
 // Make sure a item gets dropped on the main thread.
-fn main_thread_drop<T>(item: T) where T: Send + 'static {
-    main_thread_async(move || { drop(item) });
+fn main_thread_drop<T>(item: T)
+where
+    T: Send + 'static,
+{
+    main_thread_async(move || drop(item));
 }
 
 // Invokes the engine.
-pub fn invoke(setup: Box<RegionSelectorSetup>, screenshots: &mut Vec<RgbaImage>) -> Option<RegionCapture> {
+pub fn invoke(
+    setup: Box<RegionSelectorSetup>,
+    screenshots: &mut Vec<RgbaImage>,
+) -> Option<RegionCapture> {
     // Setup the region selector context.
-    let mut ctx = match main_thread_sync(|| setup_region_selector(
-        setup, screenshots,
-    )) {
+    let mut ctx = match main_thread_sync(|| setup_region_selector(setup, screenshots)) {
         Some(ctx) => ctx,
         None => return None,
     };
@@ -375,8 +420,7 @@ pub fn invoke(setup: Box<RegionSelectorSetup>, screenshots: &mut Vec<RgbaImage>)
     // Call the event loop handler in the main thread. Pull the result into the worker thread.
     let res = loop {
         // Run the event loop handler.
-        let res = main_thread_sync(
-            || region_selector_event_loop_handler(&mut ctx));
+        let res = main_thread_sync(|| region_selector_event_loop_handler(&mut ctx));
         if let Some(res) = res {
             break res;
         }

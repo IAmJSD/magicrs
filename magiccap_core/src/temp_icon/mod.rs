@@ -1,8 +1,8 @@
-mod shared;
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(not(target_os = "linux"))]
 mod other;
+mod shared;
 
 // On Linux, re-export the icond function.
 #[cfg(target_os = "linux")]

@@ -13,7 +13,8 @@ where
 #[cfg(target_os = "macos")]
 pub fn main_thread_sync<F, T>(handler: F) -> T
 where
-    F: Send + FnOnce() -> T, T: Send
+    F: Send + FnOnce() -> T,
+    T: Send,
 {
     use dispatch::Queue;
 
@@ -35,26 +36,21 @@ where
 #[cfg(target_os = "windows")]
 pub fn main_event_loop() {
     use windows::Win32::UI::WindowsAndMessaging::{
-        DispatchMessageA, GetMessageA, TranslateMessage, MSG, WM_USER
+        DispatchMessageA, GetMessageA, TranslateMessage, MSG, WM_USER,
     };
 
     loop {
         let mut msg = MSG::default();
         let msg_mut_ptr = &mut msg as *mut MSG;
-        let got_message = unsafe {
-            GetMessageA(msg_mut_ptr, None, 0, 0)
-        };
+        let got_message = unsafe { GetMessageA(msg_mut_ptr, None, 0, 0) };
         if !got_message.as_bool() {
             return;
         }
         if msg.message == WM_USER {
             // Get the memory address of the function.
             let mem_address = msg.wParam.0;
-            let (handler, addr) = *unsafe {
-                Box::from_raw(
-                    mem_address as *mut (extern fn(usize), usize)
-                )
-            };
+            let (handler, addr) =
+                *unsafe { Box::from_raw(mem_address as *mut (extern "C" fn(usize), usize)) };
             handler(addr);
         } else {
             // Let Windows handle this.
@@ -74,21 +70,27 @@ where
     F: FnOnce() + Send + 'static,
 {
     use crate::windows_shared::app;
-    use windows::Win32::{Foundation::WPARAM, UI::WindowsAndMessaging::{
-        PostThreadMessageA, WM_USER,
-    }};
+    use windows::Win32::{
+        Foundation::WPARAM,
+        UI::WindowsAndMessaging::{PostThreadMessageA, WM_USER},
+    };
 
-    extern fn caller<F>(func: Box<F>) where F: FnOnce() + Send + 'static {
+    extern "C" fn caller<F>(func: Box<F>)
+    where
+        F: FnOnce() + Send + 'static,
+    {
         (*func)();
     }
-    let func: extern fn(Box<F>) = caller::<F>;
-    let mem_addr = Box::into_raw(Box::new((
-        func, Box::into_raw(Box::new(handler)),
-    )));
+    let func: extern "C" fn(Box<F>) = caller::<F>;
+    let mem_addr = Box::into_raw(Box::new((func, Box::into_raw(Box::new(handler)))));
     unsafe {
         PostThreadMessageA(
-            app().main_thread_id, WM_USER, WPARAM(mem_addr as usize), None,
-        ).unwrap();
+            app().main_thread_id,
+            WM_USER,
+            WPARAM(mem_addr as usize),
+            None,
+        )
+        .unwrap();
     }
 }
 
@@ -96,7 +98,8 @@ where
 #[cfg(not(target_os = "macos"))]
 pub fn main_thread_sync<F, T>(handler: F) -> T
 where
-    F: Send + FnOnce() -> T, T: Send
+    F: Send + FnOnce() -> T,
+    T: Send,
 {
     use std::sync::mpsc::sync_channel;
 

@@ -1,16 +1,24 @@
-use crate::region_selector::{engine::RegionSelectorContext, gl_abstractions::GLTexture};
 use super::{Editor, EditorFactory, EditorRegion};
+use crate::region_selector::{engine::RegionSelectorContext, gl_abstractions::GLTexture};
 
 // Defines a hollow rectangle editor.
 pub struct HollowRectangle {
     color: (u8, u8, u8),
 }
 impl Editor for HollowRectangle {
-    fn click(&mut self, _: i32, _: i32) -> Option<Option<EditorRegion>> { None }
+    fn click(&mut self, _: i32, _: i32) -> Option<Option<EditorRegion>> {
+        None
+    }
 
     fn render(
-        &mut self, _: &GLTexture, _: u32, screen_h: u32,
-        texture_w: u32, texture_h: u32, texture_x: i32, texture_y: i32,
+        &mut self,
+        _: &GLTexture,
+        _: u32,
+        screen_h: u32,
+        texture_w: u32,
+        texture_h: u32,
+        texture_x: i32,
+        texture_y: i32,
     ) {
         // Turn the color into a float where 1 is u8::MAX.
         let r = self.color.0 as f32 / u8::MAX as f32;
@@ -20,16 +28,28 @@ impl Editor for HollowRectangle {
         // Defines the scizzor regions.
         let scizzors = [
             // Top region.
-            (texture_x, screen_h as i32 - texture_y - texture_h as i32, texture_w, 1),
-    
+            (
+                texture_x,
+                screen_h as i32 - texture_y - texture_h as i32,
+                texture_w,
+                1,
+            ),
             // Bottom region.
             (texture_x, screen_h as i32 - texture_y, texture_w, 1),
-
             // Left region.
-            (texture_x, screen_h as i32 - texture_y - texture_h as i32, 1, texture_h),
-
+            (
+                texture_x,
+                screen_h as i32 - texture_y - texture_h as i32,
+                1,
+                texture_h,
+            ),
             // Right region.
-            (texture_x + texture_w as i32 - 1, screen_h as i32 - texture_y - texture_h as i32, 1, texture_h),
+            (
+                texture_x + texture_w as i32 - 1,
+                screen_h as i32 - texture_y - texture_h as i32,
+                1,
+                texture_h,
+            ),
         ];
         unsafe {
             gl::Enable(gl::SCISSOR_TEST);
@@ -56,8 +76,8 @@ impl EditorFactory for HollowRectangleFactory {
 
     fn create_editor(&mut self, ctx: &mut RegionSelectorContext) -> Box<dyn Editor> {
         let read_guard = ctx.color_selection.read().unwrap();
-        Box::new(HollowRectangle {color: (
-            read_guard.0, read_guard.1, read_guard.2,
-        )})
+        Box::new(HollowRectangle {
+            color: (read_guard.0, read_guard.1, read_guard.2),
+        })
     }
 }

@@ -1,5 +1,5 @@
-use std::collections::HashSet;
 use super::engine::{EditorResizerElement, EditorUsage, RegionSelectorContext};
+use std::collections::HashSet;
 
 // Check if a overlaps b.
 fn overlaps(a: &EditorUsage, b: &EditorUsage) -> bool {
@@ -28,11 +28,19 @@ fn overlaps(a: &EditorUsage, b: &EditorUsage) -> bool {
 }
 
 // Gets the visible editors on a display.
-fn get_visible_editors<'a>(ctx: &'a mut RegionSelectorContext, index: usize) -> Vec<(usize, &'a mut EditorUsage)> {
+fn get_visible_editors<'a>(
+    ctx: &'a mut RegionSelectorContext,
+    index: usize,
+) -> Vec<(usize, &'a mut EditorUsage)> {
     // Get the editors active on the display specified. It is reversed since the last created will be
     // at the end of the list.
-    let editors = ctx.active_editors.iter_mut().enumerate()
-        .filter(|(_, editor)| editor.display_index == index).rev().collect::<Vec<_>>();
+    let editors = ctx
+        .active_editors
+        .iter_mut()
+        .enumerate()
+        .filter(|(_, editor)| editor.display_index == index)
+        .rev()
+        .collect::<Vec<_>>();
 
     // Remove any editors that are not visible.
     let mut overlapped_editors = HashSet::new();
@@ -58,9 +66,13 @@ fn get_visible_editors<'a>(ctx: &'a mut RegionSelectorContext, index: usize) -> 
     }
 
     // Remove the overlapped editors and return the result.
-    editors.into_iter().enumerate()
-        .filter(|(i, _)| !overlapped_editors.contains(&i)).map(|(_, e)| e).collect()
-} 
+    editors
+        .into_iter()
+        .enumerate()
+        .filter(|(i, _)| !overlapped_editors.contains(&i))
+        .map(|(_, e)| e)
+        .collect()
+}
 
 // Defines the selector size.
 const SELECTOR_WIDTH: i32 = 10;
@@ -69,7 +81,10 @@ const SELECTOR_HEIGHT: i32 = 10;
 // Handles the cursor being mouse down within a editors crop margin. Within a branch that
 // excludes the menu bar. Returns false if the cursor is not within the crop margin.
 pub fn handle_active_editor_drag_start(
-    ctx: &mut RegionSelectorContext, index: usize, rel_x: i32, rel_y: i32,
+    ctx: &mut RegionSelectorContext,
+    index: usize,
+    rel_x: i32,
+    rel_y: i32,
 ) -> bool {
     // Get the editors active on the display specified.
     let ctx2 = unsafe { &mut *(ctx as *mut _) };
@@ -88,8 +103,11 @@ pub fn handle_active_editor_drag_start(
         // Check if there is a midpoint and if so if the cursor is within it.
         if w > 25 && h > 25 {
             let (mid_x, mid_y) = (x + w / 2, y + h / 2);
-            if rel_x >= mid_x - half_sw && rel_x < mid_x + half_sw &&
-                rel_y >= mid_y - half_sh && rel_y < mid_y + half_sh {
+            if rel_x >= mid_x - half_sw
+                && rel_x < mid_x + half_sw
+                && rel_y >= mid_y - half_sh
+                && rel_y < mid_y + half_sh
+            {
                 // We are in the midpoint. Write the center point.
                 ctx.editor_dragged = Some((editor_index, EditorResizerElement::Centre));
                 return true;
@@ -104,8 +122,11 @@ pub fn handle_active_editor_drag_start(
             (x + w, y + h, EditorResizerElement::BottomRight),
         ];
         for (x, y, element) in points.iter() {
-            if rel_x >= x - half_sw && rel_x < x + half_sw &&
-                rel_y >= y - half_sh && rel_y < y + half_sh {
+            if rel_x >= x - half_sw
+                && rel_x < x + half_sw
+                && rel_y >= y - half_sh
+                && rel_y < y + half_sh
+            {
                 // We are in this point. Write the point.
                 ctx.editor_dragged = Some((editor_index, element.clone()));
                 return true;
@@ -123,7 +144,10 @@ const MIN_HEIGHT: i32 = 20;
 
 // Flushes any updates to editors.
 pub fn flush_editor_updates(
-    ctx: &mut RegionSelectorContext, index: usize, cursor_x: f64, cursor_y: f64,
+    ctx: &mut RegionSelectorContext,
+    index: usize,
+    cursor_x: f64,
+    cursor_y: f64,
 ) {
     // Get the editor index and element.
     let (editor_index, element) = match ctx.editor_dragged {
@@ -138,7 +162,7 @@ pub fn flush_editor_updates(
             // The editor was removed.
             ctx.editor_dragged = None;
             return;
-        },
+        }
     };
 
     // Make sure that the editor is within the same display.
@@ -160,7 +184,7 @@ pub fn flush_editor_updates(
             // Update the editor.
             editor.x = new_x;
             editor.y = new_y;
-        },
+        }
         EditorResizerElement::TopLeft => {
             // Calculate the new width and height.
             let new_width = (editor.x + editor.width as i32 - cursor_x).max(MIN_WIDTH) as u32;
@@ -171,7 +195,7 @@ pub fn flush_editor_updates(
             editor.y = cursor_y;
             editor.width = new_width;
             editor.height = new_height;
-        },
+        }
         EditorResizerElement::BottomLeft => {
             // Calculate the new width and height.
             let new_width = (editor.x + editor.width as i32 - cursor_x).max(MIN_WIDTH) as u32;
@@ -181,7 +205,7 @@ pub fn flush_editor_updates(
             editor.x = cursor_x;
             editor.width = new_width;
             editor.height = new_height;
-        },
+        }
         EditorResizerElement::TopRight => {
             // Calculate the new width and height.
             let new_width = (cursor_x - editor.x).max(MIN_WIDTH) as u32;
@@ -191,7 +215,7 @@ pub fn flush_editor_updates(
             editor.y = cursor_y;
             editor.width = new_width;
             editor.height = new_height;
-        },
+        }
         EditorResizerElement::BottomRight => {
             // Calculate the new width and height.
             let new_width = (cursor_x - editor.x).max(MIN_WIDTH) as u32;
@@ -200,23 +224,30 @@ pub fn flush_editor_updates(
             // Update the editor size.
             editor.width = new_width;
             editor.height = new_height;
-        },
+        }
     }
 }
 
 // Draws the editor resize points.
-unsafe fn draw_editor_resize_points(ctx: &mut RegionSelectorContext, index: usize, editor: &EditorUsage, screen_h: i32) {
+unsafe fn draw_editor_resize_points(
+    ctx: &mut RegionSelectorContext,
+    index: usize,
+    editor: &EditorUsage,
+    screen_h: i32,
+) {
     // Get all the relevant points.
-    let (x, y, w, h) = (editor.x, editor.y, editor.width as i32, editor.height as i32);
+    let (x, y, w, h) = (
+        editor.x,
+        editor.y,
+        editor.width as i32,
+        editor.height as i32,
+    );
     let (x, y, x2, y2) = (x - 1, y - 1, x + w, y + h);
     let (mid_x, mid_y) = (x + w / 2, y + h / 2);
 
     // Call the light detector for each point.
     let light_detector = &mut ctx.light_detectors[index];
-    let (
-        top_left_light, top_right_light, bottom_left_light, bottom_right_light,
-        center_light,
-    ) = (
+    let (top_left_light, top_right_light, bottom_left_light, bottom_right_light, center_light) = (
         light_detector.get_lightness(x as u32, y as u32),
         light_detector.get_lightness(x2 as u32, y as u32),
         light_detector.get_lightness(x as u32, y2 as u32),
@@ -234,11 +265,16 @@ unsafe fn draw_editor_resize_points(ctx: &mut RegionSelectorContext, index: usiz
         let color_f = if center_light { 0.0 } else { 1.0 };
 
         // Draw the center point.
-        gl::Scissor(mid_x - half_sw, screen_h - mid_y - half_sh, SELECTOR_WIDTH, SELECTOR_HEIGHT);
+        gl::Scissor(
+            mid_x - half_sw,
+            screen_h - mid_y - half_sh,
+            SELECTOR_WIDTH,
+            SELECTOR_HEIGHT,
+        );
         gl::Enable(gl::SCISSOR_TEST);
         gl::ClearColor(color_f, color_f, color_f, 1.0);
         gl::Clear(gl::COLOR_BUFFER_BIT);
-        gl::Disable(gl::SCISSOR_TEST);    
+        gl::Disable(gl::SCISSOR_TEST);
     }
 
     // Handle the rest of the points.
@@ -253,7 +289,12 @@ unsafe fn draw_editor_resize_points(ctx: &mut RegionSelectorContext, index: usiz
         let color_f = if *light { 0.0 } else { 1.0 };
 
         // Draw the point.
-        gl::Scissor(*x - half_sw, screen_h - *y - half_sh, SELECTOR_WIDTH, SELECTOR_HEIGHT);
+        gl::Scissor(
+            *x - half_sw,
+            screen_h - *y - half_sh,
+            SELECTOR_WIDTH,
+            SELECTOR_HEIGHT,
+        );
         gl::Enable(gl::SCISSOR_TEST);
         gl::ClearColor(color_f, color_f, color_f, 1.0);
         gl::Clear(gl::COLOR_BUFFER_BIT);
@@ -262,7 +303,11 @@ unsafe fn draw_editor_resize_points(ctx: &mut RegionSelectorContext, index: usiz
 }
 
 // Render lines for the editors.
-pub unsafe fn render_editor_resize_lines(ctx: &mut RegionSelectorContext, index: usize, screen_h: i32) {
+pub unsafe fn render_editor_resize_lines(
+    ctx: &mut RegionSelectorContext,
+    index: usize,
+    screen_h: i32,
+) {
     // Get the editors active on the display specified.
     let (w_texture, h_texture) = (ctx.striped_tex_w.texture, ctx.striped_tex_h.texture);
     let ctx2 = unsafe { &mut *(ctx as *mut _) };
@@ -270,8 +315,11 @@ pub unsafe fn render_editor_resize_lines(ctx: &mut RegionSelectorContext, index:
 
     // Bind the framebuffer to the vertical striped texture.
     gl::FramebufferTexture2D(
-        gl::READ_FRAMEBUFFER, gl::COLOR_ATTACHMENT0,
-        gl::TEXTURE_2D, h_texture, 0,
+        gl::READ_FRAMEBUFFER,
+        gl::COLOR_ATTACHMENT0,
+        gl::TEXTURE_2D,
+        h_texture,
+        0,
     );
 
     // Render the vertical lines.
@@ -284,21 +332,38 @@ pub unsafe fn render_editor_resize_lines(ctx: &mut RegionSelectorContext, index:
 
         // Blit the left and right lines.
         gl::BlitFramebuffer(
-            0, 0, 1, h,
-            x - 1, screen_h - y, x, screen_h - y - h,
-            gl::COLOR_BUFFER_BIT, gl::NEAREST,
+            0,
+            0,
+            1,
+            h,
+            x - 1,
+            screen_h - y,
+            x,
+            screen_h - y - h,
+            gl::COLOR_BUFFER_BIT,
+            gl::NEAREST,
         );
         gl::BlitFramebuffer(
-            0, 0, 1, h,
-            x + w, screen_h - y, x + w + 1, screen_h - y - h,
-            gl::COLOR_BUFFER_BIT, gl::NEAREST,
+            0,
+            0,
+            1,
+            h,
+            x + w,
+            screen_h - y,
+            x + w + 1,
+            screen_h - y - h,
+            gl::COLOR_BUFFER_BIT,
+            gl::NEAREST,
         );
     }
 
     // Bind the framebuffer to the horizontal striped texture.
     gl::FramebufferTexture2D(
-        gl::READ_FRAMEBUFFER, gl::COLOR_ATTACHMENT0,
-        gl::TEXTURE_2D, w_texture, 0,
+        gl::READ_FRAMEBUFFER,
+        gl::COLOR_ATTACHMENT0,
+        gl::TEXTURE_2D,
+        w_texture,
+        0,
     );
 
     // Render the horizontal lines.
@@ -311,14 +376,28 @@ pub unsafe fn render_editor_resize_lines(ctx: &mut RegionSelectorContext, index:
 
         // Blit the top and bottom lines.
         gl::BlitFramebuffer(
-            0, 0, w, 1,
-            x, screen_h - y, x + w, screen_h - y - 1,
-            gl::COLOR_BUFFER_BIT, gl::NEAREST,
+            0,
+            0,
+            w,
+            1,
+            x,
+            screen_h - y,
+            x + w,
+            screen_h - y - 1,
+            gl::COLOR_BUFFER_BIT,
+            gl::NEAREST,
         );
         gl::BlitFramebuffer(
-            0, 0, w, 1,
-            x, screen_h - y - h, x + w, screen_h - y - h - 1,
-            gl::COLOR_BUFFER_BIT, gl::NEAREST,
+            0,
+            0,
+            w,
+            1,
+            x,
+            screen_h - y - h,
+            x + w,
+            screen_h - y - h - 1,
+            gl::COLOR_BUFFER_BIT,
+            gl::NEAREST,
         );
     }
 

@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 // Handles removing Embedded items from the custom uploader config.
 // This is because these are meant for internal use only.
@@ -11,13 +11,17 @@ impl Serialize for CustomUploaderConfig {
         S: serde::Serializer,
     {
         // Serialize as an array of tuples but make sure none are Embedded.
-        let v: Vec<_> = self.0.iter().filter_map(|(key, value)| {
-            if let crate::uploaders::ConfigOption::Embedded { .. } = value {
-                None
-            } else {
-                Some((key, value))
-            }
-        }).collect();
+        let v: Vec<_> = self
+            .0
+            .iter()
+            .filter_map(|(key, value)| {
+                if let crate::uploaders::ConfigOption::Embedded { .. } = value {
+                    None
+                } else {
+                    Some((key, value))
+                }
+            })
+            .collect();
         v.serialize(serializer)
     }
 }
@@ -28,12 +32,15 @@ impl<'de> Deserialize<'de> for CustomUploaderConfig {
         D: serde::Deserializer<'de>,
     {
         // Call the deserializer on the inner type.
-        let v: Vec<(String, crate::uploaders::ConfigOption)> = Deserialize::deserialize(deserializer)?;
+        let v: Vec<(String, crate::uploaders::ConfigOption)> =
+            Deserialize::deserialize(deserializer)?;
 
         // Make sure there are no Embedded items.
         for (_, value) in &v {
             if let crate::uploaders::ConfigOption::Embedded { .. } = value {
-                return Err(serde::de::Error::custom("Embedded items are not allowed in custom uploader config"));
+                return Err(serde::de::Error::custom(
+                    "Embedded items are not allowed in custom uploader config",
+                ));
             }
         }
 
@@ -50,10 +57,18 @@ impl CustomUploaderConfig {
 
 // Defines the IntoUploader trait.
 pub trait IntoUploader {
-    fn into_uploader(self, id: String) -> Box<dyn Fn(
-        &str, HashMap<String, serde_json::Value>,
-        Box<dyn std::io::Read + Send + Sync>,
-    ) -> Result<String, String> + Send + Sync>;
+    fn into_uploader(
+        self,
+        id: String,
+    ) -> Box<
+        dyn Fn(
+                &str,
+                HashMap<String, serde_json::Value>,
+                Box<dyn std::io::Read + Send + Sync>,
+            ) -> Result<String, String>
+            + Send
+            + Sync,
+    >;
 }
 
 // Defines the HTTP method type.
@@ -90,22 +105,37 @@ pub struct HTTPUploaderConfig {
 
 // Implements the IntoUploader trait for HTTPUploaderConfig.
 impl IntoUploader for HTTPUploaderConfig {
-    fn into_uploader(self, _: String) -> Box<dyn Fn(
-        &str, HashMap<String, serde_json::Value>,
-        Box<dyn std::io::Read + Send + Sync>,
-    ) -> Result<String, String> + Send + Sync> {
+    fn into_uploader(
+        self,
+        _: String,
+    ) -> Box<
+        dyn Fn(
+                &str,
+                HashMap<String, serde_json::Value>,
+                Box<dyn std::io::Read + Send + Sync>,
+            ) -> Result<String, String>
+            + Send
+            + Sync,
+    > {
         return Box::new(move |filename, config, reader| {
-            let (mime_type, reader) = match crate::uploaders::mime::guess_mime_type(filename, reader) {
-                Ok(v) => v,
-                Err(e) => return Err(e.to_string()),
-            };
+            let (mime_type, reader) =
+                match crate::uploaders::mime::guess_mime_type(filename, reader) {
+                    Ok(v) => v,
+                    Err(e) => return Err(e.to_string()),
+                };
             super::http::http(
-                filename, mime_type.essence_str(),
-                self.rewrites.clone(), &self.url_template, self.method.as_str(),
-                self.header_templates.clone(), self.body.clone(), config.clone(),
-                reader, &self.response_expr,
+                filename,
+                mime_type.essence_str(),
+                self.rewrites.clone(),
+                &self.url_template,
+                self.method.as_str(),
+                self.header_templates.clone(),
+                self.body.clone(),
+                config.clone(),
+                reader,
+                &self.response_expr,
             )
-        })
+        });
     }
 }
 
@@ -117,16 +147,21 @@ pub struct PHPUploaderConfig {
 
 // Implements the IntoUploader trait for PHPUploaderConfig.
 impl IntoUploader for PHPUploaderConfig {
-    fn into_uploader(self, id: String) -> Box<dyn Fn(
-        &str, HashMap<String, serde_json::Value>,
-        Box<dyn std::io::Read + Send + Sync>,
-    ) -> Result<String, String> + Send + Sync> {
+    fn into_uploader(
+        self,
+        id: String,
+    ) -> Box<
+        dyn Fn(
+                &str,
+                HashMap<String, serde_json::Value>,
+                Box<dyn std::io::Read + Send + Sync>,
+            ) -> Result<String, String>
+            + Send
+            + Sync,
+    > {
         return Box::new(move |filename, config, reader| {
-            super::php::php(
-                &id, &self.code, config,
-                filename, reader,
-            )
-        })
+            super::php::php(&id, &self.code, config, filename, reader)
+        });
     }
 }
 
@@ -140,10 +175,18 @@ pub enum CustomUploaderHandler {
 
 // Implements the IntoUploader trait for CustomUploaderHandler.
 impl IntoUploader for CustomUploaderHandler {
-    fn into_uploader(self, id: String) -> Box<dyn Fn(
-        &str, HashMap<String, serde_json::Value>,
-        Box<dyn std::io::Read + Send + Sync>,
-    ) -> Result<String, String> + Send + Sync> {
+    fn into_uploader(
+        self,
+        id: String,
+    ) -> Box<
+        dyn Fn(
+                &str,
+                HashMap<String, serde_json::Value>,
+                Box<dyn std::io::Read + Send + Sync>,
+            ) -> Result<String, String>
+            + Send
+            + Sync,
+    > {
         match self {
             CustomUploaderHandler::HTTP(v) => v.into_uploader(id),
             CustomUploaderHandler::PHP(v) => v.into_uploader(id),

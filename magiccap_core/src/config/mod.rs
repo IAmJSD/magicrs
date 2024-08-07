@@ -1,20 +1,20 @@
-use std::{collections::HashMap, io::Read};
-use base64::Engine;
-use once_cell::sync::Lazy;
-use tar::Archive;
-use uriparse::URI;
-#[cfg(target_os = "macos")]
-use cacao::{
-    foundation::{NSString, nil},
-    appkit::window::{Window, WindowConfig},
-    webview::{WebView, WebViewConfig, WebViewDelegate},
-};
-#[cfg(target_os = "linux")]
-use webkit2gtk::WebView;
 use crate::database;
 #[cfg(target_os = "macos")]
 use crate::macos_delegate::app;
 use crate::statics::run_thread;
+use base64::Engine;
+#[cfg(target_os = "macos")]
+use cacao::{
+    appkit::window::{Window, WindowConfig},
+    foundation::{nil, NSString},
+    webview::{WebView, WebViewConfig, WebViewDelegate},
+};
+use once_cell::sync::Lazy;
+use std::{collections::HashMap, io::Read};
+use tar::Archive;
+use uriparse::URI;
+#[cfg(target_os = "linux")]
+use webkit2gtk::WebView;
 
 // The folder which contains the frontend distribution.
 static FRONTEND_DIST: Lazy<HashMap<String, Vec<u8>>> = Lazy::new(|| {
@@ -51,8 +51,8 @@ pub fn pre_unpack_frontend() {
 
 // Defines sub-modules which are used to handle the config API.
 mod api;
-mod fs_proxy;
 pub mod captures_html;
+mod fs_proxy;
 
 // Handles the frontend virtual host.
 fn frontend_get(path: String) -> Option<Vec<u8>> {
@@ -73,7 +73,8 @@ fn message_sent(cpy: String) {
     let id = match parts.next() {
         Some(v) => v,
         None => return,
-    }.to_string();
+    }
+    .to_string();
     let action_type = match parts.next() {
         Some(v) => v,
         None => return,
@@ -109,13 +110,13 @@ fn message_sent(cpy: String) {
                     ob.append(&mut v);
                     ob[0] = 1;
                     ob
-                },
+                }
                 Err(err) => {
                     println!("[config.fs_proxy] Error proxying file path: {}", err);
                     ob
-                },
+                }
             }
-        },
+        }
         "captures_html" => captures_html::captures_html(parts.next().unwrap().to_string()),
         _ => return,
     };
@@ -128,18 +129,17 @@ fn message_sent(cpy: String) {
     {
         match app().delegate.webview.write().unwrap().as_ref() {
             Some(webview) => {
-                use objc::{sel, sel_impl, msg_send};
+                use objc::{msg_send, sel, sel_impl};
 
                 // Yes, this is SUPER brutal.
                 let webview = &webview.delegate.as_ref().unwrap().content;
                 webview.objc.with_mut(|obj| unsafe {
-                    let nsstr = NSString::new(
-                        &format!("window.bridgeResponse({}, '{}');", id, b64)
-                    );
+                    let nsstr =
+                        NSString::new(&format!("window.bridgeResponse({}, '{}');", id, b64));
                     let _: () = msg_send![obj, evaluateJavaScript: nsstr completionHandler: nil];
                 });
-            },
-            None => {},
+            }
+            None => {}
         };
     }
 
@@ -152,11 +152,13 @@ fn message_sent(cpy: String) {
             match crate::linux_shared::app().webview.read().unwrap().as_ref() {
                 Some(webview) => {
                     // Yes, this is SUPER brutal.
-                    webview.value.run_javascript(&format!(
-                        "window.bridgeResponse({}, '{}');", id, b64
-                    ), None::<&gio::Cancellable>, |_| {});
-                },
-                None => {},
+                    webview.value.run_javascript(
+                        &format!("window.bridgeResponse({}, '{}');", id, b64),
+                        None::<&gio::Cancellable>,
+                        |_| {},
+                    );
+                }
+                None => {}
             }
         })
     }
@@ -171,9 +173,11 @@ fn message_sent(cpy: String) {
                 Some(c) => c.0.get_webview().unwrap(),
                 None => return,
             };
-            wv.execute_script(&format!(
-                "window.bridgeResponse({}, '{}');", id, b64
-            ), |_| Ok(())).unwrap();
+            wv.execute_script(
+                &format!("window.bridgeResponse({}, '{}');", id, b64),
+                |_| Ok(()),
+            )
+            .unwrap();
         });
     }
 }
@@ -215,12 +219,10 @@ impl WebViewDelegate for MagicCapConfigDelegate {
 
         // Route based on the host.
         match uri.host() {
-            Some(v) => {
-                match v.to_string().as_str() {
-                    "frontend-dist" => frontend_get(uri.path().to_string()),
-                    _ => return None,
-                }
-            }
+            Some(v) => match v.to_string().as_str() {
+                "frontend-dist" => frontend_get(uri.path().to_string()),
+                _ => return None,
+            },
             None => return None,
         }
     }
@@ -273,10 +275,7 @@ pub fn open_config() {
     }
 
     // Create the webview.
-    let webview = WebView::with (
-        wv_config,
-        MagicCapConfigDelegate,
-    );
+    let webview = WebView::with(wv_config, MagicCapConfigDelegate);
 
     // Load the webview.
     let html_url = match std::env::var("MAGICCAP_DEV_FRONTEND_URL") {
@@ -286,10 +285,8 @@ pub fn open_config() {
     webview.load_url(&html_url);
 
     // Create the window.
-    let window: Window<ConfigWindow> = Window::with(
-        WindowConfig::default(),
-        ConfigWindow { content: webview },
-    );
+    let window: Window<ConfigWindow> =
+        Window::with(WindowConfig::default(), ConfigWindow { content: webview });
 
     // Set the webview in the app delegate.
     *webview_w = Some(window);
@@ -314,15 +311,14 @@ pub fn update_webview_with_capture(capture_id: i64) {
             // Yes, this is SUPER brutal.
             let webview = &webview.delegate.as_ref().unwrap().content;
             webview.objc.with_mut(|obj| unsafe {
-                let nsstr = NSString::new(
-                    &format!(
-                        "window.bridgeResponse(-1, '{}');", // see persistentHandlers in frontend/src/bridge/implementation.ts
-                        html_base64)
-                );
+                let nsstr = NSString::new(&format!(
+                    "window.bridgeResponse(-1, '{}');", // see persistentHandlers in frontend/src/bridge/implementation.ts
+                    html_base64
+                ));
                 let _: () = msg_send![obj, evaluateJavaScript: nsstr completionHandler: nil];
             });
-        },
-        None => {},
+        }
+        None => {}
     }
 }
 
@@ -347,10 +343,13 @@ pub fn update_webview_with_capture(capture_id: i64) {
                 wv.execute_script(
                     &format!(
                         "window.bridgeResponse(-1, '{}');", // see persistentHandlers in frontend/src/bridge/implementation.ts
-                        html_base64), |_| Ok(()),
-                ).unwrap();
-            },
-            None => {},
+                        html_base64
+                    ),
+                    |_| Ok(()),
+                )
+                .unwrap();
+            }
+            None => {}
         }
     });
 }
@@ -358,7 +357,8 @@ pub fn update_webview_with_capture(capture_id: i64) {
 // Process the webview controller.
 #[cfg(target_os = "windows")]
 fn process_webview_controller(
-    controller: webview2::Controller, env: std::sync::Arc<webview2::Environment>,
+    controller: webview2::Controller,
+    env: std::sync::Arc<webview2::Environment>,
     window: native_windows_gui::Window,
 ) -> Result<(), webview2::Error> {
     use crate::windows_shared::app;
@@ -366,16 +366,29 @@ fn process_webview_controller(
     // Implement the magiccap-internal protocol.
     let wv = controller.get_webview()?;
     wv.add_web_resource_requested_filter(
-        "magiccap-internal://*", webview2::WebResourceContext::All)?;
+        "magiccap-internal://*",
+        webview2::WebResourceContext::All,
+    )?;
     wv.add_web_resource_requested(move |_, args| {
         let uri = args.get_request().unwrap().get_uri()?;
         let path = URI::try_from(uri.as_str()).unwrap().path().to_string();
-        let mime = mime_guess::from_path(path.clone()).first_or_octet_stream().to_string();
+        let mime = mime_guess::from_path(path.clone())
+            .first_or_octet_stream()
+            .to_string();
         let res = frontend_get(path);
         if let Some(v) = res {
             let s = webview2::Stream::from_bytes(v.as_slice());
-            return args.put_response(env.create_web_resource_response(
-                s, 200, "OK", &("Content-Type: ".to_string() + &mime + "\nAccess-Control-Allow-Origin: *\nHost: frontend-dist")).unwrap());
+            return args.put_response(
+                env.create_web_resource_response(
+                    s,
+                    200,
+                    "OK",
+                    &("Content-Type: ".to_string()
+                        + &mime
+                        + "\nAccess-Control-Allow-Origin: *\nHost: frontend-dist"),
+                )
+                .unwrap(),
+            );
         }
         Ok(())
     })?;
@@ -410,13 +423,16 @@ fn process_webview_controller(
 // Hook the window events.
 #[cfg(target_os = "windows")]
 fn hook_window_events(handle: native_windows_gui::ControlHandle) {
-    use native_windows_gui::{self as nwg};
     use crate::windows_shared::app;
-    use windows::Win32::{Foundation::{HWND, RECT}, UI::WindowsAndMessaging::GetClientRect};
+    use native_windows_gui::{self as nwg};
+    use windows::Win32::{
+        Foundation::{HWND, RECT},
+        UI::WindowsAndMessaging::GetClientRect,
+    };
 
     nwg::bind_raw_event_handler(&handle, 0xffff + 1, move |_, msg, w, _| {
         use windows::Win32::UI::WindowsAndMessaging::{
-            WM_CLOSE, WM_MOVE, WM_SIZE, WM_SYSCOMMAND, SC_MINIMIZE, SC_RESTORE,
+            SC_MINIMIZE, SC_RESTORE, WM_CLOSE, WM_MOVE, WM_SIZE, WM_SYSCOMMAND,
         };
 
         let controller = app().wv_controller.as_ref().map(|x| x.0.clone());
@@ -454,7 +470,7 @@ fn hook_window_events(handle: native_windows_gui::ControlHandle) {
             }
             (WM_CLOSE, _) => {
                 app().wv_controller = None;
-            },
+            }
             _ => {}
         }
         None
@@ -466,17 +482,23 @@ fn hook_window_events(handle: native_windows_gui::ControlHandle) {
 // !! WARNING !!: This is assumed to be on the main thread. If it is not, it will cause a crash.
 #[cfg(target_os = "windows")]
 pub fn open_config() {
-    use std::sync::Arc;
     use crate::windows_shared::app;
     use com::ComRc;
     use native_windows_gui::Window;
+    use std::sync::Arc;
     use webview2::Environment;
     use webview2_com::{
-        CoreWebView2CustomSchemeRegistration, CoreWebView2EnvironmentOptions, CreateCoreWebView2EnvironmentCompletedHandler,
-        Microsoft::Web::WebView2::Win32::{ICoreWebView2Environment, ICoreWebView2EnvironmentOptions},
+        CoreWebView2CustomSchemeRegistration, CoreWebView2EnvironmentOptions,
+        CreateCoreWebView2EnvironmentCompletedHandler,
+        Microsoft::Web::WebView2::Win32::{
+            ICoreWebView2Environment, ICoreWebView2EnvironmentOptions,
+        },
     };
     use webview2_com_sys::Microsoft::Web::WebView2::Win32::CreateCoreWebView2EnvironmentWithOptions;
-    use windows::Win32::{Foundation::{HWND, RECT}, UI::WindowsAndMessaging::GetClientRect};
+    use windows::Win32::{
+        Foundation::{HWND, RECT},
+        UI::WindowsAndMessaging::GetClientRect,
+    };
 
     if let Some(controller) = app().wv_controller.as_mut() {
         controller.1.set_focus();
@@ -502,8 +524,13 @@ pub fn open_config() {
             scheme.set_treat_as_secure(true);
             opts.set_scheme_registrations(vec![Some(scheme.into())]);
             let opts_as_iface: ICoreWebView2EnvironmentOptions = opts.into();
-            CreateCoreWebView2EnvironmentWithOptions(None, None, &opts_as_iface, &environmentcreatedhandler)
-                .map_err(webview2_com::Error::WindowsError)
+            CreateCoreWebView2EnvironmentWithOptions(
+                None,
+                None,
+                &opts_as_iface,
+                &environmentcreatedhandler,
+            )
+            .map_err(webview2_com::Error::WindowsError)
         }),
         Box::new(move |error_code, environment| {
             // Handle the error code.
@@ -513,7 +540,10 @@ pub fn open_config() {
             let mut hwnd = environment.unwrap();
             let dirty_ptr = unsafe {
                 let stack_ptr = &mut hwnd as *mut _;
-                std::mem::transmute::<*mut ICoreWebView2Environment, *mut com::ComPtr<dyn webview2_sys::ICoreWebView2Environment>>(stack_ptr)
+                std::mem::transmute::<
+                    *mut ICoreWebView2Environment,
+                    *mut com::ComPtr<dyn webview2_sys::ICoreWebView2Environment>,
+                >(stack_ptr)
             };
             let com_ptr = unsafe { dirty_ptr.read() };
             let env = Environment::from(ComRc::new(com_ptr));
@@ -524,42 +554,41 @@ pub fn open_config() {
             // Get the controller.
             let env_arc = Arc::new(env);
             let rcc = env_arc.clone();
-            match env_arc.create_controller(
-                hwnd, move |controller| {
-                    let controller = match controller {
-                        Ok(controller) => controller,
-                        Err(e) => {
-                            eprintln!("Error creating webview controller: {:?}", e);
-                            return Err(e);
-                        },
-                    };
-                    unsafe {
-                        let mut rect = RECT::default();
-                        let _ = GetClientRect(HWND(hwnd as isize), &mut rect);
-                        let mut rect2 = controller.get_bounds().unwrap();
-                        rect2.bottom = rect.bottom;
-                        rect2.right = rect.right;
-                        rect2.top = rect.top;
-                        rect2.left = rect.left;
-                        controller.put_bounds(rect2).unwrap();
+            match env_arc.create_controller(hwnd, move |controller| {
+                let controller = match controller {
+                    Ok(controller) => controller,
+                    Err(e) => {
+                        eprintln!("Error creating webview controller: {:?}", e);
+                        return Err(e);
                     }
-                    match process_webview_controller(controller, rcc, window) {
-                        Ok(_) => Ok(()),
-                        Err(e) => {
-                            eprintln!("Error processing webview controller: {:?}", e);
-                            Err(e)
-                        },
+                };
+                unsafe {
+                    let mut rect = RECT::default();
+                    let _ = GetClientRect(HWND(hwnd as isize), &mut rect);
+                    let mut rect2 = controller.get_bounds().unwrap();
+                    rect2.bottom = rect.bottom;
+                    rect2.right = rect.right;
+                    rect2.top = rect.top;
+                    rect2.left = rect.left;
+                    controller.put_bounds(rect2).unwrap();
+                }
+                match process_webview_controller(controller, rcc, window) {
+                    Ok(_) => Ok(()),
+                    Err(e) => {
+                        eprintln!("Error processing webview controller: {:?}", e);
+                        Err(e)
                     }
-                },
-            ) {
+                }
+            }) {
                 Ok(_) => Ok(()),
                 Err(e) => {
                     eprintln!("Error creating webview controller callback: {:?}", e);
                     Ok(())
-                },
+                }
             }
         }),
-    ).unwrap();
+    )
+    .unwrap();
 
     // Handle hooking window events.
     hook_window_events(handle_clone);
@@ -571,8 +600,8 @@ fn create_webview() -> WebView {
     use crate::linux_shared::app;
     use gtk::{prelude::*, Window};
     use webkit2gtk::{
-        SettingsExt, URISchemeRequestExt, UserContentManager,
-        UserContentManagerExt, WebViewExt, WebViewExtManual,
+        SettingsExt, URISchemeRequestExt, UserContentManager, UserContentManagerExt, WebViewExt,
+        WebViewExtManual,
     };
 
     // Setup the JS bridge so that the webview can call out.
@@ -586,7 +615,8 @@ fn create_webview() -> WebView {
     // Initialize everything needed to handle the webview.
     let window = Window::new(gtk::WindowType::Toplevel);
     let wv = WebView::new_with_context_and_user_content_manager(
-        &app().context.value, &user_content_manager,
+        &app().context.value,
+        &user_content_manager,
     );
     let settings = WebViewExt::settings(&wv).unwrap();
 
@@ -601,14 +631,10 @@ fn create_webview() -> WebView {
 
         // Route based on the host.
         let value = match uri.host() {
-            Some(v) => {
-                match v.to_string().as_str() {
-                    "frontend-dist" => {
-                        frontend_get(uri.path().to_string())
-                    },
-                    _ => None,
-                }
-            }
+            Some(v) => match v.to_string().as_str() {
+                "frontend-dist" => frontend_get(uri.path().to_string()),
+                _ => None,
+            },
             None => None,
         };
 
@@ -618,10 +644,13 @@ fn create_webview() -> WebView {
                 // Finish the request with the data.
                 let input_stream = gio::MemoryInputStream::from_bytes(&glib::Bytes::from(&v));
                 req.finish(&input_stream, v.len() as i64, None::<&str>);
-            },
+            }
             None => {
                 // Finish the request with an error.
-                req.finish_error(&mut glib::Error::new(glib::FileError::Acces, "Resource not found"));
+                req.finish_error(&mut glib::Error::new(
+                    glib::FileError::Acces,
+                    "Resource not found",
+                ));
             }
         }
     });
@@ -699,7 +728,9 @@ pub fn open_config() {
     }
 
     // Create the webview.
-    webview_w.replace(FakeSend { value: create_webview() });
+    webview_w.replace(FakeSend {
+        value: create_webview(),
+    });
 }
 
 // Handles updating the webview if present.
@@ -720,10 +751,14 @@ pub fn update_webview_with_capture(capture_id: i64) {
         let read_ref = app().webview.read().unwrap();
         if let Some(webview) = read_ref.as_ref() {
             // Yes, this is SUPER brutal.
-            webview.value.run_javascript(&format!(
-                "window.bridgeResponse(-1, '{}');", // see persistentHandlers in frontend/src/bridge/implementation.ts
-                html_base64
-            ), None::<&gio::Cancellable>, |_| {});
+            webview.value.run_javascript(
+                &format!(
+                    "window.bridgeResponse(-1, '{}');", // see persistentHandlers in frontend/src/bridge/implementation.ts
+                    html_base64
+                ),
+                None::<&gio::Cancellable>,
+                |_| {},
+            );
         }
     });
 }

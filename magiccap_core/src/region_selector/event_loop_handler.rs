@@ -1,12 +1,15 @@
-use glfw::{Action, Key, Window};
 use super::{
-    color_box::{handle_color_box_click, render_texture}, color_picker::open_color_picker,
+    color_box::{handle_color_box_click, render_texture},
+    color_picker::open_color_picker,
     editor_resizers::{flush_editor_updates, handle_active_editor_drag_start},
     engine::{EditorUsage, RegionSelectorContext, SendSyncBypass},
-    menu_bar::{menu_bar_click, within_menu_bar}, region_selected::region_capture,
-    ui_renderer::region_selector_render_ui, window_find::get_nearest_window,
+    menu_bar::{menu_bar_click, within_menu_bar},
+    region_selected::region_capture,
+    ui_renderer::region_selector_render_ui,
+    window_find::get_nearest_window,
     Region, RegionCapture,
 };
+use glfw::{Action, Key, Window};
 
 // Handles the fullscreen key being pressed.
 fn fullscreen_key(ctx: &mut RegionSelectorContext, shift_held: bool) -> Option<RegionCapture> {
@@ -37,7 +40,7 @@ fn fullscreen_key(ctx: &mut RegionSelectorContext, shift_held: bool) -> Option<R
             y: 0,
             editor,
             width: width as u32,
-            height: height as u32, 
+            height: height as u32,
             display_index: active_index,
         };
         ctx.active_editors.push(active_editor);
@@ -46,16 +49,20 @@ fn fullscreen_key(ctx: &mut RegionSelectorContext, shift_held: bool) -> Option<R
 
     // Render the window without decorations.
     unsafe {
-        region_selector_render_ui(
-            ctx, false, Some(active_index),
-        );
+        region_selector_render_ui(ctx, false, Some(active_index));
     }
 
     // Pull the OpenGL buffer of the window.
     let mut buffer = vec![0; (width * height * 4) as usize];
     unsafe {
         gl::ReadPixels(
-            0, 0, width, height, gl::RGBA, gl::UNSIGNED_BYTE, buffer.as_mut_ptr() as *mut std::ffi::c_void
+            0,
+            0,
+            width,
+            height,
+            gl::RGBA,
+            gl::UNSIGNED_BYTE,
+            buffer.as_mut_ptr() as *mut std::ffi::c_void,
         );
     }
 
@@ -78,7 +85,10 @@ fn fullscreen_key(ctx: &mut RegionSelectorContext, shift_held: bool) -> Option<R
 
 // Handles the mouse left button being pushed.
 fn mouse_left_push(
-    ctx: &mut RegionSelectorContext, i: usize, rel_x: i32, rel_y: i32,
+    ctx: &mut RegionSelectorContext,
+    i: usize,
+    rel_x: i32,
+    rel_y: i32,
     window: &mut Window,
 ) {
     let (screen_w, _) = window.get_size();
@@ -128,7 +138,10 @@ fn mouse_left_push(
 
 // Handles the mouse left button being released.
 fn mouse_left_release(
-    ctx: &mut RegionSelectorContext, i: usize, rel_x: i32, rel_y: i32,
+    ctx: &mut RegionSelectorContext,
+    i: usize,
+    rel_x: i32,
+    rel_y: i32,
     gl_window: &mut Window,
 ) -> Option<RegionCapture> {
     // Handle if the editor is being dragged.
@@ -187,7 +200,9 @@ fn mouse_left_release(
 // Defines when a number key is hit. This function is a bit special since we repeat it a lot so we render the UI in here.
 fn number_key_hit(ctx: &mut RegionSelectorContext, number: u8) {
     // Return early if editors are off.
-    if !ctx.setup.show_editors { return; }
+    if !ctx.setup.show_editors {
+        return;
+    }
 
     if number == 1 {
         // If the key is 1, go ahead and remove the tool.
@@ -208,7 +223,7 @@ pub fn region_selector_io_event_sent(
     event: glfw::WindowEvent,
     current_index: i32,
     gl_window: &mut Window,
-){
+) {
     match event {
         // Open the color palette if the C key is hit.
         glfw::WindowEvent::Key(Key::C, _, Action::Release, _) => {
@@ -221,7 +236,7 @@ pub fn region_selector_io_event_sent(
                 let mut color_selection_guard = color_selection_arc.write().unwrap();
                 *color_selection_guard = (r, g, b, render_texture(r, g, b));
             });
-        },
+        }
 
         // Handle either aborting the selection or closing the window when esc is hit.
         glfw::WindowEvent::Key(Key::Escape, _, Action::Release, _) => {
@@ -235,21 +250,21 @@ pub fn region_selector_io_event_sent(
             for window in &mut ctx.glfw_windows {
                 window.set_should_close(true);
             }
-        },
+        }
 
         // Handle the fullscreen key.
-        glfw::WindowEvent::Key(Key::F, _, Action::Release, modifiers) => match fullscreen_key(
-            ctx, modifiers.contains(glfw::Modifiers::Shift)
-        ) {
-            Some(x) => {
-                // Write the result and kill the windows.
-                ctx.result = Some(x);
-                for window in &mut ctx.glfw_windows {
-                    window.set_should_close(true);
+        glfw::WindowEvent::Key(Key::F, _, Action::Release, modifiers) => {
+            match fullscreen_key(ctx, modifiers.contains(glfw::Modifiers::Shift)) {
+                Some(x) => {
+                    // Write the result and kill the windows.
+                    ctx.result = Some(x);
+                    for window in &mut ctx.glfw_windows {
+                        window.set_should_close(true);
+                    }
                 }
-            },
-            None => {},
-        },
+                None => {}
+            }
+        }
 
         // Handle Cmd or Ctrl + Z.
         glfw::WindowEvent::Key(Key::Z, _, Action::Release, mods) => {
@@ -262,33 +277,38 @@ pub fn region_selector_io_event_sent(
                 // Pop off the last editor.
                 ctx.active_editors.pop();
             }
-        },
+        }
 
         // Handle mouse left clicks.
         glfw::WindowEvent::MouseButton(glfw::MouseButtonLeft, Action::Press, _) => {
             let (cursor_x, cursor_y) = gl_window.get_cursor_pos();
             mouse_left_push(
-                ctx, current_index as usize, cursor_x as i32, cursor_y as i32,
+                ctx,
+                current_index as usize,
+                cursor_x as i32,
+                cursor_y as i32,
                 gl_window,
             );
-        },
+        }
         glfw::WindowEvent::MouseButton(glfw::MouseButtonLeft, Action::Release, _) => {
             let (cursor_x, cursor_y) = gl_window.get_cursor_pos();
             let (rel_x, rel_y) = (cursor_x as i32, cursor_y as i32);
-            if let Some(x) = mouse_left_release(ctx, current_index as usize, rel_x, rel_y, gl_window) {
+            if let Some(x) =
+                mouse_left_release(ctx, current_index as usize, rel_x, rel_y, gl_window)
+            {
                 // Write the result and kill the windows.
                 ctx.result = Some(x);
                 for window in &mut ctx.glfw_windows {
                     window.set_should_close(true);
                 }
             }
-        },
+        }
 
         // Handle the mouse moving.
         glfw::WindowEvent::CursorPos(x, y) => {
             // Update the editors that may require it.
             flush_editor_updates(ctx, current_index as usize, x, y);
-        },
+        }
 
         // Handle the scroll wheel.
         glfw::WindowEvent::Scroll(_, y) => {
@@ -338,48 +358,29 @@ pub fn region_selector_io_event_sent(
                         // Do infinite scrolling and go to the last index.
                         ctx.editor_index = Some(editor_len - 1);
                     }
-                },
+                }
             }
-        },
+        }
 
         // Handle 1-9 being hit.
-        glfw::WindowEvent::Key(Key::Num1, _, Action::Release, _) => {
-            number_key_hit(ctx, 1)
-        },
-        glfw::WindowEvent::Key(Key::Num2, _, Action::Release, _) => {
-            number_key_hit(ctx, 2)
-        },
-        glfw::WindowEvent::Key(Key::Num3, _, Action::Release, _) => {
-            number_key_hit(ctx, 3)
-        },
-        glfw::WindowEvent::Key(Key::Num4, _, Action::Release, _) => {
-            number_key_hit(ctx, 4)
-        },
-        glfw::WindowEvent::Key(Key::Num5, _, Action::Release, _) => {
-            number_key_hit(ctx, 5)
-        },
-        glfw::WindowEvent::Key(Key::Num6, _, Action::Release, _) => {
-            number_key_hit(ctx, 6)
-        },
-        glfw::WindowEvent::Key(Key::Num7, _, Action::Release, _) => {
-            number_key_hit(ctx, 7)
-        },
-        glfw::WindowEvent::Key(Key::Num8, _, Action::Release, _) => {
-            number_key_hit(ctx, 8)
-        },
-        glfw::WindowEvent::Key(Key::Num9, _, Action::Release, _) => {
-            number_key_hit(ctx, 9)
-        },
+        glfw::WindowEvent::Key(Key::Num1, _, Action::Release, _) => number_key_hit(ctx, 1),
+        glfw::WindowEvent::Key(Key::Num2, _, Action::Release, _) => number_key_hit(ctx, 2),
+        glfw::WindowEvent::Key(Key::Num3, _, Action::Release, _) => number_key_hit(ctx, 3),
+        glfw::WindowEvent::Key(Key::Num4, _, Action::Release, _) => number_key_hit(ctx, 4),
+        glfw::WindowEvent::Key(Key::Num5, _, Action::Release, _) => number_key_hit(ctx, 5),
+        glfw::WindowEvent::Key(Key::Num6, _, Action::Release, _) => number_key_hit(ctx, 6),
+        glfw::WindowEvent::Key(Key::Num7, _, Action::Release, _) => number_key_hit(ctx, 7),
+        glfw::WindowEvent::Key(Key::Num8, _, Action::Release, _) => number_key_hit(ctx, 8),
+        glfw::WindowEvent::Key(Key::Num9, _, Action::Release, _) => number_key_hit(ctx, 9),
 
         // Sinkhole other events.
-        _ => {},
+        _ => {}
     }
-
 }
 
 // Defines the event loop handler for the region selector.
 pub fn region_selector_event_loop_handler(
-    ctx: &mut Box<SendSyncBypass<RegionSelectorContext>>
+    ctx: &mut Box<SendSyncBypass<RegionSelectorContext>>,
 ) -> Option<Option<RegionCapture>> {
     // Convert the container into a mutable reference.
     let ctx = ctx.as_mut().as_mut();

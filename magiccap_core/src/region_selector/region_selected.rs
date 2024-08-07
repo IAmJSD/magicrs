@@ -1,12 +1,18 @@
-use glfw::Window;
 use super::{
     engine::{EditorUsage, RegionSelectorContext},
-    ui_renderer::region_selector_render_ui, Region, RegionCapture,
+    ui_renderer::region_selector_render_ui,
+    Region, RegionCapture,
 };
+use glfw::Window;
 
 // Handles capturing the region.
 pub fn region_capture(
-    ctx: &mut RegionSelectorContext, i: usize, x: i32, y: i32, w: i32, h: i32,
+    ctx: &mut RegionSelectorContext,
+    i: usize,
+    x: i32,
+    y: i32,
+    w: i32,
+    h: i32,
     window: &mut Window,
 ) -> Option<RegionCapture> {
     // Set the current selection to None since otherwise it will break Escape.
@@ -34,9 +40,7 @@ pub fn region_capture(
     }
 
     // Render the window without decorations.
-    unsafe {
-        region_selector_render_ui(ctx, false, Some(i))
-    };
+    unsafe { region_selector_render_ui(ctx, false, Some(i)) };
 
     // Grab the image.
     let mut buffer = vec![0u8; (w * h * 4) as usize];
@@ -45,8 +49,13 @@ pub fn region_capture(
         // less dyslexic than me and can make this work nicer, feel free.
         let (_, screen_h) = window.get_size();
         gl::ReadPixels(
-            x, screen_h - h - y, w, h, gl::RGBA,
-            gl::UNSIGNED_BYTE, buffer.as_mut_ptr() as *mut _
+            x,
+            screen_h - h - y,
+            w,
+            h,
+            gl::RGBA,
+            gl::UNSIGNED_BYTE,
+            buffer.as_mut_ptr() as *mut _,
         );
     }
 

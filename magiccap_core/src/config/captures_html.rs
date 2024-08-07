@@ -1,5 +1,8 @@
+use crate::{
+    database::{get_captures, get_many_captures, Capture},
+    search_indexing,
+};
 use axohtml::{elements::div, html, text};
-use crate::{database::{get_captures, get_many_captures, Capture}, search_indexing};
 
 fn generate_info(capture: &Capture) -> Box<div<String>> {
     let cap_id_str = capture.id.to_string();
@@ -31,8 +34,8 @@ fn generate_info(capture: &Capture) -> Box<div<String>> {
                     </p>
                 </div>
 
-                <div class="hide-first-when-hovered__second">    
-                    <div class="flex">           
+                <div class="hide-first-when-hovered__second">
+                    <div class="flex">
                         <div class="flex-col">
                             <form
                                 data-action="copyUrl" method="post" autocomplete="off"
@@ -102,7 +105,7 @@ pub fn generate_dom_node(capture: Capture) -> Box<div<String>> {
         None => {
             blowaway_var = "".to_string();
             &blowaway_var
-        },
+        }
     };
 
     html!(
@@ -137,5 +140,7 @@ pub fn captures_html(query: String) -> Vec<u8> {
         <div class="flex flex-wrap justify-center">
             {captures.into_iter().map(|c| generate_dom_node(c))}
         </div>
-    ).to_string().into_bytes()
+    )
+    .to_string()
+    .into_bytes()
 }

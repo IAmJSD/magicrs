@@ -18,10 +18,15 @@ impl GLTexture {
         // Load the image.
         unsafe {
             gl::TexImage2D(
-                gl::TEXTURE_2D, 0, gl::RGBA as i32,
-                image.width() as i32, image.height() as i32,
-                0, gl::RGBA, gl::UNSIGNED_BYTE,
-                image.as_ptr() as *const _
+                gl::TEXTURE_2D,
+                0,
+                gl::RGBA as i32,
+                image.width() as i32,
+                image.height() as i32,
+                0,
+                gl::RGBA,
+                gl::UNSIGNED_BYTE,
+                image.as_ptr() as *const _,
             );
         }
 
@@ -44,10 +49,15 @@ impl GLTexture {
         // Load the image.
         unsafe {
             gl::TexImage2D(
-                gl::TEXTURE_2D, 0, gl::RGB as i32,
-                image.width() as i32, image.height() as i32,
-                0, gl::RGB, gl::UNSIGNED_BYTE,
-                image.as_ptr() as *const _
+                gl::TEXTURE_2D,
+                0,
+                gl::RGB as i32,
+                image.width() as i32,
+                image.height() as i32,
+                0,
+                gl::RGB,
+                gl::UNSIGNED_BYTE,
+                image.as_ptr() as *const _,
             );
         }
 

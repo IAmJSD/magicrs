@@ -1,12 +1,14 @@
+use super::{
+    utils::{DOMAIN_OR_IP_REGEX, URL_FTP_REWRITE_DESCRIPTION},
+    ConfigOption, Uploader,
+};
 use std::collections::HashMap;
 use suppaftp::{native_tls::TlsConnector, types::FileType, NativeTlsConnector, NativeTlsFtpStream};
-use super::{
-    utils::{DOMAIN_OR_IP_REGEX, URL_FTP_REWRITE_DESCRIPTION}, ConfigOption, Uploader,
-};
 
 // Defines the function to upload a screenshot using FTP.
 fn ftp_support_upload(
-    filename: &str, config: HashMap<String, serde_json::Value>,
+    filename: &str,
+    config: HashMap<String, serde_json::Value>,
     mut reader: Box<dyn std::io::Read + Send + Sync>,
 ) -> Result<String, String> {
     // Handle the hostname.
@@ -25,11 +27,10 @@ fn ftp_support_upload(
         Ok(c) => c,
         Err(err) => {
             return Err(format!("Failed to connect to the FTP server: {}", err));
-        },
+        }
     };
     if use_ssl {
-        let ctx = match TlsConnector::new()
-        {
+        let ctx = match TlsConnector::new() {
             Ok(tls) => tls,
             Err(err) => {
                 return Err(format!("Failed to setup TLS stream: {}", err));
@@ -58,7 +59,10 @@ fn ftp_support_upload(
 
     // Set to a binary transfer.
     if let Err(err) = ftp_stream.transfer_type(FileType::Binary) {
-        return Err(format!("Failed to set the transfer type to binary: {}", err));
+        return Err(format!(
+            "Failed to set the transfer type to binary: {}",
+            err
+        ));
     }
 
     // If path is set, change the directory.
@@ -75,7 +79,10 @@ fn ftp_support_upload(
 
         // Change the directory.
         if let Err(err) = ftp_stream.cwd(&path) {
-            return Err(format!("Failed to change the directory to {}: {}", path, err));
+            return Err(format!(
+                "Failed to change the directory to {}: {}",
+                path, err
+            ));
         }
     } else {
         path_var = "".to_string();
@@ -83,12 +90,18 @@ fn ftp_support_upload(
 
     // Put the file.
     if let Err(err) = ftp_stream.put_file(filename, &mut reader) {
-        return Err(format!("Failed to upload the file to the FTP server: {}", err));
+        return Err(format!(
+            "Failed to upload the file to the FTP server: {}",
+            err
+        ));
     }
 
     // Close the connection.
     if let Err(err) = ftp_stream.quit() {
-        return Err(format!("Failed to close the connection to the FTP server: {}", err));
+        return Err(format!(
+            "Failed to close the connection to the FTP server: {}",
+            err
+        ));
     }
 
     // Process the URL rewrite.
@@ -122,7 +135,9 @@ pub fn ftp_support() -> Uploader {
                     required: true,
                     password: false,
                     regex: Some(DOMAIN_OR_IP_REGEX.to_string()),
-                    validation_error_message: Some("The hostname is not a valid domain or IP address.".to_string()),
+                    validation_error_message: Some(
+                        "The hostname is not a valid domain or IP address.".to_string(),
+                    ),
                 },
             ),
             (
@@ -172,7 +187,9 @@ pub fn ftp_support() -> Uploader {
                 "path".to_string(),
                 ConfigOption::String {
                     name: "Folder Path".to_string(),
-                    description: "The folder path to upload the screenshot to within the FTP server.".to_string(),
+                    description:
+                        "The folder path to upload the screenshot to within the FTP server."
+                            .to_string(),
                     default: None,
                     required: false,
                     password: false,

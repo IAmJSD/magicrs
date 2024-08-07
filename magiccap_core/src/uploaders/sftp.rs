@@ -1,10 +1,10 @@
-use std::collections::HashMap;
-#[allow(unused_imports)]
-use std::process::{Command, Child};
 use super::{
     utils::{DOMAIN_OR_IP_REGEX, URL_FTP_REWRITE_DESCRIPTION},
     ConfigOption, Uploader,
 };
+use std::collections::HashMap;
+#[allow(unused_imports)]
+use std::process::{Child, Command};
 
 // Defines an atomic that increments to make sure we do not collide with other threads.
 #[cfg(target_os = "windows")]
@@ -19,7 +19,11 @@ fn agent_socket() -> Result<(String, Child), String> {
         "magiccap-ssh-agent-{}.sock",
         SFTP_UPLOAD_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst),
     );
-    let tmp_socket = std::env::temp_dir().join(&sock_filename).to_str().unwrap().to_string();
+    let tmp_socket = std::env::temp_dir()
+        .join(&sock_filename)
+        .to_str()
+        .unwrap()
+        .to_string();
 
     // Call pageant to get a socket.
     let child = match Command::new("pageant")
@@ -83,15 +87,18 @@ struct SSHConnectionOptions {
 }
 
 fn sftp_do_upload(
-    connection: SSHConnectionOptions, folder_path: &Option<String>,
-    filename: &str, reader: Box<dyn std::io::Read + Send + Sync>,
+    connection: SSHConnectionOptions,
+    folder_path: &Option<String>,
+    filename: &str,
+    reader: Box<dyn std::io::Read + Send + Sync>,
 ) -> Option<String> {
     // TODO
     Some("oops".to_string())
 }
 
 fn sftp_support_upload(
-    filename: &str, config: HashMap<String, serde_json::Value>,
+    filename: &str,
+    config: HashMap<String, serde_json::Value>,
     reader: Box<dyn std::io::Read + Send + Sync>,
 ) -> Result<String, String> {
     // Get the hostname.
@@ -188,7 +195,7 @@ fn sftp_support_upload(
             } else {
                 folder_path
             }
-        },
+        }
         None => "".to_string(),
     };
 
@@ -200,12 +207,10 @@ fn sftp_support_upload(
         },
         None => "https://$hostname$folder_path/$filename".to_string(),
     };
-    Ok(
-        url_rewrite
-            .replace("$hostname", &hostname)
-            .replace("$folder_path", &folder_path)
-            .replace("$filename", filename),
-    )
+    Ok(url_rewrite
+        .replace("$hostname", &hostname)
+        .replace("$folder_path", &folder_path)
+        .replace("$filename", filename))
 }
 
 const AGENT_NAME: &str = if cfg!(target_os = "windows") {

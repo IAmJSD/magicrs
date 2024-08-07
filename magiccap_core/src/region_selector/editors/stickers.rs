@@ -1,5 +1,5 @@
+use super::{Editor, EditorFactory, EditorRegion};
 use crate::region_selector::{engine::RegionSelectorContext, gl_abstractions::GLTexture};
-use super::{Editor, EditorRegion, EditorFactory};
 
 // Defines the sticker structure.
 struct Sticker {
@@ -11,7 +11,10 @@ impl Sticker {
     fn load_sticker(&mut self) -> Option<EditorRegion> {
         // Get the file path.
         let res = native_dialog::FileDialog::new()
-            .add_filter("Images", &["png", "jpg", "jpeg", "bmp", "gif", "tiff", "webp"])
+            .add_filter(
+                "Images",
+                &["png", "jpg", "jpeg", "bmp", "gif", "tiff", "webp"],
+            )
             .show_open_single_file()
             .unwrap();
 
@@ -42,7 +45,10 @@ impl Sticker {
         };
 
         // Return the region.
-        Some(EditorRegion {width: w, height: h})
+        Some(EditorRegion {
+            width: w,
+            height: h,
+        })
     }
 }
 
@@ -53,8 +59,14 @@ impl Editor for Sticker {
     }
 
     fn render(
-        &mut self, _: &GLTexture, _: u32, window_h: u32,
-        texture_w: u32, texture_h: u32, texture_x: i32, texture_y: i32,
+        &mut self,
+        _: &GLTexture,
+        _: u32,
+        window_h: u32,
+        texture_w: u32,
+        texture_h: u32,
+        texture_x: i32,
+        texture_y: i32,
     ) {
         let texture_id = match &self.texture {
             Some(t) => t.texture,
@@ -64,13 +76,23 @@ impl Editor for Sticker {
         let y0 = y1 + texture_h as i32;
         unsafe {
             gl::FramebufferTexture2D(
-                gl::READ_FRAMEBUFFER, gl::COLOR_ATTACHMENT0,
-                gl::TEXTURE_2D, texture_id, 0
+                gl::READ_FRAMEBUFFER,
+                gl::COLOR_ATTACHMENT0,
+                gl::TEXTURE_2D,
+                texture_id,
+                0,
             );
             gl::BlitFramebuffer(
-                0, 0, texture_w as i32, texture_h as i32,
-                texture_x, y0, texture_x + texture_w as i32, y1,
-                gl::COLOR_BUFFER_BIT, gl::NEAREST,
+                0,
+                0,
+                texture_w as i32,
+                texture_h as i32,
+                texture_x,
+                y0,
+                texture_x + texture_w as i32,
+                y1,
+                gl::COLOR_BUFFER_BIT,
+                gl::NEAREST,
             )
         }
     }
@@ -88,6 +110,6 @@ impl EditorFactory for StickerFactory {
     }
 
     fn create_editor(&mut self, _: &mut RegionSelectorContext) -> Box<dyn Editor> {
-        Box::new(Sticker {texture: None})
+        Box::new(Sticker { texture: None })
     }
 }

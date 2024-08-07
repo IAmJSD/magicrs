@@ -1,19 +1,21 @@
 mod blur;
 mod fastblur_rgba;
-mod pixelate;
 mod hollow_rectangle;
+mod pixelate;
 mod rectangle;
 mod stickers;
 
-use once_cell::unsync::Lazy;
 use super::{engine::RegionSelectorContext, gl_abstractions::GLTexture};
+use once_cell::unsync::Lazy;
 
 // TODO: Add text
 
 // Defines the editor factory.
 pub trait EditorFactory {
     // Creates a new instance of the editor factory.
-    fn new() -> Self where Self: Sized;
+    fn new() -> Self
+    where
+        Self: Sized;
 
     // Defines the description of the editor.
     fn description(&self) -> &'static str;
@@ -36,8 +38,14 @@ pub trait Editor {
 
     // Renders the editor.
     fn render(
-        &mut self, screenshot: &GLTexture, window_w: u32, window_h: u32,
-        texture_w: u32, texture_h: u32, texture_x: i32, texture_y: i32,
+        &mut self,
+        screenshot: &GLTexture,
+        window_w: u32,
+        window_h: u32,
+        texture_w: u32,
+        texture_h: u32,
+        texture_x: i32,
+        texture_y: i32,
     );
 }
 
@@ -65,7 +73,6 @@ pub fn create_editor_icons() -> Vec<&'static [u8]> {
     vec![
         // Crosshair is always the first icon.
         include_texture!("cursor.png"),
-
         // Defines the editor icons.
         include_texture!("blur.png"),
         include_texture!("pixelate.png"),

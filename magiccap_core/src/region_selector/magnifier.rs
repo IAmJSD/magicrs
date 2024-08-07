@@ -11,8 +11,12 @@ const MAGNIFIER_SIZE: i32 = 124;
 
 // Renders the magnifier.
 pub unsafe fn render_magnifier(
-    ctx: &mut RegionSelectorContext, index: usize, cursor_x: i32, cursor_y: i32,
-    width: i32, height: i32,
+    ctx: &mut RegionSelectorContext,
+    index: usize,
+    cursor_x: i32,
+    cursor_y: i32,
+    width: i32,
+    height: i32,
 ) {
     let (mut x, mut y) = (cursor_x, cursor_y);
 
@@ -69,23 +73,31 @@ pub unsafe fn render_magnifier(
 
     // Bind the framebuffer to the texture used for the un-dark content.
     gl::FramebufferTexture2D(
-        gl::READ_FRAMEBUFFER, gl::COLOR_ATTACHMENT0,
-        gl::TEXTURE_2D, ctx.gl_screenshots[index].texture, 0
+        gl::READ_FRAMEBUFFER,
+        gl::COLOR_ATTACHMENT0,
+        gl::TEXTURE_2D,
+        ctx.gl_screenshots[index].texture,
+        0,
     );
 
     // Blit a stretched version of the content around the cursor to the magnifier.
     gl::BlitFramebuffer(
-        cursor_x - PLUCKED_SIZE, cursor_y + PLUCKED_SIZE, cursor_x + PLUCKED_SIZE,
-        cursor_y - PLUCKED_SIZE, x0, y0, x1, y1,
-        gl::COLOR_BUFFER_BIT, gl::NEAREST,
+        cursor_x - PLUCKED_SIZE,
+        cursor_y + PLUCKED_SIZE,
+        cursor_x + PLUCKED_SIZE,
+        cursor_y - PLUCKED_SIZE,
+        x0,
+        y0,
+        x1,
+        y1,
+        gl::COLOR_BUFFER_BIT,
+        gl::NEAREST,
     );
 
     // Set the Y position to 8px under the magnifier.
     y += MAGNIFIER_SIZE + 8;
 
     // Draw the text.
-    ctx.texture_pack.write_text(
-        text.as_str(), x + text_x_offset,
-        y, height,
-    );
+    ctx.texture_pack
+        .write_text(text.as_str(), x + text_x_offset, y, height);
 }

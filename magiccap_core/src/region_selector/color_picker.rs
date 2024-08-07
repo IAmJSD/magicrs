@@ -1,10 +1,10 @@
 // Use GTK on Linux to pick a color.
 #[cfg(target_os = "linux")]
 pub fn open_color_picker(cb: impl FnOnce((u8, u8, u8)) + 'static) {
-    use std::cell::RefCell;
-    use std::rc::Rc;
     use gtk::prelude::*;
     use gtk::ColorChooserDialog;
+    use std::cell::RefCell;
+    use std::rc::Rc;
 
     // Create the dialog.
     let dialog = ColorChooserDialog::new(Some("Pick a color"), None as Option<&gtk::Window>);

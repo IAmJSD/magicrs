@@ -1,8 +1,8 @@
-use std::{fs, path::PathBuf};
+use base64::{prelude::BASE64_STANDARD, Engine};
 #[cfg(feature = "signature")]
 use openssl::{hash::MessageDigest, pkey::PKey, sign::Verifier};
 use sha2::{Digest, Sha256};
-use base64::{prelude::BASE64_STANDARD, Engine};
+use std::{fs, path::PathBuf};
 
 #[cfg(target_os = "macos")]
 fn core_dylib() -> &'static [u8] {
@@ -20,16 +20,25 @@ fn core_dylib() -> &'static [u8] {
 }
 
 #[cfg(target_os = "macos")]
-fn dll_ext() -> &'static str { "dylib" }
+fn dll_ext() -> &'static str {
+    "dylib"
+}
 
 #[cfg(target_os = "windows")]
-fn dll_ext() -> &'static str { "dll" }
+fn dll_ext() -> &'static str {
+    "dll"
+}
 
 #[cfg(target_os = "linux")]
-fn dll_ext() -> &'static str { "so" }
+fn dll_ext() -> &'static str {
+    "so"
+}
 
 fn copy_application_core_bundle(
-    binaries_dir: &PathBuf, core: &[u8], core_signature: Option<&[u8]>, application_bundle_hash: &str,
+    binaries_dir: &PathBuf,
+    core: &[u8],
+    core_signature: Option<&[u8]>,
+    application_bundle_hash: &str,
 ) {
     // Copy the core library into ~/.config/magiccap/binaries.
     let core_path = binaries_dir.join(format!("core.{}", dll_ext()));
@@ -77,15 +86,19 @@ fn core_sig_match(binaries_dir: &PathBuf, public_key: &str) -> bool {
 }
 
 #[cfg(not(feature = "signature"))]
-fn core_sig_match(_binaries_dir: &PathBuf, _public_key: &str) -> bool { true }
+fn core_sig_match(_binaries_dir: &PathBuf, _public_key: &str) -> bool {
+    true
+}
 
 fn load_core(binaries_dir: &PathBuf) {
     unsafe {
         // Load the core library.
-        let lib = libloading::Library::new(&binaries_dir.join(format!("core.{}", dll_ext()))).unwrap();
+        let lib =
+            libloading::Library::new(&binaries_dir.join(format!("core.{}", dll_ext()))).unwrap();
 
         // Load the application_init function.
-        let application_init: libloading::Symbol<unsafe extern "C" fn()> = lib.get(b"application_init").unwrap();
+        let application_init: libloading::Symbol<unsafe extern "C" fn()> =
+            lib.get(b"application_init").unwrap();
 
         // Call the application_init function.
         application_init();
@@ -122,14 +135,26 @@ fn main() {
     // If it doesn't match, copy in the core library from the application bundle.
     if !hashes_equal {
         println!("[bootloader] Application bundle hash does not match. Copying in core library from bundle.");
-        copy_application_core_bundle(&binaries_dir, core, core_signature, &application_bundle_hash);
+        copy_application_core_bundle(
+            &binaries_dir,
+            core,
+            core_signature,
+            &application_bundle_hash,
+        );
     }
 
     // Defines the public key for MagicCap. This is stored in the root of the project.
     let public_key = include_str!("../../build_signing.pub");
     if !core_sig_match(&binaries_dir, public_key) {
-        println!("[bootloader] Core signature does not match. Copying in core library from bundle.");
-        copy_application_core_bundle(&binaries_dir, core, core_signature, &application_bundle_hash);
+        println!(
+            "[bootloader] Core signature does not match. Copying in core library from bundle."
+        );
+        copy_application_core_bundle(
+            &binaries_dir,
+            core,
+            core_signature,
+            &application_bundle_hash,
+        );
     }
 
     // Load the core library.
