@@ -1,3 +1,4 @@
+mod capture_monitor;
 mod color_box;
 mod color_picker;
 mod editor_resizers;
@@ -17,6 +18,8 @@ mod window_line;
 
 use self::engine::RegionSelectorSetup;
 use crate::database::get_config_option;
+use capture_monitor::capture_monitor;
+use enigo::{Enigo, Mouse, Settings};
 use std::sync::atomic::{AtomicBool, Ordering};
 use xcap::{Monitor, Window};
 
@@ -67,6 +70,14 @@ pub fn open_region_selector(show_editors: bool) -> Option<RegionCapture> {
         }
     };
 
+    // Get the cursor position.
+    let enigo = Enigo::new(&Settings::default()).unwrap();
+    let mouse_pos = if cfg!(target_os = "windows") {
+        None
+    } else {
+        Some(enigo.location().unwrap())
+    };
+
     // Pop off the last monitor for now. That is because we do not need to
     // make a thread for screenshotting the last monitor since we can use
     // the current thread.
@@ -83,14 +94,16 @@ pub fn open_region_selector(show_editors: bool) -> Option<RegionCapture> {
     let mut threads = Vec::with_capacity(monitors.len());
     for monitor in &monitors {
         let monitor = monitor.clone();
-        threads.push(std::thread::spawn(move || match monitor.capture_image() {
-            Ok(image) => Some(image),
-            Err(_) => None,
+        threads.push(std::thread::spawn(move || {
+            match capture_monitor(&monitor, mouse_pos) {
+                Ok(image) => Some(image),
+                Err(_) => None,
+            }
         }));
     }
 
     // Capture the last monitor in the current thread.
-    let last_image = match last_monitor.capture_image() {
+    let last_image = match capture_monitor(&last_monitor, mouse_pos) {
         Ok(image) => image,
         Err(_) => {
             SELECTOR_OPENED.store(false, Ordering::Relaxed);
