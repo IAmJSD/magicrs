@@ -282,7 +282,7 @@ export default function Uploaders() {
 
         <Checkbox
             dbKey="upload_capture"
-            defaultValue={true}
+            defaultValue={false}
             label="Upload the capture when it is finished."
         />
 

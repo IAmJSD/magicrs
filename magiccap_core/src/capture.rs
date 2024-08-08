@@ -111,8 +111,8 @@ fn post_capture_flow(
     let upload_capture = match database::get_config_option("upload_capture") {
         Some(x) => x.as_bool().unwrap_or(false),
 
-        // By default, upload the capture.
-        None => true,
+        // By default, don't upload the capture.
+        None => false,
     };
 
     // If uploading is on, upload the file.
