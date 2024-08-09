@@ -3,7 +3,7 @@ use super::{
     ui_renderer::region_selector_render_ui,
     Region, RegionCapture,
 };
-use glfw::Window;
+use glfw::{Context, Window};
 
 // Handles capturing the region.
 pub fn region_capture(
@@ -40,7 +40,10 @@ pub fn region_capture(
     }
 
     // Render the window without decorations.
-    unsafe { region_selector_render_ui(ctx, false, Some(i)) };
+    unsafe {
+        region_selector_render_ui(ctx, false, Some(i));
+        window.swap_buffers();
+    }
 
     // Grab the image.
     let mut buffer = vec![0u8; (w * h * 4) as usize];
