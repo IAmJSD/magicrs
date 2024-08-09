@@ -62,7 +62,7 @@ sxd-xpath = "0.4.2"
 walkdir = "2.5"
 zip = "2.1"
 enigo = "0.2.1"
-global-hotkey = "0.5.4"
+global-hotkey = { git = "https://github.com/IAmJSD/global-hotkey" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cacao = { version = "0.3.2", features = ["webview"] }

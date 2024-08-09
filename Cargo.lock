@@ -2197,8 +2197,7 @@ dependencies = [
 [[package]]
 name = "global-hotkey"
 version = "0.5.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89cb13e8c52c87e28a46eae3e5e65b8f0cd465c4c9e67b13d56c70412e792bc3"
+source = "git+https://github.com/IAmJSD/global-hotkey#ef99a47aaa32902979bb793a7c2e179a4289a5ec"
 dependencies = [
  "bitflags 2.6.0",
  "cocoa",

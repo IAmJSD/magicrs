@@ -38,7 +38,6 @@ export default function Hotkey({ dbKey, label, description }: Props) {
         // Start capturing the hotkey.
         startHotkeyCapture(hotkey => {
             setHotkey(hotkey);
-            setActiveHotkey(null);
             setConfigOption(dbKey, hotkey);
         });
 
