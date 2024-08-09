@@ -598,6 +598,7 @@ pub fn open_config() {
 #[cfg(target_os = "linux")]
 fn create_webview() -> WebView {
     use crate::linux_shared::app;
+    use api::GLOBAL_HOTKEY;
     use gtk::{prelude::*, Window};
     use webkit2gtk::{
         SettingsExt, URISchemeRequestExt, UserContentManager, UserContentManagerExt, WebViewExt,
@@ -679,6 +680,9 @@ fn create_webview() -> WebView {
         // Drop the webview.
         let mut webview = app().webview.write().unwrap();
         webview.take();
+
+        // Take the global hotkey handler.
+        GLOBAL_HOTKEY.lock().unwrap().take();
 
         // Continue with the default behavior.
         glib::Propagation::Proceed

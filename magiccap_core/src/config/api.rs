@@ -596,7 +596,7 @@ fn delete_custom_uploader(id: Option<&str>) -> Option<APIError> {
 }
 
 // Defines the global hotkey being captured.
-static GLOBAL_HOTKEY: Mutex<Option<HotkeyCapture>> = Mutex::new(None);
+pub static GLOBAL_HOTKEY: Mutex<Option<HotkeyCapture>> = Mutex::new(None);
 
 // Starts the hotkey capture.
 fn start_hotkey_capture() -> Option<APIError> {

@@ -191,7 +191,13 @@ fn send_vec_state(
     // Get the down keys.
     let mut string_uniques: HashMap<String, ()> = HashMap::new();
     for item in vec_guard.as_slice() {
-        let key = item.value.keyval();
+        let key = item.value.hardware_keycode();
+        let display = gdk::Display::default().unwrap();
+        let entries = gdk::Keymap::for_display(&display)
+            .unwrap()
+            .entries_for_keycode(key as u32);
+        let first_entry = entries.first().unwrap().1;
+        let key = gdk::keys::Key::from(first_entry);
         if let Some(key_name) = key.name() {
             string_uniques.insert(key_name.to_string(), ());
         }
@@ -222,6 +228,7 @@ impl HotkeyCapture {
         let (press_signal_handler_id, release_signal_handler_id) = main_thread_sync(move || {
             let wv_lock = app().webview.read().unwrap();
             let wv_ref = wv_lock.as_ref().unwrap();
+
             let press_id = wv_ref.value.connect_key_press_event(move |_, key| {
                 let arc_clone = down1.clone();
                 let mut vec_guard = arc_clone.lock().unwrap();
@@ -229,6 +236,7 @@ impl HotkeyCapture {
                 send_vec_state(vec_guard);
                 glib::Propagation::Stop
             });
+
             let release_id = wv_ref.value.connect_key_release_event(move |_, key| {
                 let arc_clone = down2.clone();
                 let mut v = arc_clone.lock().unwrap();
@@ -241,9 +249,9 @@ impl HotkeyCapture {
                 send_vec_state(v);
                 glib::Propagation::Stop
             });
+
             (FakeSend { value: press_id }, FakeSend { value: release_id })
         });
-        // TODO: handle the webview closing.
 
         Self {
             press_signal_handler_id: Some(press_signal_handler_id.value),

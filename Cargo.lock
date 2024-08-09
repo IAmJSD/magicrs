@@ -2197,7 +2197,7 @@ dependencies = [
 [[package]]
 name = "global-hotkey"
 version = "0.5.4"
-source = "git+https://github.com/IAmJSD/global-hotkey#ef99a47aaa32902979bb793a7c2e179a4289a5ec"
+source = "git+https://github.com/IAmJSD/global-hotkey?rev=95820baa#95820baa990cf1a7b8c5e650795e7a901bdfdefd"
 dependencies = [
  "bitflags 2.6.0",
  "cocoa",
