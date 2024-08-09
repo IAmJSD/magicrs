@@ -10,6 +10,9 @@ pub fn application_reload() {
     // Pre-unpack the frontend in a thread.
     run_thread(|| crate::config::pre_unpack_frontend());
 
+    // Load the hotkeys.
+    crate::hotkeys::register_hotkeys();
+
     // Load the tray.
     load_tray();
 }

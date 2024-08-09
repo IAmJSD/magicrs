@@ -1,8 +1,7 @@
-use crate::{reload, statics::run_thread};
+use crate::{hotkeys::HotkeyWrapper, reload, statics::run_thread};
 use muda::MenuEvent;
 use once_cell::sync::OnceCell;
 use std::sync::RwLock;
-use tray_icon::menu::Menu;
 use webkit2gtk::{URISchemeRequest, WebContext, WebContextExt, WebView};
 
 // Defines a wrapper to fake something being safe to send.
@@ -19,6 +18,7 @@ pub struct SharedApplication {
     pub webview: RwLock<Option<FakeSend<WebView>>>,
     pub tray_icon: RwLock<Option<tray_icon::TrayIcon>>,
     pub menu_event: RwLock<Option<&'static dyn Fn(MenuEvent)>>,
+    pub hotkey_wrapper: HotkeyWrapper,
 }
 
 // Defines the public variable.
@@ -51,6 +51,7 @@ pub fn application_init() {
         webview: RwLock::new(None),
         tray_icon: RwLock::new(None),
         menu_event: RwLock::new(None),
+        hotkey_wrapper: HotkeyWrapper::new(),
     }));
     let ptr = leaky_box as *mut SharedApplication;
     unsafe {

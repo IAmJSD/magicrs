@@ -17,6 +17,8 @@ use std::{
     sync::{Mutex, RwLock},
 };
 
+// TODO: store HotkeyWrapper somewhere
+
 pub struct ConfigWindow {
     pub content: WebView<MagicCapConfigDelegate>,
 }

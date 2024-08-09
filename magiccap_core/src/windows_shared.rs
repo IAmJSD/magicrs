@@ -1,4 +1,4 @@
-use crate::{mainthread::main_event_loop, reload, statics::run_thread};
+use crate::{hotkeys::HotkeyWrapper, mainthread::main_event_loop, reload, statics::run_thread};
 use once_cell::sync::OnceCell;
 use std::sync::RwLock;
 use tray_icon::menu::{Menu, MenuEvent};
@@ -10,6 +10,7 @@ pub struct SharedApplication {
     pub wv_controller: Option<(webview2::Controller, native_windows_gui::Window)>,
     pub tray_menu: RwLock<Option<&'static mut Box<Menu>>>,
     pub menu_event: RwLock<Option<&'static dyn Fn(MenuEvent)>>,
+    pub hotkey_wrapper: HotkeyWrapper,
 }
 
 // Defines the public variable.
@@ -31,6 +32,7 @@ pub fn application_init() {
         wv_controller: None,
         tray_menu: RwLock::new(None),
         menu_event: RwLock::new(None),
+        hotkey_wrapper: HotkeyWrapper::new(),
     }));
     let ptr = leaky_box as *mut SharedApplication;
     unsafe {
