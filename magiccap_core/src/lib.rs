@@ -20,6 +20,7 @@ mod tray;
 mod unload;
 mod uploaders;
 mod utils;
+mod video_capture;
 
 #[cfg(target_os = "macos")]
 mod macos;

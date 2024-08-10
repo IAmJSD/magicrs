@@ -8,6 +8,7 @@ use crate::{
     statics::run_thread,
     uploaders,
     utils::get_filename,
+    video_capture::start_recorder,
 };
 use image::{DynamicImage, RgbaImage};
 use std::{io::Cursor, path::PathBuf};
@@ -225,18 +226,48 @@ pub fn region_capture() {
 
 // Handle doing GIF captures.
 pub fn gif_capture() {
-    // TODO
+    let (monitor, region) = match open_region_selector(false) {
+        Some(result) => (result.monitor, result.relative_region),
+        None => return,
+    };
+    let data = match start_recorder(true, monitor, region) {
+        Some(b) => b,
+        None => return,
+    };
+    post_capture_flow("gif", "GIF capture successful.", data, None)
 }
 
 // Handle doing MP4 captures.
 pub fn video_capture() {
-    // TODO
+    let (monitor, region) = match open_region_selector(false) {
+        Some(result) => (result.monitor, result.relative_region),
+        None => return,
+    };
+    let data = match start_recorder(false, monitor, region) {
+        Some(b) => b,
+        None => return,
+    };
+    post_capture_flow("mp4", "Video capture successful.", data, None)
 }
 
 // Take a Pixbuf and turn it into a image.
 #[cfg(target_os = "linux")]
 fn pixbuf2file(p: gtk::gdk_pixbuf::Pixbuf) -> Vec<u8> {
     p.save_to_bufferv("png", &[]).unwrap()
+}
+
+// Handles the clipboard upload event.
+fn clipboard_upload_event(v: Vec<u8>) -> Option<Box<dyn FnOnce(&str, i64) + Send>> {
+    Some(Box::new(move |filename, capture_id| {
+        // Load the image.
+        let img = image::load_from_memory_with_format(&v, image::ImageFormat::Png).unwrap();
+
+        // Scan  the image.
+        let text = ocr::scan_text(img.to_rgb8());
+
+        // Insert the capture into the index.
+        search_indexing::insert_capture(capture_id, filename, text, Vec::new());
+    }))
 }
 
 // Handles uploading files from the clipboard.
@@ -262,11 +293,12 @@ pub fn clipboard_capture() {
                     return;
                 }
             };
+            let v_clone = v.clone();
             post_capture_flow(
                 mime.subtype().as_str(),
                 "Clipboard capture successful.",
                 v,
-                None,
+                clipboard_upload_event(v_clone),
             )
         }
         None => send_notification("No item in the clipboard to upload.", None, None),
