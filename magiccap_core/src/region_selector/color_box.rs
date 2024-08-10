@@ -113,6 +113,9 @@ pub fn handle_color_box_click(
     y: i32,
     window_w: i32,
 ) -> bool {
+    if !ctx.setup.show_editors {
+        return false;
+    }
     if x < window_w - WIDTH - MARGIN || x > window_w - MARGIN {
         return false;
     }

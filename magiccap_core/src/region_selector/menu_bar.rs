@@ -82,6 +82,11 @@ pub unsafe fn draw_menu_bar(
 
 // Check if the cursor is within the menu bar.
 pub fn within_menu_bar(ctx: &RegionSelectorContext, rel_x: i32, rel_y: i32, screen_w: i32) -> bool {
+    // If we do not render the menu bar, this is not it.
+    if !ctx.setup.show_editors {
+        return false;
+    }
+
     // Get the editors count and add 1 for the icon count.
     let icons_count = ctx.editors.len() as i32 + 1;
 

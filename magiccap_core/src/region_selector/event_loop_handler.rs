@@ -227,6 +227,11 @@ pub fn region_selector_io_event_sent(
     match event {
         // Open the color palette if the C key is hit.
         glfw::WindowEvent::Key(Key::C, _, Action::Release, _) => {
+            // Return early if editors are off.
+            if !ctx.setup.show_editors {
+                return;
+            }
+
             // Get a Arc reference to the color and texture.
             let color_selection_arc = ctx.color_selection.clone();
 
@@ -312,6 +317,10 @@ pub fn region_selector_io_event_sent(
 
         // Handle the scroll wheel.
         glfw::WindowEvent::Scroll(_, y) => {
+            if !ctx.setup.show_editors {
+                return;
+            }
+
             let editor_len = ctx.editors.len();
             let scroll_forward = y > 0.0;
             match ctx.editor_index {

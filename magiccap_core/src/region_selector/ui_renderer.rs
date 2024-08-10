@@ -244,7 +244,9 @@ unsafe fn render_decorations(
         let (cursor_x, cursor_y) = (cursor_x.floor() as i32, cursor_y.floor() as i32);
 
         // Render the color box.
-        color_box::draw_color_box(ctx, width, height);
+        if ctx.setup.show_editors {
+            color_box::draw_color_box(ctx, width, height);
+        }
 
         match ctx.active_selection {
             None => {
@@ -280,8 +282,10 @@ unsafe fn render_decorations(
             render_magnifier(ctx, index, cursor_x, cursor_y, width, height);
         }
 
-        // Render the menu bar.
-        draw_menu_bar(ctx, cursor_x, cursor_y, width, height);
+        // Render the menu bar if applicable.
+        if ctx.setup.show_editors {
+            draw_menu_bar(ctx, cursor_x, cursor_y, width, height);
+        }
     } else {
         // Just render the editors.
         render_editors();
