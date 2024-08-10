@@ -1,6 +1,8 @@
 use crate::{
     clipboard_actions::{self, CaptureFile},
-    database, notification, ocr,
+    database,
+    mainthread::main_thread_sync,
+    notification, ocr,
     region_selector::open_region_selector,
     search_indexing,
     statics::run_thread,
@@ -231,9 +233,44 @@ pub fn video_capture() {
     // TODO
 }
 
+// Take a Pixbuf and turn it into a image.
+#[cfg(target_os = "linux")]
+fn pixbuf2file(p: gtk::gdk_pixbuf::Pixbuf) -> Vec<u8> {
+    p.save_to_bufferv("png", &[]).unwrap()
+}
+
 // Handles uploading files from the clipboard.
+#[cfg(target_os = "linux")]
 pub fn clipboard_capture() {
-    // TODO
+    use crate::notification::send_notification;
+    use mime_sniffer::MimeTypeSnifferExt;
+
+    // TODO: wayland
+    let clipboard_result = main_thread_sync(|| {
+        let clipboard = gtk::Clipboard::default(&gdk::Display::default().unwrap()).unwrap();
+        match clipboard.wait_for_image() {
+            Some(p) => Some(pixbuf2file(p)),
+            None => None,
+        }
+    });
+    match clipboard_result {
+        Some(v) => {
+            let mime = match v.sniff_mime_type_ext() {
+                Some(v) => v,
+                None => {
+                    send_notification("Unable to get MIME type of clipboard item.", None, None);
+                    return;
+                }
+            };
+            post_capture_flow(
+                mime.subtype().as_str(),
+                "Clipboard capture successful.",
+                v,
+                None,
+            )
+        }
+        None => send_notification("No item in the clipboard to upload.", None, None),
+    }
 }
 
 // Handle doing fullscreen captures. This will capture all of the displays in order.
