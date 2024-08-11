@@ -229,7 +229,7 @@ fn tray_main_thread() {
 
 // Handles tray_icon imports which are used as types on Linux.
 #[cfg(not(target_os = "macos"))]
-use tray_icon::menu::{Menu, MenuItem};
+use tray_icon::menu::MenuItem;
 
 // Handles a muda event on Linux.
 #[cfg(not(target_os = "macos"))]

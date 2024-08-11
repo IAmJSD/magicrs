@@ -2,7 +2,7 @@ use crate::linux_shared::FakeSend;
 use crate::temp_icon::shared::{COG_ICON, STOP_ICON};
 use muda::MenuEvent;
 use std::{
-    io::{BufRead, Read, Write},
+    io::{BufRead, Read},
     process,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -147,20 +147,8 @@ impl IconHandler {
         }
     }
 
-    // Handles stopping the recording and putting the icon into processing mode.
-    // Note that this will also invoke the stop callback.
-    pub fn stop_recording(&self) {
-        // Get the process.
-        let mut proc = self.process.lock().unwrap();
-
-        // Write 's' to the stdin.
-        let _ = proc.stdin.as_mut().unwrap().write(b"s");
-    }
-}
-
-// Handle dropping the icon handler. This will remove the icon from the tray.
-impl Drop for IconHandler {
-    fn drop(&mut self) {
+    // Remove the icon from the tray.
+    pub fn remove(&mut self) {
         let mut proc = self.process.lock().unwrap();
         let _ = proc.kill();
     }

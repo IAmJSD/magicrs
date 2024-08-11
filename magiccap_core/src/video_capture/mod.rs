@@ -1,9 +1,25 @@
-use crate::region_selector::Region;
+mod recorder;
+
+use std::sync::Arc;
+use crate::{region_selector::Region, temp_icon::IconHandler};
+use recorder::Recorder;
 use xcap::Monitor;
 
 // Starts the video capturer.
 pub fn start_recorder(gif: bool, monitor: Monitor, region: Region) -> Option<Vec<u8>> {
-    // TODO
-    println!("Hello World!");
-    None
+    // Start the recorder and temporary icon.
+    let recorder_arc = Arc::new(Recorder::new(gif, monitor, region));
+    let clone1 = Arc::clone(&recorder_arc);
+    let mut temp_icon = IconHandler::new(Box::new(
+        move || clone1.stop_record_thread()
+    ));
+
+    // Wait for the encoding thread.
+    let data = recorder_arc.wait_for_encoding_thread();
+
+    // Remove the temporary icon.
+    temp_icon.remove();
+
+    // Return the data.
+    Some(data)
 }
