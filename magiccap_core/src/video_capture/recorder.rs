@@ -2,15 +2,39 @@ use crate::region_selector::Region;
 use std::sync::atomic::{AtomicBool, Ordering};
 use xcap::Monitor;
 
+#[cfg(target_os = "linux")]
+use crate::video_capture::linux_recorder::{
+    PlatformSpecificGIFRecorder, PlatformSpecificMP4Recorder,
+};
+
+enum RecorderType {
+    MP4(PlatformSpecificMP4Recorder),
+    GIF(PlatformSpecificGIFRecorder),
+}
+
+macro_rules! action {
+    ($self:ident, $method_name:ident) => {
+        match &$self.recorder {
+            RecorderType::MP4(x) => x.$method_name(),
+            RecorderType::GIF(x) => x.$method_name(),
+        }
+    };
+}
+
 pub struct Recorder {
     is_done: AtomicBool,
+    recorder: RecorderType,
 }
 
 impl Recorder {
     pub fn new(gif: bool, monitor: Monitor, region: Region) -> Self {
-        // TODO
         Self {
             is_done: AtomicBool::new(false),
+            recorder: if gif {
+                RecorderType::GIF(PlatformSpecificGIFRecorder::new(monitor, region))
+            } else {
+                RecorderType::MP4(PlatformSpecificMP4Recorder::new(monitor, region))
+            },
         }
     }
 
@@ -20,11 +44,10 @@ impl Recorder {
             return;
         }
 
-        // TODO
+        action!(self, stop_record_thread)
     }
 
     pub fn wait_for_encoding_thread(&self) -> Vec<u8> {
-        // TODO
-        Vec::new()
+        action!(self, wait_for_encoding_thread)
     }
 }
