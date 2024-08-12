@@ -30,6 +30,7 @@ pub use texture_pack::preload_textures;
 static SELECTOR_OPENED: AtomicBool = AtomicBool::new(false);
 
 // Defines a region.
+#[derive(Clone)]
 pub struct Region {
     pub x: i32,
     pub y: i32,

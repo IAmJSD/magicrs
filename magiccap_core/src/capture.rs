@@ -230,10 +230,7 @@ pub fn gif_capture() {
         Some(result) => (result.monitor, result.relative_region),
         None => return,
     };
-    let data = match start_recorder(true, monitor, region) {
-        Some(b) => b,
-        None => return,
-    };
+    let data = start_recorder(true, monitor, region);
     post_capture_flow("gif", "GIF capture successful.", data, None)
 }
 
@@ -243,10 +240,7 @@ pub fn video_capture() {
         Some(result) => (result.monitor, result.relative_region),
         None => return,
     };
-    let data = match start_recorder(false, monitor, region) {
-        Some(b) => b,
-        None => return,
-    };
+    let data = start_recorder(false, monitor, region);
     post_capture_flow("mp4", "Video capture successful.", data, None)
 }
 

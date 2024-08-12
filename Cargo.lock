@@ -3050,6 +3050,7 @@ dependencies = [
  "evalexpr",
  "flate2",
  "gdk",
+ "gif",
  "gio",
  "gl",
  "glfw",

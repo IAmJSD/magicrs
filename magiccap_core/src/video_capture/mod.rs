@@ -1,3 +1,4 @@
+mod gif_encoder;
 mod recorder;
 
 #[cfg(target_os = "linux")]
@@ -9,18 +10,18 @@ use std::sync::Arc;
 use xcap::Monitor;
 
 // Starts the video capturer.
-pub fn start_recorder(gif: bool, monitor: Monitor, region: Region) -> Option<Vec<u8>> {
+pub fn start_recorder(gif: bool, monitor: Monitor, region: Region) -> Vec<u8> {
     // Start the recorder and temporary icon.
     let recorder_arc = Arc::new(Recorder::new(gif, monitor, region));
     let clone1 = Arc::clone(&recorder_arc);
     let mut temp_icon = IconHandler::new(Box::new(move || clone1.stop_record_thread()));
 
-    // Wait for the encoding thread.
-    let data = recorder_arc.wait_for_encoding_thread();
+    // Wait for encoding.
+    let data = recorder_arc.wait_for_encoding();
 
     // Remove the temporary icon.
     temp_icon.remove();
 
-    // Return the data.
-    Some(data)
+    // Return the data we got from the recorder.
+    data
 }

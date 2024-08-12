@@ -47,7 +47,7 @@ impl Recorder {
         action!(self, stop_record_thread)
     }
 
-    pub fn wait_for_encoding_thread(&self) -> Vec<u8> {
-        action!(self, wait_for_encoding_thread)
+    pub fn wait_for_encoding(&self) -> Vec<u8> {
+        action!(self, wait_for_encoding)
     }
 }
