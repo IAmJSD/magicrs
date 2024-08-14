@@ -2,7 +2,7 @@ use crate::linux_shared::FakeSend;
 use crate::temp_icon::shared::{COG_ICON, STOP_ICON};
 use muda::MenuEvent;
 use std::{
-    io::{BufRead, Read},
+    io::{BufRead, Read, Write},
     process,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -145,6 +145,12 @@ impl IconHandler {
         Self {
             process: Mutex::new(create_icond(stop_callback)),
         }
+    }
+
+    // Changes the icon to the cog icon.
+    pub fn processing(&self) {
+        let mut proc = self.process.lock().unwrap();
+        let _ = proc.stdin.as_mut().unwrap().write_all(b"s");
     }
 
     // Remove the icon from the tray.

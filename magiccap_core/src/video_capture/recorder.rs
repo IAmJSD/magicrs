@@ -38,6 +38,10 @@ impl Recorder {
         }
     }
 
+    pub fn wait_for_stop(&self) {
+        action!(self, wait_for_stop)
+    }
+
     pub fn stop_record_thread(&self) {
         // Ensure this is a unique usage.
         if self.is_done.swap(true, Ordering::AcqRel) {
