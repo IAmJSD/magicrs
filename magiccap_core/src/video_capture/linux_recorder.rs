@@ -7,9 +7,89 @@ use xcap::Monitor;
 
 use super::{gif_encoder::GIFEncoder, mp4_encoder::MP4Encoder};
 
-struct CaptureEnumerator {}
+struct XCaptureEnumerator {
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
+    fps: u32,
+    last_capture: std::time::Instant,
+    display_connection: *mut std::ffi::c_void,
+}
 
-impl CaptureEnumerator {
+extern "C" {
+    fn magiccap_recorder_x11_open_display() -> *mut std::ffi::c_void;
+    fn magiccap_recorder_x11_close_display(display_connection: *mut std::ffi::c_void);
+    fn magiccap_recorder_x11_get_region_rgba(
+        display: *mut std::ffi::c_void,
+        x: i32,
+        y: i32,
+        w: u32,
+        h: u32,
+    ) -> *mut u8;
+}
+
+impl XCaptureEnumerator {
+    pub fn new(monitor: Monitor, region: Region, fps: u32) -> Self {
+        let x = region.x + monitor.x();
+        let y = region.y + monitor.y();
+        Self {
+            x,
+            y,
+            width: region.width,
+            height: region.height,
+            fps,
+            last_capture: unsafe { std::mem::zeroed() },
+            display_connection: unsafe { magiccap_recorder_x11_open_display() },
+        }
+    }
+
+    pub fn next(&mut self) -> Option<Vec<u8>> {
+        // Figure out how long to wait before capturing the next frame.
+        let frame_duration = std::time::Duration::from_secs(1) / self.fps;
+        let elapsed = self.last_capture.elapsed();
+        if elapsed < frame_duration {
+            std::thread::sleep(frame_duration - elapsed);
+        }
+
+        // Perform the capture.
+        let frame_ptr = unsafe {
+            magiccap_recorder_x11_get_region_rgba(
+                self.display_connection,
+                self.x,
+                self.y,
+                self.width,
+                self.height,
+            )
+        };
+        if frame_ptr.is_null() {
+            return None;
+        }
+        let frame = unsafe {
+            Vec::from_raw_parts(
+                frame_ptr,
+                (self.width * self.height * 4) as usize,
+                (self.width * self.height * 4) as usize,
+            )
+        };
+
+        // Update the last capture time.
+        self.last_capture = std::time::Instant::now();
+
+        // Return the frame.
+        Some(frame)
+    }
+}
+
+impl Drop for XCaptureEnumerator {
+    fn drop(&mut self) {
+        unsafe { magiccap_recorder_x11_close_display(self.display_connection) };
+    }
+}
+
+struct PipewireCaptureEnumerator {}
+
+impl PipewireCaptureEnumerator {
     pub fn new(monitor: Monitor, region: Region, fps: u32) -> Self {
         // TODO
         Self {}
@@ -21,9 +101,35 @@ impl CaptureEnumerator {
     }
 }
 
-impl Drop for CaptureEnumerator {
-    fn drop(&mut self) {
-        // TODO: Disconnect!
+struct CaptureEnumerator {
+    x: Option<XCaptureEnumerator>,
+    pipewire: Option<PipewireCaptureEnumerator>,
+}
+
+impl CaptureEnumerator {
+    pub fn new(monitor: Monitor, region: Region, fps: u32) -> Self {
+        // Determine which enumerator to use from the environment.
+        if std::env::var("XDG_SESSION_TYPE").unwrap() == "wayland" {
+            Self {
+                x: None,
+                pipewire: Some(PipewireCaptureEnumerator::new(monitor, region, fps)),
+            }
+        } else {
+            Self {
+                x: Some(XCaptureEnumerator::new(monitor, region, fps)),
+                pipewire: None,
+            }
+        }
+    }
+
+    pub fn next(&mut self) -> Option<Vec<u8>> {
+        if let Some(x) = &mut self.x {
+            x.next()
+        } else if let Some(pipewire) = &mut self.pipewire {
+            pipewire.next()
+        } else {
+            None
+        }
     }
 }
 

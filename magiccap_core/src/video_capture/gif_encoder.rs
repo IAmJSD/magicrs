@@ -1,8 +1,66 @@
 use crate::statics::run_thread;
-use std::{
-    collections::HashMap,
-    sync::mpsc::{channel, sync_channel, Receiver, Sender, SyncSender},
-};
+use std::sync::mpsc::{channel, sync_channel, Receiver, Sender, SyncSender};
+
+struct PaletteGeneration {
+    mapping: Vec<Vec<[usize; 256]>>,
+    palette: Vec<u32>,
+}
+
+impl PaletteGeneration {
+    pub fn new() -> Self {
+        Self {
+            mapping: vec![vec![[0; 256]; 256]; 256],
+            palette: vec![0; 256],
+        }
+    }
+
+    pub fn write_color_usage(&mut self, r: u8, g: u8, b: u8) {
+        let mem_ptr = unsafe {
+            self.mapping
+                .get_unchecked_mut(r as usize)
+                .get_unchecked_mut(g as usize)
+                .get_unchecked_mut(b as usize)
+        };
+        let v = *mem_ptr + 1;
+        *mem_ptr = v;
+        let mut potential_drop_victim = -1;
+        let joined_together = (r as u32) << 16 | (g as u32) << 8 | b as u32;
+        for (i, color) in self.palette.iter().enumerate() {
+            if color == &joined_together {
+                return;
+            }
+            if color == &0 {
+                potential_drop_victim = i as i32;
+                break;
+            }
+            let (r, g, b) = (color >> 16, (color >> 8) & 0xFF, color & 0xFF);
+            let usages = unsafe {
+                self.mapping
+                    .get_unchecked(r as usize)
+                    .get_unchecked(g as usize)
+                    .get_unchecked(b as usize)
+            };
+            if *usages < v {
+                potential_drop_victim = i as i32;
+                break;
+            }
+        }
+        if potential_drop_victim == -1 {
+            return;
+        }
+        self.palette[potential_drop_victim as usize] = joined_together;
+    }
+
+    pub fn get_gif_palette(self) -> [u8; 256 * 3] {
+        let mut palette = [0; 256 * 3];
+        for (i, color) in self.palette.iter().enumerate() {
+            palette[i * 3] = (*color >> 16) as u8;
+            palette[i * 3 + 1] = (*color >> 8) as u8;
+            palette[i * 3 + 2] = *color as u8;
+        }
+        palette
+    }
+}
 
 enum RGBAInput {
     Data(Vec<u8>),
@@ -20,16 +78,18 @@ struct DequeItem<V> {
     value: V,
 }
 
-struct Deque<V> {
+struct Deque<'a, V> {
     first: Option<Box<DequeItem<V>>>,
     last: usize,
+    phantom: std::marker::PhantomData<&'a V>,
 }
 
-impl<V> Deque<V> {
+impl<'a, V> Deque<'a, V> {
     pub fn new() -> Self {
         Self {
             first: None,
             last: 0,
+            phantom: std::marker::PhantomData,
         }
     }
 
@@ -39,20 +99,14 @@ impl<V> Deque<V> {
 
     pub fn push_end(&mut self, value: V) {
         if self.first.is_none() {
-            let deque_box = Box::into_raw(Box::new(DequeItem {
-                next: None,
-                value,
-            }));
+            let deque_box = Box::into_raw(Box::new(DequeItem { next: None, value }));
             self.first.replace(unsafe { Box::from_raw(deque_box) });
             self.last = deque_box as usize;
             return;
         }
 
         let last_item = self.last as *mut DequeItem<V>;
-        let new_item = Box::into_raw(Box::new(DequeItem {
-            next: None,
-            value,
-        }));
+        let new_item = Box::into_raw(Box::new(DequeItem { next: None, value }));
         unsafe {
             (*last_item).next.replace(Box::from_raw(new_item));
         }
@@ -67,11 +121,8 @@ fn encode_worker(
     rgba_out: Receiver<RGBAInput>,
     gif_in: SyncSender<Vec<u8>>,
 ) {
-    // Get the sleep time for 2 frames.
-    let sleep_time = 1000 / fps * 2;
-
     // Defines a mapping of colors to their frequency.
-    let mut color_map: HashMap<u32, u32> = HashMap::new();
+    let mut color_map = PaletteGeneration::new();
 
     // Go through each frame as they arrive.
     let mut frame_dq = Deque::new();
@@ -83,23 +134,9 @@ fn encode_worker(
                 continue;
             }
 
-            // Iterate over the image.
-            for i in (0..frame.len()).step_by(4) {
-                // Get the color.
-                let color = (frame[i] as u32) << 24
-                    | (frame[i + 1] as u32) << 16
-                    | (frame[i + 2] as u32) << 8
-                    | (frame[i + 3] as u32);
-
-                // Check if the color is in the map.
-                if color_map.contains_key(&color) {
-                    // Increment the value.
-                    let value = color_map.get_mut(&color).unwrap();
-                    *value += 1;
-                } else {
-                    // Insert the value.
-                    color_map.insert(color, 1);
-                }
+            // Iterate over the image and write the color usage.
+            for i in frame.chunks_exact(4) {
+                color_map.write_color_usage(i[0], i[1], i[2]);
             }
 
             // Push to the deque.
@@ -112,78 +149,44 @@ fn encode_worker(
                 break;
             }
         }
-
-        // Sleep for 2 frames so we do not burn aa CPU core.
-        std::thread::sleep(std::time::Duration::from_millis(sleep_time as u64));
-    }
-
-    // Create the vector for the colors.
-    let map_len = color_map.len();
-    let mut vec_color_cap = map_len;
-    if vec_color_cap > 256 {
-        vec_color_cap = 256;
-    }
-    let mut vec: Vec<u8> = Vec::with_capacity(vec_color_cap * 4);
-
-    // If the map lengtRGBAInput::Da is <= 256, just plop the map into this.
-    if map_len <= 256 {
-        // Iterate over the map.
-        for (key, _) in color_map {
-            // Push the key into the vec.
-            vec.append(&mut vec![
-                (key >> 24 & 0xFF) as u8,
-                (key >> 16 & 0xFF) as u8,
-                (key >> 8 & 0xFF) as u8,
-                (key & 0xFF) as u8,
-            ]);
-        }
-    } else {
-        // Get the map sorted by value from highest to lowest.
-        let mut sorted_map: Vec<(&u32, &u32)> = color_map.iter().collect();
-        sorted_map.sort_by(|a, b| b.1.cmp(a.1));
-
-        // Iterate over the map.
-        for (key, _) in sorted_map {
-            // Push the key into the vec.
-            vec.append(&mut vec![
-                (key >> 24 & 0xFF) as u8,
-                (key >> 16 & 0xFF) as u8,
-                (key >> 8 & 0xFF) as u8,
-                (key & 0xFF) as u8,
-            ]);
-
-            // Check if we have enough colors.
-            if vec.len() == 256*4 {
-                break
-            }
-        }
     }
 
     // Create the gif encoder.
     let mut input = Vec::new();
-    let mut encoder = gif::Encoder::new(
-        &mut input,
-        w as u16,
-        h as u16,
-        vec.as_slice(),
-    ).unwrap();
+    let mut encoder =
+        gif::Encoder::new(&mut input, w as u16, h as u16, &color_map.get_gif_palette()).unwrap();
 
     // Pass each frame to the encoder.
     let mut stack_val = frame_dq.to_stack();
-    while let Some(mut frame) = stack_val {
+    while let Some(frame) = stack_val {
         // Give the frame to the encoder.
-        encoder.write_frame(
-            &gif::Frame::from_rgba_speed(
+        let mut decompressed_slice = frame.value;
+        encoder
+            .write_frame(&gif::Frame::from_rgba_speed(
                 w as u16,
                 h as u16,
-                frame.value.as_mut(),
-                1000 / fps as i32,
-            )
-        ).unwrap();
+                decompressed_slice.as_mut_slice(),
+                10,
+            ))
+            .unwrap();
+
+        // Add a delay for the FPS.
+        let delay = 1000 / fps / 10;
+        encoder
+            .write_extension(gif::ExtensionData::new_control_ext(
+                delay as u16,
+                gif::DisposalMethod::Keep,
+                false,
+                None,
+            ))
+            .unwrap();
 
         // Set the next value.
         stack_val = frame.next;
     }
+
+    // Write the loop.
+    encoder.set_repeat(gif::Repeat::Infinite).unwrap();
 
     // Drop the encoder.
     drop(encoder);

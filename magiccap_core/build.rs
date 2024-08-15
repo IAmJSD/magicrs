@@ -15,6 +15,7 @@ fn os_specific_compilation() {
 fn os_specific_compilation() {
     // Watch for changes to linux_x11.c.
     println!("cargo:rerun-if-changed=src/region_selector/linux_x11.c");
+    println!("cargo:rerun-if-changed=src/video_capture/linux_recorder.c");
 
     // Link in X11.
     println!("cargo:rustc-link-lib=X11");
@@ -23,6 +24,11 @@ fn os_specific_compilation() {
     cc::Build::new()
         .file("src/region_selector/linux_x11.c")
         .compile("linux_x11");
+
+    // Compile the Linux recorder file.
+    cc::Build::new()
+        .file("src/video_capture/linux_recorder.c")
+        .compile("linux_recorder");
 }
 
 #[cfg(target_os = "windows")]
