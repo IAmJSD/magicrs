@@ -78,18 +78,16 @@ struct DequeItem<V> {
     value: V,
 }
 
-struct Deque<'a, V> {
+struct Deque<V> {
     first: Option<Box<DequeItem<V>>>,
     last: usize,
-    phantom: std::marker::PhantomData<&'a V>,
 }
 
-impl<'a, V> Deque<'a, V> {
+impl<V> Deque<V> {
     pub fn new() -> Self {
         Self {
             first: None,
             last: 0,
-            phantom: std::marker::PhantomData,
         }
     }
 
