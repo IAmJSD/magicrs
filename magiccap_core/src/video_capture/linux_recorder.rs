@@ -19,7 +19,7 @@ struct XCaptureEnumerator {
 
 extern "C" {
     fn magiccap_recorder_x11_open_display() -> *mut std::ffi::c_void;
-    fn magiccap_recorder_x11_close_display(display_connection: *mut std::ffi::c_void);
+    fn magiccap_recorder_x11_close_display(display: *mut std::ffi::c_void);
     fn magiccap_recorder_x11_get_region_rgba(
         display: *mut std::ffi::c_void,
         x: i32,

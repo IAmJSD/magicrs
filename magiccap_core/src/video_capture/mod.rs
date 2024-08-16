@@ -1,5 +1,6 @@
 mod gif_encoder;
 mod recorder;
+mod rgba_compressor;
 
 #[cfg(target_os = "linux")]
 mod linux_recorder;

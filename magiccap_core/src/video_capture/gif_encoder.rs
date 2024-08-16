@@ -1,3 +1,4 @@
+use super::rgba_compressor::RGBACompressor;
 use crate::statics::run_thread;
 use std::sync::mpsc::{channel, sync_channel, Receiver, Sender, SyncSender};
 
@@ -124,6 +125,7 @@ fn encode_worker(
 
     // Go through each frame as they arrive.
     let mut frame_dq = Deque::new();
+    let mut compressor = RGBACompressor::new();
     loop {
         let next_potential_frame = rgba_out.recv().unwrap();
         if let RGBAInput::Data(frame) = next_potential_frame {
@@ -138,7 +140,7 @@ fn encode_worker(
             }
 
             // Push to the deque.
-            frame_dq.push_end(frame);
+            frame_dq.push_end(compressor.compress(frame));
         } else {
             // If abort, return now. Otherwise, we should break.
             if let RGBAInput::Abort = next_potential_frame {
@@ -156,14 +158,15 @@ fn encode_worker(
 
     // Pass each frame to the encoder.
     let mut q_val = frame_dq.to_queue();
+    let mut buffer = Vec::with_capacity(w as usize * h as usize * 4);
     while let Some(frame) = q_val {
         // Give the frame to the encoder.
-        let mut decompressed_slice = frame.value;
+        frame.value.decompress_into_buffer(&mut buffer);
         encoder
             .write_frame(&gif::Frame::from_rgba_speed(
                 w as u16,
                 h as u16,
-                decompressed_slice.as_mut_slice(),
+                buffer.as_mut_slice(),
                 10,
             ))
             .unwrap();
