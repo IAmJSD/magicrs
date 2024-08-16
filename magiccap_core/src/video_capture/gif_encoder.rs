@@ -80,35 +80,35 @@ struct DequeItem<V> {
 
 struct Deque<V> {
     first: Option<Box<DequeItem<V>>>,
-    last: usize,
+    last: *mut DequeItem<V>,
 }
 
 impl<V> Deque<V> {
     pub fn new() -> Self {
         Self {
             first: None,
-            last: 0,
+            last: unsafe { std::mem::zeroed() },
         }
     }
 
-    pub fn to_stack(self) -> Option<Box<DequeItem<V>>> {
+    pub fn to_queue(self) -> Option<Box<DequeItem<V>>> {
         self.first
     }
 
     pub fn push_end(&mut self, value: V) {
         if self.first.is_none() {
-            let deque_box = Box::into_raw(Box::new(DequeItem { next: None, value }));
-            self.first.replace(unsafe { Box::from_raw(deque_box) });
-            self.last = deque_box as usize;
+            let mut deque_box = Box::new(DequeItem { next: None, value });
+            self.last = deque_box.as_mut() as *mut _;
+            self.first.replace(deque_box);
             return;
         }
 
-        let last_item = self.last as *mut DequeItem<V>;
-        let new_item = Box::into_raw(Box::new(DequeItem { next: None, value }));
+        let mut new_item = Box::new(DequeItem { next: None, value });
+        let curr_last = self.last;
+        self.last = new_item.as_mut() as *mut _;
         unsafe {
-            (*last_item).next.replace(Box::from_raw(new_item));
+            (*curr_last).next.replace(new_item);
         }
-        self.last = new_item as usize;
     }
 }
 
@@ -155,8 +155,8 @@ fn encode_worker(
         gif::Encoder::new(&mut input, w as u16, h as u16, &color_map.get_gif_palette()).unwrap();
 
     // Pass each frame to the encoder.
-    let mut stack_val = frame_dq.to_stack();
-    while let Some(frame) = stack_val {
+    let mut q_val = frame_dq.to_queue();
+    while let Some(frame) = q_val {
         // Give the frame to the encoder.
         let mut decompressed_slice = frame.value;
         encoder
@@ -180,7 +180,7 @@ fn encode_worker(
             .unwrap();
 
         // Set the next value.
-        stack_val = frame.next;
+        q_val = frame.next;
     }
 
     // Write the loop.
