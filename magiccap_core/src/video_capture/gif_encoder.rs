@@ -63,14 +63,14 @@ impl PaletteGeneration {
     }
 }
 
-enum RGBAInput {
-    Data(Vec<u8>),
+enum RGBAInput<'a> {
+    Data(&'a mut Vec<u8>),
     Encode,
-    Abort,
+    Abort(SyncSender<()>),
 }
 
-pub struct GIFEncoder {
-    rgba_in: Sender<RGBAInput>,
+pub struct GIFEncoder<'a> {
+    rgba_in: Sender<RGBAInput<'a>>,
     gif_out: Option<Receiver<Vec<u8>>>,
 }
 
@@ -143,11 +143,11 @@ fn encode_worker(
             frame_dq.push_end(compressor.compress(frame));
         } else {
             // If abort, return now. Otherwise, we should break.
-            if let RGBAInput::Abort = next_potential_frame {
+            if let RGBAInput::Abort(s) = next_potential_frame {
+                s.send(()).unwrap();
                 return;
-            } else {
-                break;
             }
+            break;
         }
     }
 
@@ -196,18 +196,26 @@ fn encode_worker(
     gif_in.send(input).unwrap();
 }
 
-impl GIFEncoder {
+impl<'a> GIFEncoder<'a> {
     pub fn new(w: u32, h: u32, fps: u32) -> Self {
         let (rgba_in, rgba_out) = channel();
         let (gif_in, gif_out) = sync_channel(0);
-        run_thread(move || encode_worker(w, h, fps, rgba_out, gif_in));
+
+        // This is okay to do because everything the lifetime of the thread is tied to the lifetime
+        // of the GIFEncoder since both Encode and Abort are the main control signals to it and both kill
+        // the thread.
+        let static_rgba_out = unsafe {
+            std::mem::transmute::<Receiver<RGBAInput<'a>>, Receiver<RGBAInput<'static>>>(rgba_out)
+        };
+        run_thread(move || encode_worker(w, h, fps, static_rgba_out, gif_in));
+
         Self {
             rgba_in,
             gif_out: Some(gif_out),
         }
     }
 
-    pub fn consume_rgba_frame(&self, frame: Vec<u8>) {
+    pub fn consume_rgba_frame(&self, frame: &'a mut Vec<u8>) {
         self.rgba_in.send(RGBAInput::Data(frame)).unwrap()
     }
 
@@ -221,10 +229,14 @@ impl GIFEncoder {
     }
 }
 
-impl Drop for GIFEncoder {
+impl<'a> Drop for GIFEncoder<'_> {
     fn drop(&mut self) {
         if self.gif_out.is_some() {
-            self.rgba_in.send(RGBAInput::Abort).unwrap();
+            // Send a sync sender and wait for it. This allows us to ensure the lifetimes
+            // are okay because it won't be processing any more frames after this.
+            let (s, r) = sync_channel(0);
+            self.rgba_in.send(RGBAInput::Abort(s)).unwrap();
+            r.recv().unwrap();
         }
     }
 }

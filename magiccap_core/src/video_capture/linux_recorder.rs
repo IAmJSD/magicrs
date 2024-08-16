@@ -45,7 +45,7 @@ impl XCaptureEnumerator {
         }
     }
 
-    pub fn next(&mut self) -> Option<Vec<u8>> {
+    pub fn next(&mut self, v: &mut Vec<u8>) -> bool {
         // Figure out how long to wait before capturing the next frame.
         let frame_duration = std::time::Duration::from_secs(1) / self.fps;
         let elapsed = self.last_capture.elapsed();
@@ -54,8 +54,6 @@ impl XCaptureEnumerator {
         }
 
         // Perform the capture.
-        let mut buf = Vec::with_capacity((self.width * self.height * 4) as usize);
-        unsafe { buf.set_len((self.width * self.height * 4) as usize) };
         let frame_ok = unsafe {
             magiccap_recorder_x11_get_region_rgba(
                 self.display_connection,
@@ -63,18 +61,18 @@ impl XCaptureEnumerator {
                 self.y,
                 self.width,
                 self.height,
-                buf.as_mut_ptr(),
+                v.as_mut_ptr(),
             )
         };
         if !frame_ok {
-            return None;
+            return false;
         }
 
         // Update the last capture time.
         self.last_capture = std::time::Instant::now();
 
-        // Return the frame.
-        Some(buf)
+        // Return ok.
+        true
     }
 }
 
@@ -92,9 +90,9 @@ impl PipewireCaptureEnumerator {
         Self {}
     }
 
-    pub fn next(&mut self) -> Option<Vec<u8>> {
+    pub fn next(&mut self, v: &mut Vec<u8>) -> bool {
         // TODO
-        None
+        false
     }
 }
 
@@ -119,13 +117,13 @@ impl CaptureEnumerator {
         }
     }
 
-    pub fn next(&mut self) -> Option<Vec<u8>> {
+    pub fn next(&mut self, v: &mut Vec<u8>) -> bool {
         if let Some(x) = &mut self.x {
-            x.next()
+            x.next(v)
         } else if let Some(pipewire) = &mut self.pipewire {
-            pipewire.next()
+            pipewire.next(v)
         } else {
-            None
+            false
         }
     }
 }
@@ -151,21 +149,26 @@ impl Drop for UIController {
 
 // Defines the structure that holds together all of the multi-threaded parts
 // of the Linux MP4 recording logic.
-pub struct PlatformSpecificMP4Recorder {
+pub struct PlatformSpecificMP4Recorder<'a> {
     abort: Arc<AtomicBool>,
-    encoder: Arc<Mutex<Option<MP4Encoder>>>,
+    encoder: FakeSend<*mut Mutex<Option<MP4Encoder<'a>>>>,
     ui: Arc<Mutex<Option<UIController>>>,
 }
 
-impl PlatformSpecificMP4Recorder {
+struct FakeSend<T>(T);
+unsafe impl<T> Send for FakeSend<T> {}
+unsafe impl<T> Sync for FakeSend<T> {}
+
+impl<'a> PlatformSpecificMP4Recorder<'_> {
     pub fn new(monitor: Monitor, region: Region) -> Self {
-        // Create the structure and all of the Arc's.
-        let encoder_arc = Arc::new(Mutex::new(Some(MP4Encoder::new(
+        // Create the structure and all of the Arc's. This is okay to do because we will always
+        // be the last person holding the encoder.
+        let encoder_raw = Box::into_raw(Box::new(Mutex::new(Some(MP4Encoder::new(
             region.width,
             region.height,
             30,
-        ))));
-        let encoder_arc_clone = Arc::clone(&encoder_arc);
+        )))));
+        let encoder_raw_cpy = encoder_raw as usize;
         let atom_arc = Arc::new(AtomicBool::new(false));
         let atom_arc_clone = Arc::clone(&atom_arc);
         let ui_arc = Arc::new(Mutex::new(Some(UIController::new(
@@ -175,23 +178,32 @@ impl PlatformSpecificMP4Recorder {
         let ui_arc_clone = Arc::clone(&ui_arc);
         let v = Self {
             abort: atom_arc,
-            encoder: encoder_arc,
+            encoder: FakeSend(encoder_raw),
             ui: ui_arc,
         };
+        let w = region.width;
+        let h = region.height;
 
         // Create the recording thread.
+        let mut buf = Vec::with_capacity((w * h * 4) as usize);
+        unsafe {
+            buf.set_len(buf.capacity());
+        }
         run_thread(move || {
-            let mut lock = encoder_arc_clone.lock().unwrap();
+            let encoder_raw = encoder_raw_cpy as *mut Mutex<Option<MP4Encoder>>;
+            let mut lock = unsafe { &*encoder_raw }.lock().unwrap();
             let guarded_value = lock.as_mut().unwrap();
-            let mut e = CaptureEnumerator::new(monitor, region, 30);
+            let mut e = CaptureEnumerator::new(monitor, region, 15);
+            let buf_mut = buf.as_mut();
             loop {
                 if atom_arc_clone.load(Ordering::Relaxed) {
                     return;
                 }
-                match e.next() {
-                    Some(v) => guarded_value.consume_rgba_frame(v),
-                    None => break,
-                };
+                if !e.next(buf_mut) {
+                    return;
+                }
+                let buf_mut_cpy = unsafe { &mut *(buf_mut as *mut _) };
+                guarded_value.consume_rgba_frame(buf_mut_cpy);
                 if let Some(ui_controller) = ui_arc_clone.lock().unwrap().as_mut() {
                     ui_controller.new_frame();
                 }
@@ -203,7 +215,7 @@ impl PlatformSpecificMP4Recorder {
     }
 
     pub fn wait_for_stop(&self) {
-        let v = self.encoder.lock().unwrap();
+        let v = unsafe { &*self.encoder.0 }.lock().unwrap();
         drop(v);
     }
 
@@ -216,28 +228,37 @@ impl PlatformSpecificMP4Recorder {
     pub fn wait_for_encoding(&self) -> Vec<u8> {
         // This is fine because the lock will stay in place until the recorder
         // is done. Therefore, we do not need to wait for it too.
-        let mut locker = self.encoder.lock().unwrap();
+        let mut locker = unsafe { &*self.encoder.0 }.lock().unwrap();
         locker.take().unwrap().stop_consuming()
+    }
+}
+
+impl Drop for PlatformSpecificMP4Recorder<'_> {
+    fn drop(&mut self) {
+        unsafe {
+            drop(Box::from_raw(self.encoder.0));
+        }
     }
 }
 
 // Defines the structure that holds together all of the multi-threaded parts
 // of the Linux GIF recording logic.
-pub struct PlatformSpecificGIFRecorder {
+pub struct PlatformSpecificGIFRecorder<'a> {
     abort: Arc<AtomicBool>,
-    encoder: Arc<Mutex<Option<GIFEncoder>>>,
+    encoder: FakeSend<*mut Mutex<Option<GIFEncoder<'a>>>>,
     ui: Arc<Mutex<Option<UIController>>>,
 }
 
-impl PlatformSpecificGIFRecorder {
+impl<'a> PlatformSpecificGIFRecorder<'_> {
     pub fn new(monitor: Monitor, region: Region) -> Self {
-        // Create the structure and all of the Arc's.
-        let encoder_arc = Arc::new(Mutex::new(Some(GIFEncoder::new(
+        // Create the structure and all of the Arc's. This is okay to do because we will always
+        // be the last person holding the encoder.
+        let encoder_raw = Box::into_raw(Box::new(Mutex::new(Some(GIFEncoder::new(
             region.width,
             region.height,
             15,
-        ))));
-        let encoder_arc_clone = Arc::clone(&encoder_arc);
+        )))));
+        let encoder_raw_cpy = encoder_raw as usize;
         let atom_arc = Arc::new(AtomicBool::new(false));
         let atom_arc_clone = Arc::clone(&atom_arc);
         let ui_arc = Arc::new(Mutex::new(Some(UIController::new(
@@ -247,23 +268,32 @@ impl PlatformSpecificGIFRecorder {
         let ui_arc_clone = Arc::clone(&ui_arc);
         let v = Self {
             abort: atom_arc,
-            encoder: encoder_arc,
+            encoder: FakeSend(encoder_raw),
             ui: ui_arc,
         };
+        let w = region.width;
+        let h = region.height;
 
         // Create the recording thread.
+        let mut buf = Vec::with_capacity((w * h * 4) as usize);
+        unsafe {
+            buf.set_len(buf.capacity());
+        }
         run_thread(move || {
-            let mut lock = encoder_arc_clone.lock().unwrap();
+            let encoder_raw = encoder_raw_cpy as *mut Mutex<Option<GIFEncoder>>;
+            let mut lock = unsafe { &*encoder_raw }.lock().unwrap();
             let guarded_value = lock.as_mut().unwrap();
             let mut e = CaptureEnumerator::new(monitor, region, 15);
+            let buf_mut = buf.as_mut();
             loop {
                 if atom_arc_clone.load(Ordering::Relaxed) {
                     return;
                 }
-                match e.next() {
-                    Some(v) => guarded_value.consume_rgba_frame(v),
-                    None => break,
-                };
+                if !e.next(buf_mut) {
+                    return;
+                }
+                let buf_mut_cpy = unsafe { &mut *(buf_mut as *mut _) };
+                guarded_value.consume_rgba_frame(buf_mut_cpy);
                 if let Some(ui_controller) = ui_arc_clone.lock().unwrap().as_mut() {
                     ui_controller.new_frame();
                 }
@@ -275,7 +305,7 @@ impl PlatformSpecificGIFRecorder {
     }
 
     pub fn wait_for_stop(&self) {
-        let v = self.encoder.lock().unwrap();
+        let v = unsafe { &*self.encoder.0 }.lock().unwrap();
         drop(v);
     }
 
@@ -288,7 +318,15 @@ impl PlatformSpecificGIFRecorder {
     pub fn wait_for_encoding(&self) -> Vec<u8> {
         // This is fine because the lock will stay in place until the recorder
         // is done. Therefore, we do not need to wait for it too.
-        let mut locker = self.encoder.lock().unwrap();
+        let mut locker = unsafe { &*self.encoder.0 }.lock().unwrap();
         locker.take().unwrap().stop_consuming()
+    }
+}
+
+impl Drop for PlatformSpecificGIFRecorder<'_> {
+    fn drop(&mut self) {
+        unsafe {
+            drop(Box::from_raw(self.encoder.0));
+        }
     }
 }

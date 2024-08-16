@@ -26,7 +26,12 @@ fn rgb_to_ycbcr(r: u8, g: u8, b: u8) -> (u8, u8, u8) {
     (y as u8, cb as u8, cr as u8)
 }
 
-fn mp4_process_data(w: u32, h: u32, avc_encoder: &mut H264Writer<&mut Vec<u8>>, data: Vec<u8>) {
+fn mp4_process_data(
+    w: u32,
+    h: u32,
+    avc_encoder: &mut H264Writer<&mut Vec<u8>>,
+    data: &mut Vec<u8>,
+) {
     // Convert the RGBA frame to YCbCr.
     let chan_size = data.len() / 4;
     let mut y = Vec::with_capacity(chan_size);
@@ -68,16 +73,17 @@ fn mp4_process_data(w: u32, h: u32, avc_encoder: &mut H264Writer<&mut Vec<u8>>, 
         .unwrap();
 }
 
-enum CaptureDataInput {
-    Data(Vec<u8>),
+enum CaptureDataInput<'a> {
+    Data(&'a mut Vec<u8>),
     Encode,
-    Abort,
+    Abort(SyncSender<()>),
 }
 
 fn mp4_encode_worker(
     w: u32,
     h: u32,
-    data_out: Receiver<CaptureDataInput>,
+    fps: u32,
+    data_out: Receiver<CaptureDataInput<'static>>,
     mp4_in: SyncSender<Vec<u8>>,
 ) {
     // Build the AVC encoder.
@@ -98,11 +104,11 @@ fn mp4_encode_worker(
             mp4_process_data(w, h, &mut avc_enc, data);
         } else {
             // If abort, return now. Otherwise, we should break.
-            if let CaptureDataInput::Abort = next_potential_data {
+            if let CaptureDataInput::Abort(s) = next_potential_data {
+                s.send(()).unwrap();
                 return;
-            } else {
-                break;
             }
+            break;
         }
     }
 
@@ -156,23 +162,33 @@ fn mp4_encode_worker(
     mp4_in.send(mp4_writer.into_writer().into_inner()).unwrap()
 }
 
-pub struct MP4Encoder {
-    data_in: Sender<CaptureDataInput>,
+pub struct MP4Encoder<'a> {
+    data_in: Sender<CaptureDataInput<'a>>,
     mp4_out: Option<Receiver<Vec<u8>>>,
 }
 
-impl MP4Encoder {
+impl<'a> MP4Encoder<'a> {
     pub fn new(w: u32, h: u32, fps: u32) -> Self {
         let (data_in, data_out) = channel();
         let (mp4_in, mp4_out) = sync_channel(0);
-        run_thread(move || mp4_encode_worker(w, h, data_out, mp4_in));
+
+        // This is okay to do because everything the lifetime of the thread is tied to the lifetime
+        // of the MP4Encoder since both Encode and Abort are the main control signals to it and both kill
+        // the thread.
+        let static_rgba_out = unsafe {
+            std::mem::transmute::<Receiver<CaptureDataInput<'a>>, Receiver<CaptureDataInput<'static>>>(
+                data_out,
+            )
+        };
+        run_thread(move || mp4_encode_worker(w, h, fps, static_rgba_out, mp4_in));
+
         Self {
             data_in,
             mp4_out: Some(mp4_out),
         }
     }
 
-    pub fn consume_rgba_frame(&self, frame: Vec<u8>) {
+    pub fn consume_rgba_frame(&self, frame: &'a mut Vec<u8>) {
         self.data_in.send(CaptureDataInput::Data(frame)).unwrap()
     }
 
@@ -186,10 +202,12 @@ impl MP4Encoder {
     }
 }
 
-impl Drop for MP4Encoder {
+impl<'a> Drop for MP4Encoder<'_> {
     fn drop(&mut self) {
         if self.mp4_out.is_some() {
-            self.data_in.send(CaptureDataInput::Abort).unwrap();
+            let (s, r) = sync_channel(0);
+            self.data_in.send(CaptureDataInput::Abort(s)).unwrap();
+            r.recv().unwrap();
         }
     }
 }

@@ -52,11 +52,11 @@ impl RGBACompressor {
         }
     }
 
-    pub fn compress(&mut self, v: Vec<u8>) -> RGBAFrame {
+    pub fn compress(&mut self, v: &mut Vec<u8>) -> RGBAFrame {
         if self.current_keyframe.is_null() {
             // We are the first write. Create a new keyframe.
             let keyframe = Box::new(Keyframe {
-                data: v,
+                data: v.clone(),
                 usage_count: 1,
             });
             self.current_keyframe = Box::into_raw(keyframe);

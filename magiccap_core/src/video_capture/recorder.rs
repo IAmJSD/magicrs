@@ -7,9 +7,9 @@ use crate::video_capture::linux_recorder::{
     PlatformSpecificGIFRecorder, PlatformSpecificMP4Recorder,
 };
 
-enum RecorderType {
-    MP4(PlatformSpecificMP4Recorder),
-    GIF(PlatformSpecificGIFRecorder),
+enum RecorderType<'a> {
+    MP4(PlatformSpecificMP4Recorder<'a>),
+    GIF(PlatformSpecificGIFRecorder<'a>),
 }
 
 macro_rules! action {
@@ -21,12 +21,12 @@ macro_rules! action {
     };
 }
 
-pub struct Recorder {
+pub struct Recorder<'a> {
     is_done: AtomicBool,
-    recorder: RecorderType,
+    recorder: RecorderType<'a>,
 }
 
-impl Recorder {
+impl<'a> Recorder<'_> {
     pub fn new(gif: bool, monitor: Monitor, region: Region) -> Self {
         Self {
             is_done: AtomicBool::new(false),
