@@ -26,7 +26,8 @@ extern "C" {
         y: i32,
         w: u32,
         h: u32,
-    ) -> *mut u8;
+        buf: *mut u8,
+    ) -> bool;
 }
 
 impl XCaptureEnumerator {
@@ -53,31 +54,27 @@ impl XCaptureEnumerator {
         }
 
         // Perform the capture.
-        let frame_ptr = unsafe {
+        let mut buf = Vec::with_capacity((self.width * self.height * 4) as usize);
+        unsafe { buf.set_len((self.width * self.height * 4) as usize) };
+        let frame_ok = unsafe {
             magiccap_recorder_x11_get_region_rgba(
                 self.display_connection,
                 self.x,
                 self.y,
                 self.width,
                 self.height,
+                buf.as_mut_ptr(),
             )
         };
-        if frame_ptr.is_null() {
+        if !frame_ok {
             return None;
         }
-        let frame = unsafe {
-            Vec::from_raw_parts(
-                frame_ptr,
-                (self.width * self.height * 4) as usize,
-                (self.width * self.height * 4) as usize,
-            )
-        };
 
         // Update the last capture time.
         self.last_capture = std::time::Instant::now();
 
         // Return the frame.
-        Some(frame)
+        Some(buf)
     }
 }
 

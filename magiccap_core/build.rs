@@ -17,8 +17,9 @@ fn os_specific_compilation() {
     println!("cargo:rerun-if-changed=src/region_selector/linux_x11.c");
     println!("cargo:rerun-if-changed=src/video_capture/linux_recorder.c");
 
-    // Link in X11.
+    // Link in X11 and XFixes.
     println!("cargo:rustc-link-lib=X11");
+    println!("cargo:rustc-link-lib=Xfixes");
 
     // Compile the Linux X11 file.
     cc::Build::new()
