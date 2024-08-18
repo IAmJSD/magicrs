@@ -3,14 +3,14 @@ use crate::statics::run_thread;
 use std::sync::mpsc::{channel, sync_channel, Receiver, Sender, SyncSender};
 
 struct PaletteGeneration {
-    mapping: Vec<Vec<[usize; 256]>>,
+    mapping: Vec<u32>,
     palette: Vec<u32>,
 }
 
 impl PaletteGeneration {
     pub fn new() -> Self {
         Self {
-            mapping: vec![vec![[0; 256]; 256]; 256],
+            mapping: vec![0; 256 * 256 * 256],
             palette: vec![0; 256],
         }
     }
@@ -18,9 +18,7 @@ impl PaletteGeneration {
     pub fn write_color_usage(&mut self, r: u8, g: u8, b: u8) {
         let mem_ptr = unsafe {
             self.mapping
-                .get_unchecked_mut(r as usize)
-                .get_unchecked_mut(g as usize)
-                .get_unchecked_mut(b as usize)
+                .get_unchecked_mut(r as usize * 256 * 256 + g as usize * 256 + b as usize)
         };
         let v = *mem_ptr + 1;
         *mem_ptr = v;
@@ -37,9 +35,7 @@ impl PaletteGeneration {
             let (r, g, b) = (color >> 16, (color >> 8) & 0xFF, color & 0xFF);
             let usages = unsafe {
                 self.mapping
-                    .get_unchecked(r as usize)
-                    .get_unchecked(g as usize)
-                    .get_unchecked(b as usize)
+                    .get_unchecked(r as usize * 256 * 256 + g as usize * 256 + b as usize)
             };
             if *usages < v {
                 potential_drop_victim = i as i32;
@@ -74,45 +70,6 @@ pub struct GIFEncoder<'a> {
     gif_out: Option<Receiver<Vec<u8>>>,
 }
 
-struct DequeItem<V> {
-    next: Option<Box<DequeItem<V>>>,
-    value: V,
-}
-
-struct Deque<V> {
-    first: Option<Box<DequeItem<V>>>,
-    last: *mut DequeItem<V>,
-}
-
-impl<V> Deque<V> {
-    pub fn new() -> Self {
-        Self {
-            first: None,
-            last: unsafe { std::mem::zeroed() },
-        }
-    }
-
-    pub fn to_queue(self) -> Option<Box<DequeItem<V>>> {
-        self.first
-    }
-
-    pub fn push_end(&mut self, value: V) {
-        if self.first.is_none() {
-            let mut deque_box = Box::new(DequeItem { next: None, value });
-            self.last = deque_box.as_mut() as *mut _;
-            self.first.replace(deque_box);
-            return;
-        }
-
-        let mut new_item = Box::new(DequeItem { next: None, value });
-        let curr_last = self.last;
-        self.last = new_item.as_mut() as *mut _;
-        unsafe {
-            (*curr_last).next.replace(new_item);
-        }
-    }
-}
-
 fn encode_worker(
     w: u32,
     h: u32,
@@ -124,7 +81,7 @@ fn encode_worker(
     let mut color_map = PaletteGeneration::new();
 
     // Go through each frame as they arrive.
-    let mut frame_dq = Deque::new();
+    let mut frame_vec = Vec::with_capacity(200);
     let mut compressor = RGBACompressor::new();
     loop {
         let next_potential_frame = rgba_out.recv().unwrap();
@@ -140,7 +97,7 @@ fn encode_worker(
             }
 
             // Push to the deque.
-            frame_dq.push_end(compressor.compress(frame));
+            frame_vec.push(compressor.compress(frame));
         } else {
             // If abort, return now. Otherwise, we should break.
             if let RGBAInput::Abort(s) = next_potential_frame {
@@ -157,11 +114,10 @@ fn encode_worker(
         gif::Encoder::new(&mut input, w as u16, h as u16, &color_map.get_gif_palette()).unwrap();
 
     // Pass each frame to the encoder.
-    let mut q_val = frame_dq.to_queue();
     let mut buffer = Vec::with_capacity(w as usize * h as usize * 4);
-    while let Some(frame) = q_val {
+    for frame in frame_vec {
         // Give the frame to the encoder.
-        frame.value.decompress_into_buffer(&mut buffer);
+        frame.decompress_into_buffer(&mut buffer);
         encoder
             .write_frame(&gif::Frame::from_rgba_speed(
                 w as u16,
@@ -181,9 +137,6 @@ fn encode_worker(
                 None,
             ))
             .unwrap();
-
-        // Set the next value.
-        q_val = frame.next;
     }
 
     // Write the loop.
