@@ -17,7 +17,7 @@ linux-dev:
 	mkdir -p frontend/dist
 
 	# Build core_embedded as a debug build.
-	cd core_embedded && RUSTFLAGS="-Z threads=$(shell nproc)" cargo +nightly build
+	cd core_embedded && cargo build
 
 	# Load foreman.
 	foreman start -f Procfile.linux-dev

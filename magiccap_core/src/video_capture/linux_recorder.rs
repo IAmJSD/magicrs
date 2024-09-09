@@ -82,16 +82,65 @@ impl Drop for XCaptureEnumerator {
     }
 }
 
-struct PipewireCaptureEnumerator {}
+struct PipewireCaptureEnumerator {
+    stream: pipewire::stream::Stream,
+}
 
 impl PipewireCaptureEnumerator {
     pub fn new(monitor: Monitor, region: Region, fps: u32) -> Self {
-        // TODO
-        Self {}
+        let main_loop = pipewire::main_loop::MainLoop::new(None).unwrap();
+        let ctx = pipewire::context::Context::new(&main_loop).unwrap();
+        let core = ctx.connect(None).unwrap();
+        let mut props = pipewire::properties::Properties::new();
+
+        // Set properties for the stream
+        props.insert("media.class", "Video/Source");
+        props.insert("target.object", "pipewire-screencast");
+        props.insert("video.format", "RGBA");
+        props.insert("video.width", (region.width).to_string());
+        props.insert("video.height", (region.height).to_string());
+        props.insert("video.framerate", format!("{}/1", fps));
+        props.insert(
+            "video.crop",
+            format!(
+                "{},{},{},{}",
+                region.x + monitor.x(),
+                region.y + monitor.y(),
+                region.width,
+                region.height
+            ),
+        );
+
+        // Create a stream with the properties
+        let stream = pipewire::stream::Stream::new(&core, "Screen Capture", props).unwrap();
+
+        // Start the stream
+        stream
+            .connect(
+                pipewire::spa::utils::Direction::Output,
+                None,
+                pipewire::stream::StreamFlags::empty(),
+                &mut [],
+            )
+            .unwrap();
+
+        Self { stream }
     }
 
     pub fn next(&mut self, v: &mut Vec<u8>) -> bool {
-        // TODO
+        // Poll the stream for the next frame
+        if let Some(mut buffer) = self.stream.dequeue_buffer() {
+            if let Some(frame) = buffer.datas_mut().first_mut() {
+                let data = frame.data().unwrap();
+
+                // Ensure the buffer size matches, and avoid allocations.
+                if data.len() == v.len() {
+                    // Copy frame data into the buffer
+                    v.copy_from_slice(data);
+                    return true;
+                }
+            }
+        }
         false
     }
 }
