@@ -55,10 +55,10 @@ pub fn capture_monitor(monitor: &Monitor, mouse_pos: Option<(i32, i32)>) -> XCap
     #[cfg(not(target_os = "windows"))]
     if let Some((mouse_x, mouse_y)) = mouse_pos {
         // Check if it is on this monitor.
-        let monitor_x = monitor.x();
-        let monitor_y = monitor.y();
-        let monitor_w = monitor.width() as i32;
-        let monitor_h = monitor.height() as i32;
+        let monitor_x = monitor.x().unwrap();
+        let monitor_y = monitor.y().unwrap();
+        let monitor_w = monitor.width().unwrap() as i32;
+        let monitor_h = monitor.height().unwrap() as i32;
         if mouse_x >= monitor_x
             && monitor_x + monitor_w >= mouse_x
             && mouse_y >= monitor_y

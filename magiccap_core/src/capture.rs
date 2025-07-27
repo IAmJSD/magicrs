@@ -192,7 +192,7 @@ fn search_indexing_rgba(image: RgbaImage, windows: Vec<Window>, filename: &str, 
         capture_id,
         filename,
         text,
-        windows.iter().map(|w| w.title().to_string()).collect(),
+        windows.iter().map(|w| w.title().unwrap_or("".to_string())).collect(),
     );
 }
 macro_rules! search_indexing_rgba_callback {
@@ -309,10 +309,10 @@ pub fn fullscreen_capture() {
     let mut highest_x = 0;
     let mut highest_y = 0;
     for monitor in &monitors {
-        let x = monitor.x();
-        let y = monitor.y();
-        let w = monitor.width() * monitor.scale_factor() as u32;
-        let h = monitor.height() * monitor.scale_factor() as u32;
+        let x = monitor.x().unwrap();
+        let y = monitor.y().unwrap();
+        let w = monitor.width().unwrap() * monitor.scale_factor().unwrap() as u32;
+        let h = monitor.height().unwrap() * monitor.scale_factor().unwrap() as u32;
 
         if lowest_x > x {
             lowest_x = x
@@ -344,8 +344,8 @@ pub fn fullscreen_capture() {
         let capture = monitor.capture_image().unwrap();
 
         // Get the position of the display.
-        let x = monitor.x() + x_transform;
-        let y = monitor.y() + y_transform;
+        let x = monitor.x().unwrap() + x_transform;
+        let y = monitor.y().unwrap() + y_transform;
 
         // Draw the capture onto the canvas.
         image::imageops::overlay(&mut canvas, &capture, x as i64, y as i64);

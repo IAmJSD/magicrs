@@ -13,14 +13,14 @@ pub unsafe fn render_window_line(
     // Handle if the nearest window is set.
     if let Some(window) = nearest_window {
         // Get the window X/Y/W/H.
-        let x = window.x();
-        let y = window.y();
-        let w = window.width() as i32;
-        let h = window.height() as i32;
+        let x = window.x().unwrap();
+        let y = window.y().unwrap();
+        let w = window.width().unwrap() as i32;
+        let h = window.height().unwrap() as i32;
 
         // Get the X/Y relative to the display.
-        let x = x - monitor.x();
-        let y = y - monitor.y();
+        let x = x - monitor.x().unwrap();
+        let y = y - monitor.y().unwrap();
 
         // Bind the framebuffer to the vertical striped texture.
         gl::FramebufferTexture2D(

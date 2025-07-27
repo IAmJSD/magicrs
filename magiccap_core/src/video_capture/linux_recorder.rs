@@ -32,8 +32,8 @@ extern "C" {
 
 impl XCaptureEnumerator {
     pub fn new(monitor: Monitor, region: Region, fps: u32) -> Self {
-        let x = region.x + monitor.x();
-        let y = region.y + monitor.y();
+        let x = region.x + monitor.x().unwrap();
+        let y = region.y + monitor.y().unwrap();
         Self {
             x,
             y,
@@ -104,8 +104,8 @@ impl PipewireCaptureEnumerator {
             "video.crop",
             format!(
                 "{},{},{},{}",
-                region.x + monitor.x(),
-                region.y + monitor.y(),
+                region.x + monitor.x().unwrap(),
+                region.y + monitor.y().unwrap(),
                 region.width,
                 region.height
             ),

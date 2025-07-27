@@ -275,7 +275,7 @@ impl TexturePack {
     // Creates a new texture pack.
     pub fn new() -> Self {
         // Get a reference to the relevant texture.
-        let (static_texture, charset_texture) = if dark_light::detect() == dark_light::Mode::Light {
+        let (static_texture, charset_texture) = if dark_light::detect().unwrap_or(dark_light::Mode::Light) == dark_light::Mode::Light {
             &*LIGHT_TEXTURE
         } else {
             &*DARK_TEXTURE

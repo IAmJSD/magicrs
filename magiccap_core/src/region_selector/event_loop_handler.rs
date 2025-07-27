@@ -173,10 +173,10 @@ fn mouse_left_release(
         // Handle if the nearest window is set.
         if let Some(window) = nearest_window {
             // Get the window X/Y/W/H.
-            let w = window.width() as i32;
-            let h = window.height() as i32;
-            let x = window.x() - monitor.x();
-            let y = window.y() - monitor.y();
+            let w = window.width().unwrap() as i32;
+            let h = window.height().unwrap() as i32;
+            let x = window.x().unwrap() - monitor.x().unwrap();
+            let y = window.y().unwrap() - monitor.y().unwrap();
 
             // Call the function to handle the region capture.
             return region_capture(ctx, i, x, y, w, h, gl_window);

@@ -165,7 +165,7 @@ fn setup_region_selector(
             // Find the matching glfw monitor.
             let glfw_monitor = glfw_monitors
                 .iter()
-                .find(|m| m.get_pos() == (monitor.x(), monitor.y()))
+                .find(|m| m.get_pos() == (monitor.x().unwrap(), monitor.y().unwrap()))
                 .unwrap();
 
             // Set the window hints to control the version of OpenGL.
@@ -197,15 +197,15 @@ fn setup_region_selector(
             #[allow(unused_mut)] // Only used on Windows.
             let mut window = match if glfw_windows.is_empty() {
                 glfw.create_window(
-                    monitor.width(),
-                    monitor.height(),
+                    monitor.width().unwrap(),
+                    monitor.height().unwrap(),
                     "Region Selector",
                     window_mode,
                 )
             } else {
                 glfw_windows[0].create_shared(
-                    monitor.width(),
-                    monitor.height(),
+                    monitor.width().unwrap(),
+                    monitor.height().unwrap(),
                     "Region Selector",
                     window_mode,
                 )
@@ -253,7 +253,7 @@ fn setup_region_selector(
             glfw_windows.push(window);
 
             // Set the largest width or height.
-            largest_w_or_h = largest_w_or_h.max(monitor.width()).max(monitor.height());
+            largest_w_or_h = largest_w_or_h.max(monitor.width().unwrap()).max(monitor.height().unwrap());
         }
 
         // Return true since success.

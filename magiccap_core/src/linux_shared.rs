@@ -29,10 +29,45 @@ pub fn app() -> &'static mut SharedApplication {
     unsafe { SHARED_APPLICATION.get_mut().unwrap() }
 }
 
+// Inspired by https://github.com/spacedriveapp/spacedrive/blob/9fe722021206cc6fd8a08c063412e5399a0e2103/apps/desktop/crates/linux/src/env.rs
+// but changed to use the latest wgpu version.
+fn has_nvidia() -> bool {
+	use wgpu::{
+		Backends, DeviceType, Instance, InstanceDescriptor, InstanceFlags, BackendOptions, MemoryBudgetThresholds
+	};
+
+    let desc = InstanceDescriptor {
+		flags: InstanceFlags::empty(),
+		backends: Backends::VULKAN | Backends::GL,
+        backend_options: BackendOptions::default(),
+        memory_budget_thresholds: MemoryBudgetThresholds::default(),
+	};
+	let instance = Instance::new(&desc);
+	for adapter in instance.enumerate_adapters(Backends::all()) {
+		let info = adapter.get_info();
+		match info.device_type {
+			DeviceType::DiscreteGpu | DeviceType::IntegratedGpu | DeviceType::VirtualGpu => {
+				// Nvidia PCI id
+				if info.vendor == 0x10de {
+					return true;
+				}
+			}
+			_ => {}
+		}
+	}
+
+	false
+}
+
 // The main entrypoint for setting up the application.
 pub fn application_init() {
     // Call gtk::init.
     gtk::init().unwrap();
+
+    if has_nvidia() {
+        // Workaround for: https://github.com/tauri-apps/tauri/issues/9304
+		std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
 
     // Handle if MAGICCAP_INTERNAL_TEMP_ICON is set.
     if let Ok(val) = std::env::var("MAGICCAP_INTERNAL_TEMP_ICON") {
