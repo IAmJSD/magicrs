@@ -91,7 +91,7 @@ pub fn set_brightness_half_simd(image: &mut image::RgbaImage) {
             }
         };
     }
-    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    #[cfg(target_arch = "aarch64")]
     iterate_vectors!(divide_by_two_simd);
     #[cfg(target_arch = "x86_64")]
     if has_avx2 {
