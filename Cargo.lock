@@ -2617,7 +2617,7 @@ dependencies = [
  "log",
  "presser",
  "thiserror 1.0.61",
- "windows 0.57.0",
+ "windows 0.58.0",
 ]
 
 [[package]]
@@ -7661,8 +7661,7 @@ dependencies = [
 [[package]]
 name = "xcap"
 version = "0.6.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7921260094351cd497514d5fccba8066316cacbdb15b3b3bda6e7345447c67a7"
+source = "git+https://github.com/WebScaleSoftwareLtd/xcap#20ff2c7c5f6235a4f7384558fc3386c7a36c1671"
 dependencies = [
  "dispatch2",
  "image",

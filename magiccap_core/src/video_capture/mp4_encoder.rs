@@ -5,7 +5,9 @@ use less_avc::{
 };
 use mp4::{AvcConfig, Bytes, Mp4Sample, TrackConfig, TrackType};
 use std::{
-    io::Cursor,
+    cell::RefCell,
+    io::{Cursor, Write},
+    rc::Rc,
     sync::mpsc::{channel, sync_channel, Receiver, Sender, SyncSender},
 };
 
@@ -26,10 +28,33 @@ fn rgb_to_ycbcr(r: u8, g: u8, b: u8) -> (u8, u8, u8) {
     (y as u8, cb as u8, cr as u8)
 }
 
+// A writer that allows us to observe the encoded bytes while the H.264 encoder holds a mutable borrow.
+struct SharedVecWriter {
+    inner: Rc<RefCell<Vec<u8>>>,
+}
+
+impl SharedVecWriter {
+    fn new() -> (Self, Rc<RefCell<Vec<u8>>>) {
+        let rc = Rc::new(RefCell::new(Vec::new()));
+        (Self { inner: Rc::clone(&rc) }, rc)
+    }
+}
+
+impl Write for SharedVecWriter {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.inner.borrow_mut().extend_from_slice(buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
 fn mp4_process_data(
     w: u32,
     h: u32,
-    avc_encoder: &mut H264Writer<&mut Vec<u8>>,
+    avc_encoder: &mut H264Writer<&mut SharedVecWriter>,
     data: &mut Vec<u8>,
 ) {
     // Convert the RGBA frame to YCbCr.
@@ -79,6 +104,114 @@ enum CaptureDataInput<'a> {
     Abort(SyncSender<()>),
 }
 
+fn find_start_codes(data: &[u8]) -> Vec<usize> {
+    // Finds indices of Annex B start codes (both 3 and 4 byte variants)
+    let mut idxs = Vec::new();
+    let mut i = 0;
+    while i + 3 < data.len() {
+        if data[i] == 0 && data[i + 1] == 0 && data[i + 2] == 1 {
+            idxs.push(i);
+            i += 3;
+            continue;
+        }
+        if i + 4 < data.len() && data[i] == 0 && data[i + 1] == 0 && data[i + 2] == 0 && data[i + 3] == 1 {
+            idxs.push(i);
+            i += 4;
+            continue;
+        }
+        i += 1;
+    }
+    idxs
+}
+
+fn remove_start_code_prefix_len(data: &[u8], pos: usize) -> usize {
+    // Return the number of bytes to skip for the start code at position pos
+    if pos + 3 < data.len() && data[pos] == 0 && data[pos + 1] == 0 && data[pos + 2] == 1 {
+        3
+    } else if pos + 4 < data.len()
+        && data[pos] == 0
+        && data[pos + 1] == 0
+        && data[pos + 2] == 0
+        && data[pos + 3] == 1
+    {
+        4
+    } else {
+        0
+    }
+}
+
+fn extract_sps_pps_from_annex_b(data: &[u8]) -> (Option<Vec<u8>>, Option<Vec<u8>>) {
+    let starts = find_start_codes(data);
+    let mut sps: Option<Vec<u8>> = None;
+    let mut pps: Option<Vec<u8>> = None;
+    for (i, &start) in starts.iter().enumerate() {
+        let sc_len = remove_start_code_prefix_len(data, start);
+        let nal_start = start + sc_len;
+        let nal_end = if i + 1 < starts.len() {
+            starts[i + 1]
+        } else {
+            data.len()
+        };
+        if nal_start >= nal_end || nal_end > data.len() {
+            continue;
+        }
+        let nal = &data[nal_start..nal_end];
+        if nal.is_empty() {
+            continue;
+        }
+        let nal_unit_type = nal[0] & 0x1F;
+        match nal_unit_type {
+            7 => {
+                if sps.is_none() {
+                    sps = Some(nal.to_vec());
+                }
+            }
+            8 => {
+                if pps.is_none() {
+                    pps = Some(nal.to_vec());
+                }
+            }
+            _ => {}
+        }
+        if sps.is_some() && pps.is_some() {
+            break;
+        }
+    }
+    (sps, pps)
+}
+
+fn convert_annex_b_to_mp4_sample(data: &[u8]) -> (Vec<u8>, bool) {
+    // Convert an Annex B sequence (possibly multiple NAL units) into MP4 length-prefixed format.
+    // Also detect if the sample contains an IDR slice (NAL type 5).
+    let starts = find_start_codes(data);
+    let mut out = Vec::with_capacity(data.len());
+    let mut is_sync = false;
+    for (i, &start) in starts.iter().enumerate() {
+        let sc_len = remove_start_code_prefix_len(data, start);
+        let nal_start = start + sc_len;
+        let nal_end = if i + 1 < starts.len() {
+            starts[i + 1]
+        } else {
+            data.len()
+        };
+        if nal_start >= nal_end || nal_end > data.len() {
+            continue;
+        }
+        let nal = &data[nal_start..nal_end];
+        if nal.is_empty() {
+            continue;
+        }
+        let nal_unit_type = nal[0] & 0x1F;
+        if nal_unit_type == 5 {
+            is_sync = true;
+        }
+        let len = nal.len() as u32;
+        out.extend_from_slice(&len.to_be_bytes());
+        out.extend_from_slice(nal);
+    }
+    (out, is_sync)
+}
+
 fn mp4_encode_worker(
     w: u32,
     h: u32,
@@ -86,22 +219,23 @@ fn mp4_encode_worker(
     data_out: Receiver<CaptureDataInput<'static>>,
     mp4_in: SyncSender<Vec<u8>>,
 ) {
-    // Build the AVC encoder.
-    let mut avc_vec = Vec::new();
-    let mut start_time = 0;
-    let mut avc_enc = less_avc::H264Writer::new(&mut avc_vec).unwrap();
+    // Build the AVC encoder with a shared writer buffer we can observe.
+    let (mut shared_writer, shared_vec) = SharedVecWriter::new();
+    let mut avc_enc = less_avc::H264Writer::new(&mut shared_writer).unwrap();
+
+    // For tracking sample boundaries per-frame.
+    let mut frame_ranges: Vec<(usize, usize)> = Vec::new();
 
     // Handle all of the incoming data.
     loop {
         let next_potential_data = data_out.recv().unwrap();
         if let CaptureDataInput::Data(data) = next_potential_data {
-            // If start time is 0, set it now.
-            if start_time == 0 {
-                start_time = std::time::Instant::now().elapsed().as_millis() as u32;
-            }
-
-            // Write the data.
+            let start = shared_vec.borrow().len();
             mp4_process_data(w, h, &mut avc_enc, data);
+            let end = shared_vec.borrow().len();
+            if end > start {
+                frame_ranges.push((start, end));
+            }
         } else {
             // If abort, return now. Otherwise, we should break.
             if let CaptureDataInput::Abort(s) = next_potential_data {
@@ -111,6 +245,9 @@ fn mp4_encode_worker(
             break;
         }
     }
+
+    // Snapshot the encoded bitstream.
+    let avc_vec = shared_vec.borrow().clone();
 
     // Build the MP4 writer.
     let data = Cursor::new(Vec::<u8>::new());
@@ -127,12 +264,19 @@ fn mp4_encode_worker(
     };
     let mut mp4_writer = mp4::Mp4Writer::write_start(data, &config).unwrap();
 
-    // Write tracks 0 and 1.
-    let seq_param_set = vec![
-        0x67, 0x42, 0x00, 0x0A, 0xFF, 0xE1, 0x00, 0x1F, 0x27, 0x42, 0x00, 0x0A, 0x9A, 0x00, 0x00,
-        0x00, 0x01, 0x68, 0xCE, 0x3C, 0x80,
-    ];
-    let pic_param_set = vec![0x68, 0xCE, 0x3C, 0x80];
+    // Extract SPS/PPS from the stream.
+    let (sps_opt, pps_opt) = extract_sps_pps_from_annex_b(&avc_vec);
+    let (seq_param_set, pic_param_set) = match (sps_opt, pps_opt) {
+        (Some(sps), Some(pps)) => (sps, pps),
+        _ => {
+            // If we somehow did not get SPS/PPS, send empty MP4 to avoid crash.
+            mp4_writer.write_end().unwrap();
+            let _ = mp4_in.send(mp4_writer.into_writer().into_inner());
+            return;
+        }
+    };
+
+    // Add the H.264 video track.
     let _ = mp4_writer.add_track(&TrackConfig {
         track_type: TrackType::Video,
         timescale: 1000,
@@ -145,21 +289,43 @@ fn mp4_encode_worker(
         }),
     });
 
-    // Write the AVC data.
-    let _ = mp4_writer.write_sample(
-        0,
-        &Mp4Sample {
-            start_time: 0,
-            duration: std::time::Instant::now().elapsed().as_millis() as u32 - start_time,
-            rendering_offset: 0,
-            is_sync: true,
-            bytes: Bytes::copy_from_slice(avc_vec.as_slice()),
-        },
-    );
+    // Write one MP4 sample per frame with proper timing.
+    let timescale: u32 = 1000;
+    let mut current_start_time: u32 = 0;
+    let frame_duration: u32 = if fps == 0 { 0 } else { timescale / fps };
 
-    // Send the encoded data.
+    for (i, (start, end)) in frame_ranges.into_iter().enumerate() {
+        let frame_data = &avc_vec[start..end];
+        let (sample_bytes, is_sync) = convert_annex_b_to_mp4_sample(frame_data);
+        let start_time = current_start_time;
+
+        // Use rounded durations to minimize drift; last sample extends to the end.
+        let duration = if frame_duration == 0 {
+            0
+        } else if i == 0 {
+            frame_duration
+        } else {
+            frame_duration
+        };
+        current_start_time = start_time.saturating_add(duration);
+
+        let _ = mp4_writer.write_sample(
+            0,
+            &Mp4Sample {
+                start_time: start_time as u64,
+                duration,
+                rendering_offset: 0,
+                is_sync,
+                bytes: Bytes::copy_from_slice(sample_bytes.as_slice()),
+            },
+        );
+    }
+
+    // Finalize and send the encoded data.
     mp4_writer.write_end().unwrap();
-    mp4_in.send(mp4_writer.into_writer().into_inner()).unwrap()
+    mp4_in
+        .send(mp4_writer.into_writer().into_inner())
+        .unwrap()
 }
 
 pub struct MP4Encoder<'a> {
