@@ -12,7 +12,7 @@ use crate::mainthread::{main_thread_async, main_thread_sync};
 use glfw::{Context, Glfw, PWindow};
 use image::RgbaImage;
 use once_cell::unsync::Lazy;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 
 // A container that bypasses the Send and Sync traits.
 pub struct SendSyncBypass<T> {
