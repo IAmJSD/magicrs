@@ -44,10 +44,121 @@ fn draw_cursor(img: &mut RgbaImage, x: i32, y: i32) {
     }
 }
 
+struct NormalisedOutput {
+    t: String,
+    end: String,
+}
+
+impl PartialEq for NormalisedOutput {
+    fn eq(&self, other: &Self) -> bool {
+        self.t == other.t && self.end == other.end
+    }
+}
+
+fn normalise(s: Option<String>) -> Option<NormalisedOutput> {
+    match s {
+        Some(v) => {
+            let dash_split = v.splitn(2, '-').collect::<Vec<&str>>();
+            match dash_split[0] {
+                "DisplayPort" => Some(NormalisedOutput {
+                    t: "DP".to_string(),
+                    end: dash_split[1].to_string(),
+                }),
+                s if s.starts_with("HDMI") => Some(NormalisedOutput {
+                    t: "HDMI".to_string(),
+                    end: dash_split[1].to_string(),
+                }),
+                s if s.starts_with("VGA") => Some(NormalisedOutput {
+                    t: "VGA".to_string(),
+                    end: dash_split[1].to_string(),
+                }),
+                s if s.starts_with("DVI") => Some(NormalisedOutput {
+                    t: "DVI".to_string(),
+                    end: dash_split[1].to_string(),
+                }),
+                s if s.starts_with("eDP") => Some(NormalisedOutput {
+                    t: "eDP".to_string(),
+                    end: dash_split[1].to_string(),
+                }),
+                s if s.starts_with("DP") => Some(NormalisedOutput {
+                    t: "DP".to_string(),
+                    end: dash_split[1].to_string(),
+                }),
+                other => Some(NormalisedOutput {
+                    t: other.to_string(),
+                    end: if dash_split.len() > 1 {
+                        dash_split[1].to_string()
+                    } else {
+                        "".to_string()
+                    },
+                }),
+            }
+        },
+        None => None,
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn capture_with_framebufferd(monitor: &Monitor) -> XCapResult<RgbaImage> {
+    // Get the monitor's identifier.
+    let name = monitor.name().unwrap_or("".to_string());
+
+    // Get all DRM devices from framebufferd.
+    let devices = match crate::framebufferd::list_devices() {
+        Some(d) => d,
+        None => {
+            return XCapResult::Err(xcap::XCapError::Error(
+                "Failed to list framebufferd devices".to_string(),
+            ));
+        }
+    };
+
+    // Filter to only DRM devices with valid fb_id and file_path.
+    let drm_devices: Vec<_> = devices
+        .into_iter()
+        .filter(|d| {
+            d.is_drm && (normalise(d.x11_output.clone()) == normalise(Some(name.clone())) || normalise(d.connector_name.clone()) == normalise(Some(name.clone())))
+        })
+        .collect();
+
+    if drm_devices.is_empty() {
+        eprintln!("No matching DRM devices found for monitor: {}", name);
+        return XCapResult::Err(xcap::XCapError::Error(
+            "No DRM devices available".to_string(),
+        ));
+    }
+
+    // Capture this device
+    let device = &drm_devices[0];
+    let fb_id = device.fb_id.unwrap();
+    match crate::framebufferd::get_drm_rgba_capture(fb_id, device.file_path.as_ref().unwrap().clone(), false) {
+        Some(rgba_result) => {
+            let img = RgbaImage::from_raw(
+                rgba_result.width,
+                rgba_result.height,
+                rgba_result.data,
+            )
+            .ok_or_else(|| {
+                xcap::XCapError::Error("Failed to create image from raw RGBA data".to_string())
+            })?;
+            XCapResult::Ok(img)
+        }
+        None => XCapResult::Err(xcap::XCapError::Error(
+            "Failed to capture framebufferd device".to_string(),
+        )),
+    }
+}
+
 // Does the monitor capture including the cursor if specified.
 pub fn capture_monitor(monitor: &Monitor, mouse_pos: Option<(i32, i32)>) -> XCapResult<RgbaImage> {
     // Attempt the capture.
+    #[cfg(not(target_os = "linux"))]
     let mut rgba = match monitor.capture_image() {
+        Ok(i) => i,
+        Err(e) => return XCapResult::Err(e),
+    };
+    #[cfg(target_os = "linux")]
+    let mut rgba = match capture_with_framebufferd(monitor) {
         Ok(i) => i,
         Err(e) => return XCapResult::Err(e),
     };

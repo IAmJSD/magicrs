@@ -26,6 +26,9 @@ use xcap::{Monitor, Window};
 // Export out the texture pack preloader.
 pub use texture_pack::preload_textures;
 
+// Export the glfw setup function.
+pub use engine::setup_glfw_instance_for_region_selector;
+
 // Only one selector can be open at a time.
 static SELECTOR_OPENED: AtomicBool = AtomicBool::new(false);
 

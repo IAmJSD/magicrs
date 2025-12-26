@@ -12,7 +12,7 @@ use crate::mainthread::{main_thread_async, main_thread_sync};
 use glfw::{Context, Glfw, PWindow};
 use image::RgbaImage;
 use once_cell::unsync::Lazy;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
 // A container that bypasses the Send and Sync traits.
 pub struct SendSyncBypass<T> {
@@ -68,9 +68,11 @@ pub enum EditorResizerElement {
 
 // Defines the context passed around internally.
 pub struct RegionSelectorContext {
+    // Pass through the GLFW instance for the main thread.
+    pub glfw: &'static mut Glfw,
+
     // Defines everything created during initialization.
     pub setup: Box<RegionSelectorSetup>,
-    pub glfw: Glfw,
     pub glfw_windows: Vec<PWindow>,
     pub image_dimensions: Vec<(u32, u32)>,
     pub gl_screenshots: Vec<GLTexture>,
@@ -90,6 +92,25 @@ pub struct RegionSelectorContext {
     pub editor_index: Option<usize>,
     pub editor_dragged: Option<(usize, EditorResizerElement)>,
     pub result: Option<RegionCapture>,
+}
+
+impl Drop for RegionSelectorContext {
+    fn drop(&mut self) {
+        // For some reason, the windows don't seem to close on their own.
+        // Force close them in the OS.
+        for window in std::mem::take(&mut self.glfw_windows) {
+            let window_ptr = window.window_ptr();
+            if !window_ptr.is_null() {
+                unsafe {
+                    glfw::ffi::glfwDestroyWindow(window_ptr);
+                    glfw::ffi::glfwPollEvents();
+                }
+            }
+
+            // DO NOT DROP THIS! We have already destroyed it above.
+            std::mem::forget(window);
+        }
+    }
 }
 
 // Get the line textures used within the UI.
@@ -152,11 +173,10 @@ pub fn iter_windows_or_jump(
 fn setup_region_selector(
     setup: Box<RegionSelectorSetup>,
     screenshots: &mut Vec<RgbaImage>,
+    glfw: SendSyncBypass<&'static mut Glfw>,
 ) -> Option<Box<SendSyncBypass<RegionSelectorContext>>> {
-    // Setup glfw.
-    let mut glfw = glfw::init(glfw::fail_on_errors).unwrap();
-
     // Go through each monitor and create a window for it.
+    let glfw = glfw.data;
     let mut glfw_windows: Vec<PWindow> = Vec::with_capacity(setup.monitors.len());
     let mut largest_w_or_h = 0;
     if !glfw.with_connected_monitors(|glfw, glfw_monitors| {
@@ -406,13 +426,37 @@ where
     main_thread_async(move || drop(item));
 }
 
+static GLFW_SETUP: RwLock<Option<SendSyncBypass<*mut Glfw>>> = RwLock::new(None);
+
+// Sets up the GLFW instance for the region selector.
+pub fn setup_glfw_instance_for_region_selector() {
+    main_thread_async(|| {
+        let mut write_guard = GLFW_SETUP.write().unwrap();
+        let glfw = Box::leak(Box::new(glfw::init(glfw::fail_on_errors).unwrap()));
+        *write_guard = Some(SendSyncBypass::new(&mut *glfw as *mut Glfw));
+    });
+}
+
 // Invokes the engine.
 pub fn invoke(
     setup: Box<RegionSelectorSetup>,
     screenshots: &mut Vec<RgbaImage>,
 ) -> Option<RegionCapture> {
+    // Get the glfw instance. Keep looping until we get it because this is made during setup.
+    let glfw = loop {
+        let read_guard = GLFW_SETUP.read().unwrap();
+        if let Some(glfw) = &*read_guard {
+            let ptr = unsafe { &mut *glfw.data };
+            drop(read_guard);
+            break ptr;
+        }
+        drop(read_guard);
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    };
+    let bypass_box = SendSyncBypass::new(glfw);
+
     // Setup the region selector context.
-    let mut ctx = match main_thread_sync(|| setup_region_selector(setup, screenshots)) {
+    let mut ctx = match main_thread_sync(|| setup_region_selector(setup, screenshots, bypass_box)) {
         Some(ctx) => ctx,
         None => return None,
     };

@@ -29,6 +29,8 @@ mod macos_delegate;
 
 #[cfg(target_os = "linux")]
 mod linux_shared;
+#[cfg(target_os = "linux")]
+mod framebufferd;
 
 #[cfg(target_os = "windows")]
 mod windows_shared;
